@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# This script manages the lock :
+# 
+#     ${KESTREL_IMAGE_DIR}/.${image_name}.running
+#
+# Which prevents modifying an image which is being run on some nodes.
+
+# Check if the image name is defined
+if [ -n "${image_name}" ]; then
+
+case ${action} in
+    connect)
+       # Note: We don't waste time checking if there is already online any node
+       #       of the ${image_name} group, we simply create the lock.
+       touch ${KESTREL_IMAGE_DIR}/.${image_name}.running
+       ;;
+
+    disconnect)
+       # Check if the is any other connected node of the ${image_name} group
+       if ! grep "${image_name}" /etc/hosts | grep -vq "${ip}"; then
+           rm ${KESTREL_IMAGE_DIR}/.${image_name}.running
+       fi
+       ;;
+esac
+
+fi

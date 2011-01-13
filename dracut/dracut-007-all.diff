@@ -1,0 +1,377 @@
+diff -urN dracut/debian/changelog dracut-007/debian/changelog
+--- dracut/debian/changelog	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/debian/changelog	2010-10-21 02:49:45.714564995 +0200
+@@ -1,53 +1,38 @@
+-dracut (2.26) unstable; urgency=low
++dracut (007-kestrel1) lucid; urgency=low
+ 
+-  [ Harald Hoyer ]
+-  * multipath: install udev rules and helper tools
+-  * NEWS update
+-  * multipath: install xdr utils
+-  * multipath: install multipath kernel module
+-  * specfile update
+-  * dracut.8: fixed formatting for rootfs and mount options
+-  * dracut: check more return codes, check for permissions and use
+-    derror
+-  * dracut: create initramfs-$(kernelversion).img by default
+-  * Makefile: add WITH_SWITCH_ROOT
+-  * fips: search different lib paths
+-  * kernel-modules: add firewire-ohci to hardcoded modules list
+-  * 90dm: install more device mapper kernel modules
+-  * specfile update
+-
+-  [ Peter Jones ]
+-  * Use glob for libdir when installing multipath libraries.
+-  * Add #!/bin/bash for consistency.
+-  * Make sure and get all the multipath related modules.
+-  * Bring up multipath devices that are configured in multipath.conf.
+-  * Fix missing shell variables.
+-  * This has to be executable.
+-  * Handle modules with hyphens in their names properly.
+-
+-  [ Harald Hoyer ]
+-  * lvm: scan without monitor
+-
+-  [ Yanko Kaneti ]
+-  * Wildcards need dracut_install
+-
+-  [ Harald Hoyer ]
+-  * lvm/dmraid: make LIBDIR depend on the binary
+-  * nfs: install passwd entries for nobody and nfsnobody
+-  * nfs: add rd_NFS_DOMAIN parameter to set the NFSv4 domain name
+-  * dracut-functions: inst_simple(): do not bail out if target is a dir
+-    and exists
+-  * dm: install dmsetup
+-  * multipath: corrected initqueue parameter
+-  * rootfs-block/mount-root: remount root with /etc/fstab filesystem
+-    options
+-  * test: set PATH
+-
+- -- Philippe Seewer <philippe.seewer@.bfh.ch>  Fri, 27 Nov 2009 10:58:26 +0100
+-
+-dracut (2.21) unstable; urgency=low
+-  [ Harald Hoyer ]
+-  * fix rd_DASD argument handling (bug #531720)
+-  * Resolves: rhbz#531720
++  * Version 007
++  * Aufs based live module
++  * Use scripts in /etc/kernel/{postinst,prerm}.d for creating or removing a
++    dracut's initramfs for each kernel installed or removed
++  * Patched modules.d/40network/ifup to support ubuntu's dhclient vr 3 (we just
++    call dhclient without the -4 flag which is not supported in vr 3)
++  * Add bridge-utils as dracut and dracut-network dependency
++  * Add xsltproc as source dependency which is used to build man files
++  * Override auto build in rules file
+ 
+- -- Philippe Seewer <philippe.seewer@.bfh.ch>  Fri, 06 Nov 2009 15:52:00 +0100
++ -- Jon Ander Hernandez <jonan.h@gmail>  Fri, 15 Oct 2010 04:48:53 +0200
++
++dracut (005-1) unstable; urgency=low
++
++  * Version 005
++  * First dracut release to unstable. Closes: #558274
++
++ -- Philippe Seewer <philippe.seewer@bfh.ch>  Fri, 9 May 2010 11:20:00 +0100
++
++dracut (004-1) unreleased; urgency=low
++
++  * Version 004
++
++ -- Philippe Seewer <philippe.seewer@bfh.ch>  Fri, 5 Mar 2010 15:25:00 +0100
++
++dracut (003-1) unreleased; urgency=low
++
++  * Version 003
++
++ -- Philippe Seewer <philippe.seewer@bfh.ch>  Fri, 27 Nov 2009 15:52:00 +0100
++
++dracut (002-1) unreleased; urgency=low
++
++  * Version 002
++
++ -- Philippe Seewer <philippe.seewer@bfh.ch>  Fri, 27 Nov 2009 15:52:00 +0100
+diff -urN dracut/debian/control dracut-007/debian/control
+--- dracut/debian/control	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/debian/control	2010-10-21 19:50:22.123359964 +0200
+@@ -2,7 +2,7 @@
+ Section: utils
+ Priority: optional
+ Maintainer: Philippe Seewer <philippe.seewer@bfh.ch>
+-Build-Depends: debhelper (>= 5.0), cdbs
++Build-Depends: debhelper (>= 5.0), cdbs, xsltproc, docbook-xsl
+ Standards-Version: 3.8.4
+ Vcs-Browser: http://dracut.git.sourceforge.net/git/gitweb-index.cgi
+ Vcs-Git: git://dracut.git.sourceforge.net/gitroot/dracut/dracut
+@@ -11,7 +11,7 @@
+ Architecture: all
+ Recommends: cryptsetup, dmsetup, dmraid, lvm2, mdadm
+ Suggests: dracut-network
+-Depends: cpio, module-init-tools, udev, ${misc:Depends}
++Depends: cpio, module-init-tools, udev, bridge-utils, ${misc:Depends}
+ Provides: linux-initramfs-tool
+ Description: A new initramfs infrastructure
+  Unlike existing initramfs's, this is an attempt at having as little as
+@@ -27,7 +27,21 @@
+ Package: dracut-network
+ Architecture: all
+ Recommends: nfs-common, open-iscsi, nbd-client
+-Depends: dracut, iputils-arping, dhcp3-client, ${misc:Depends}
++Depends: dracut, iputils-arping, dhcp3-client, bridge-utils, ${misc:Depends}
++Description: A new initramfs infrastucture
++ Unlike existing initramfs's, this is an attempt at having as little as
++ possible hard-coded into the initramfs as possible.  The initramfs has
++ (basically) one purpose in life -- getting the rootfs mounted so that
++ we can transition to the real rootfs.  This is all driven off of
++ device availability.  Therefore, instead of scripts hard-coded to do
++ various things, we depend on udev to create device nodes for us and
++ then when we have the rootfs's device node, we mount and carry on. 
++ Having the root on MD, LVM2, LUKS is supported as well as NFS, iSCSI,
++ NBD and FCOE with dracut-network.
++
++Package: dracut-aufs
++Architecture: all
++Depends: dracut, dracut-network, ${misc:Depends}
+ Description: A new initramfs infrastucture
+  Unlike existing initramfs's, this is an attempt at having as little as
+  possible hard-coded into the initramfs as possible.  The initramfs has
+diff -urN dracut/debian/dracut-aufs.dirs dracut-007/debian/dracut-aufs.dirs
+--- dracut/debian/dracut-aufs.dirs	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/debian/dracut-aufs.dirs	2010-10-21 02:49:45.714564995 +0200
+@@ -0,0 +1 @@
++usr/share/dracut/modules.d/90aufs-live
+diff -urN dracut/debian/dracut-aufs.install dracut-007/debian/dracut-aufs.install
+--- dracut/debian/dracut-aufs.install	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/debian/dracut-aufs.install	2010-10-21 02:49:45.714564995 +0200
+@@ -0,0 +1 @@
++modules.d/90aufs-live		usr/share/dracut/modules.d
+diff -urN dracut/debian/dracut.dirs dracut-007/debian/dracut.dirs
+--- dracut/debian/dracut.dirs	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/debian/dracut.dirs	2010-10-21 22:42:33.378354962 +0200
+@@ -22,4 +22,6 @@
+ usr/share/dracut/modules.d/98syslog
+ usr/share/dracut/modules.d/99base
+ /var/lib/dracut
+-/etc/dracut.conf.d
+\ No newline at end of file
++/etc/dracut.conf.d
++/etc/kernel/postinst.d
++/etc/kernel/prerm.d
+diff -urN dracut/debian/dracut.install dracut-007/debian/dracut.install
+--- dracut/debian/dracut.install	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/debian/dracut.install	2010-10-21 02:49:45.714564995 +0200
+@@ -4,6 +4,8 @@
+ dracut-gencmdline	usr/sbin
+ dracut-functions	usr/share/dracut
+ dracut.conf		etc
++dracut-postinst.d	etc/kernel/postinst.d
++dracut-prerm.d		etc/kernel/prerm.d
+ modules.d/00dash		usr/share/dracut/modules.d
+ modules.d/01fips		usr/share/dracut/modules.d
+ modules.d/60xen			usr/share/dracut/modules.d
+diff -urN dracut/debian/dracut.postinst dracut-007/debian/dracut.postinst
+--- dracut/debian/dracut.postinst	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/debian/dracut.postinst	2010-10-21 02:49:45.714564995 +0200
+@@ -2,7 +2,11 @@
+ 
+ set -e
+ 
+-# Regenerate initramfs when we're `installed`
+-DPKG_MAINTSCRIPT_PACKAGE='' dracut-update-initramfs -u
++if [ -f /boot/dracut.img-`uname -r` ]; then
++    # Regenerate initramfs when we're `installed`
++    DPKG_MAINTSCRIPT_PACKAGE='' dracut-update-initramfs -t -u
++else
++    dracut-update-initramfs -c -k `uname -r`
++fi
+ 
+ #DEBHELPER#
+diff -urN dracut/debian/rules dracut-007/debian/rules
+--- dracut/debian/rules	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/debian/rules	2010-10-21 02:49:45.714564995 +0200
+@@ -1,3 +1,10 @@
+ #!/usr/bin/make -f
+ 
+-include /usr/share/cdbs/1/rules/debhelper.mk
++%:
++	dh $@
++
++override_dh_auto_build:
++	dh_auto_build -- all
++
++override_dh_auto_test:
++
+diff -urN dracut/dracut-postinst.d dracut-007/dracut-postinst.d
+--- dracut/dracut-postinst.d	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/dracut-postinst.d	2010-10-21 02:49:45.714564995 +0200
+@@ -0,0 +1,4 @@
++#!/bin/bash
++
++version=$1
++dracut-update-initramfs -c -k ${version}
+diff -urN dracut/dracut-prerm.d dracut-007/dracut-prerm.d
+--- dracut/dracut-prerm.d	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/dracut-prerm.d	2010-10-21 02:49:45.714564995 +0200
+@@ -0,0 +1,4 @@
++#!/bin/bash
++
++version=$1
++dracut-update-initramfs -d -k ${version}
+diff -urN dracut/modules.d/40network/ifup dracut-007/modules.d/40network/ifup
+--- dracut/modules.d/40network/ifup	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/modules.d/40network/ifup	2010-10-21 02:49:45.714564995 +0200
+@@ -132,7 +132,7 @@
+     if [ "$netroot" = "dhcp6" ]; then
+ 	do_dhcp -6
+     else
+-	do_dhcp -4
++	do_dhcp
+     fi
+ fi
+ 
+@@ -151,7 +151,7 @@
+ 
+     case $autoconf in
+ 	dhcp|on|any)
+-	    do_dhcp -4 ;;
++	    do_dhcp ;;
+ 	dhcp6)
+ 	    do_dhcp -6 ;;
+ 	auto6)
+diff -urN dracut/modules.d/40network/netroot dracut-007/modules.d/40network/netroot
+--- dracut/modules.d/40network/netroot	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/modules.d/40network/netroot	2010-10-21 02:49:45.714564995 +0200
+@@ -96,9 +96,9 @@
+        [0-9]*\.[0-9]*\.[0-9]*\.[0-9]*) dest=$dummy;;
+     esac
+ fi
+-if [ -n "$dest" ] && ! arping -q -f -w 60 -I $netif $dest ; then
+-    die "Resolving $dest via ARP on $netif failed"
+-fi
++#if [ -n "$dest" ] && ! arping -q -f -w 60 -I $netif $dest ; then
++#    die "Resolving $dest via ARP on $netif failed"
++#fi
+ 
+ # Source netroot hooks before we start the handler
+ source_all netroot
+diff -urN dracut/modules.d/90aufs-live/aufslive-genrules.sh dracut-007/modules.d/90aufs-live/aufslive-genrules.sh
+--- dracut/modules.d/90aufs-live/aufslive-genrules.sh	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/modules.d/90aufs-live/aufslive-genrules.sh	2010-10-21 19:42:29.847999518 +0200
+@@ -0,0 +1,10 @@
++if [ -n "${root_persistence}" ]; then
++    {
++    printf 'KERNEL=="%s", SYMLINK+="livepersistence"\n' \
++    	${root_persistence#/dev/} 
++    printf 'SYMLINK=="%s", SYMLINK+="livepersistence"\n' \
++	${root_persistence#/dev/} 
++    } >> /dev/.udev/rules.d/99-live-persistence-mount.rules
++
++    echo '[ -e "/dev/livepersistence" ]' > /initqueue-finished/livepersistence.sh
++fi
+diff -urN dracut/modules.d/90aufs-live/check dracut-007/modules.d/90aufs-live/check
+--- dracut/modules.d/90aufs-live/check	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/modules.d/90aufs-live/check	2010-10-21 02:49:45.714564995 +0200
+@@ -0,0 +1,12 @@
++#!/bin/sh
++
++if [ "$1" = "-d" ]; then 
++    exit 0
++fi
++
++# a live host-only image doesn't really make a lot of sense
++if [ "$1" = "-h" ] ; then
++    exit 1
++fi
++
++exit 0
+diff -urN dracut/modules.d/90aufs-live/install dracut-007/modules.d/90aufs-live/install
+--- dracut/modules.d/90aufs-live/install	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/modules.d/90aufs-live/install	2010-10-21 20:44:23.983359995 +0200
+@@ -0,0 +1,5 @@
++#!/bin/sh
++
++inst_hook cmdline 30 "$moddir/parse-live.sh"
++inst_hook pre-udev 30 "$moddir/aufslive-genrules.sh"
++inst_hook pre-pivot 90 "$moddir/live-mount.sh"
+diff -urN dracut/modules.d/90aufs-live/installkernel dracut-007/modules.d/90aufs-live/installkernel
+--- dracut/modules.d/90aufs-live/installkernel	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/modules.d/90aufs-live/installkernel	2010-10-21 20:02:12.893359961 +0200
+@@ -0,0 +1,2 @@
++#!/bin/sh
++instmods aufs
+diff -urN dracut/modules.d/90aufs-live/live-mount.sh dracut-007/modules.d/90aufs-live/live-mount.sh
+--- dracut/modules.d/90aufs-live/live-mount.sh	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/modules.d/90aufs-live/live-mount.sh	2010-10-21 20:11:19.413360418 +0200
+@@ -0,0 +1,25 @@
++#!/bin/sh
++
++if [ -n "$aufslive" ]; then
++
++   modprobe aufs
++
++   mkdir /live
++   mkdir /ro-root
++
++   mount --move $NEWROOT /ro-root
++
++   if [ -z "${root_persistence}" ]; then
++      mount -t tmpfs -o rw,noatime,mode=755 tmpfs /live
++   else
++      mount -t auto -o rw,noatime /dev/livepersistence /live
++   fi
++
++   mount -t aufs -o noatime,dirs=/live=rw:/ro-root=rr aufs $NEWROOT
++
++   for dir in live ro-root; do
++      mkdir -p $NEWROOT/media/${dir}
++      mount --move /${dir} $NEWROOT/media/${dir}
++   done
++
++fi
+diff -urN dracut/modules.d/90aufs-live/parse-live.sh dracut-007/modules.d/90aufs-live/parse-live.sh
+--- dracut/modules.d/90aufs-live/parse-live.sh	1970-01-01 01:00:00.000000000 +0100
++++ dracut-007/modules.d/90aufs-live/parse-live.sh	2010-10-21 02:49:45.724569992 +0200
+@@ -0,0 +1,30 @@
++#!/bin/sh
++# aufs live images are specified with
++# aufslive root_persistence={LABEL|UUID|/dev/}=
++
++if getarg aufslive; then
++    aufslive=1
++else
++    return
++fi
++
++[ -z "$root_persistence" ] && root_persistence=$(getarg root_persistence=)
++
++case "$root_persistence" in
++    live:LABEL=*|LABEL=*)
++	root_persistence="$(echo $root | sed 's,/,\\x2f,g')"
++	root_persistence="live:/dev/disk/by-label/${root#LABEL=}"
++        ;;
++    live:CDLABEL=*|CDLABEL=*)
++	root_persistence="$(echo $root | sed 's,/,\\x2f,g')"
++	root_persistence="live:/dev/disk/by-label/${root#CDLABEL=}"
++        ;;
++    live:UUID=*|UUID=*)
++	root_persistence="live:/dev/disk/by-uuid/${root#UUID=}"
++        ;;
++    live:/dev/*)
++        ;;
++    *)
++        unset root_persistence
++esac
++info "AufsLive mode, root_persistence is now $root_persistence"
+diff -urN dracut/modules.d/95nfs/nfsroot dracut-007/modules.d/95nfs/nfsroot
+--- dracut/modules.d/95nfs/nfsroot	2010-08-09 16:13:51.000000000 +0200
++++ dracut-007/modules.d/95nfs/nfsroot	2010-10-21 22:21:12.682081301 +0200
+@@ -88,6 +88,9 @@
+ [ -x /sbin/rpcbind ] && [ -z "$(pidof rpcbind)" ] && rpcbind
+ 
+ if [ "$nfs" = "nfs4" ]; then
++    [ ! -d /var/lib/nfs/rpc_pipefs/nfs ] && \
++        mount -t rpc_pipefs rpc_pipefs /var/lib/nfs/rpc_pipefs
++
+     # Start rpc.statd as mount won't let us use locks on a NFSv4
+     # filesystem without talking to it. NFSv4 does locks internally,
+     # rpc.lockd isn't needed

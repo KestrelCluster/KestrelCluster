@@ -1,0 +1,163 @@
+#!/bin/bash
+
+# Copyright (C) 2010 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
+
+# load kestrel_lib
+. "$KESTREL_LIB"/kestrel-lib
+
+
+modify_image() {
+    local image_name=${image:-default}
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image
+
+    # Ensure this script is executed as root
+    check_root
+
+    # Lock the image, so nobody can start any node while the image is being
+    # modified
+    (
+        lock_image ${image_name}
+
+        mount_chroot_image ${image_dir}
+
+        # Set LANG as POSIX in a subshell
+        (
+            export LANG=C
+            chroot ${image_dir} apt-get -qq "$@"
+        )
+            
+        if [[ "$1" == "install" || "$1" == "remove" ]]; then
+        echo "install ${packages}" \
+             >> ${KESTREL_IMAGE_DIR}/.${image_name}.history
+        fi
+
+        umount_chroot_image ${image_dir}
+
+    )
+}
+
+
+_install() {
+    modify_image install $@
+}
+
+
+_remove() {
+    modify_image remove $@
+}
+
+
+_delete() {
+    modify_image remove $@
+}
+
+
+_upgrade() {
+    modify_image upgrade
+}
+
+
+_history() {
+    local image_name=${image:-default}
+
+    check_image no_running_check
+
+    cat ${KESTREL_IMAGE_DIR}/.${image_name}.history
+}
+
+
+usage() {
+echo "
+Usage: ${0##*/} options
+
+OPTIONS:
+
+   --install <packages...>
+     Install packages on default image
+
+   --remove  <packages...>
+     Removes packages from default image
+
+   --upgrade
+     Upgrades packages from default image
+
+   --history
+     Shows a log of the installed and deleted packages
+
+   --image <image>
+     Applies previous commands to <image>
+
+   Example :
+
+   ${0##.*/} --install vim --image \"image2\" --delete vim --install emacs
+
+   Installs vim on the default image.
+   And deletes vim and installs emacs on \"image2\".
+"
+}
+
+
+# If no parameter is specified
+(( $# == 0 )) && usage-error
+
+
+while (( $# > 0 )); do
+    case $1 in
+        --upgrade|--history)
+            _${1#--}
+            ;;
+
+        --install|--remove|--delete)
+            (( $# >= 2 )) || usage-error
+            
+            operation=${1#--}
+            
+            # read packages until next parameter
+            while [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; do
+                packages="${packages} ${2}"
+                shift
+            done
+            
+            [[ -n "${packages}" ]] || usage-error
+            
+            _${operation} "${packages}"
+            ;;
+
+        --image)
+            (( $# >= 2 )) || usage-error
+            image=$2
+            shift;
+            ;;
+
+        --version|-v)
+            kestrel_version
+            ;;
+
+        --help|-h)
+            usage
+            ;;
+
+        *)
+            usage-error
+            ;;
+    esac
+    shift
+done

@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Connected nodes are stored in the host config file.
+#
+#   When a node starts, a register script is called which adds a new entry in 
+#   the /etc/host file.
+#
+# The hostname of a node has the following general structure :
+#
+#   <kestrel_hostame>-<group_name>-<node_id>
+#
+# Also each node has a hostname available with the image-name appended :
+#
+#   <kestrel_hostame>-<group_name>-<node_id>-<image-name>
+
+# Check if the hostname is defined and is a valid hostname
+if [[ "${hostname}" =~ ^${KESTREL_HOSTNAME}-([0-9A-Za-z_]+)-[0-9]+$ ]]; then
+
+case ${action} in
+    connect|register)
+       
+       # Remove any old entry related to this node
+       sed -ri "/^.*[[:space:]]+${hostname}([[:space:]]+|-|$)/d" \
+               ${KESTREL_CON_NODES}
+       sed -ri "/^${ip}[[:space:]]+/d" \
+               ${KESTREL_CON_NODES}
+       
+       # Add new entries
+       echo -e "${ip}    ${hostname} ${hostname}-${image}" >> ${KESTREL_CON_NODES}
+       ;;
+
+    disconnect)
+    
+       # Remove any old entry related to this node
+       sed -ri "/^.*[[:space:]]+${hostname}([[:space:]]+|-|$)/d" \
+               ${KESTREL_CON_NODES}
+       sed -ri "/^${ip}[[:space:]]+/d" \
+               ${KESTREL_CON_NODES}
+       ;;
+esac
+
+fi

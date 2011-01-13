@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Only continue if a new image is being created
+[ "$1" = "add" ] || exit 0
+
+# dpkg hold dpkg and upstart packages, since they contain the start-stop-daemon
+# and the initclt daemon which are used to start daemons. Before we get into an
+# image under a chroot jail, we create a fake start-stop-daemon and a fake 
+# initctl which prevents the start of any daemon.
+# 
+# This is a necesary hack, since is the only way to prevent dpkg from starting 
+# services on a chroot when installing those services, is creating a fake 
+# start-stop-daemon and a fake initctl.
+
+echo "dpkg hold" | dpkg --set-selections
+echo "upstart hold" | dpkg --set-selections
+
+cat <<APTCONF > /etc/apt/apt.conf
+// Recommends are as of now still abused in many packages
+APT::Install-Recommends "0";
+APT::Install-Suggests "0";
+APTCONF

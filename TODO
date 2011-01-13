@@ -1,0 +1,71 @@
+Any help will be highly appreciated :-)
+    
+    plymouth theme :
+        We should show an image with a message on the nodes explaining that the
+        the computer is being used as a node of a cluster.
+        
+        We should check how Dracut's plymouth module works, and make it work
+        on Debian/Ubuntu.
+        
+    Checkpointing on reboot
+        If somebody hits crtl + alt + supr on a node, we may allow openmpit
+        checkpointing.
+        
+    Slurm support
+        We should support a job scheduler.
+        
+    NFS4 support :
+        We could also use another aproach instead of using a writable overlay
+        over the exported nfs4 root. We could mount tmpfs over /tmp, /var/run, 
+        /var/lock, /var/log, etc... and check if this is enough for a our node's
+        systems.
+        
+    kestrel-reconfigure --install/--reconfigure:
+        We can ask questions to help configuring a basic kestrel hpc.
+        
+    kestrel-image --chroot :
+        Chroot should be disabled by default, since although is a usefull 
+        feature you need to trust any user with kestrel rights. 
+        This command gives the user root rights under the chroot, and he could 
+        easily escape from the chroot and have access to the whole system.
+        
+    kestrel-* and sudo :
+        kestrel users may not have admin rights, but kestrel commands need root
+        rights to restart services, and change some system's config files.
+        
+        All kestrel commands must be reviewed carefully, since we don't want any
+        root scalation vulnerability.
+        
+        By default. We don't modify the system sudoer config, this may be done
+        in the future from kestrel-reconfigure.
+        
+    Autocomplete in commands.
+    
+    Complete the cron script to check if nodes are up and working correctly.
+    
+        The best approach could be with :
+        
+            ssh @node-ip /bin/true || error
+        
+        We cannot only check if there is a connection with a client using netcat
+        since we cannot ensure that the client is only inactive.
+        
+    Create a command or a module which creates a kestrelhpc based live cd :
+    
+        The command first should create a fresh kestrel image, afterwards using 
+        live-helper debootstrap a complete system, and before creating the image
+        (as a live helper hook script) :
+        
+            - Install kestrelhpc package on the live cd image.
+            
+            - Copy the contents of the kestrelhpc image to the live cd image.
+              Note: Instead of just copying the contents, only copy those files
+              not present on the live cd image, for the rest just create hard 
+              links to minimaze the size of the cd/dvd.
+              
+    Test exhaustively KESTREL_HOSTNAME changes.
+        
+    English fixes :
+        I tried my best, but there are probably a lot of grammatical errors
+        throughout the project.
+        

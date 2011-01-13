@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# This script removes the message of the day (motd) of the ssh server.
+
+# Only continue if a new image is being created
+[ "$1" = "add" ] || exit 0
+
+# Modify ssh server's config
+
+SSH=/etc/ssh/sshd_config
+
+[ -f $SSH ] || exit 1
+
+# Set printmotd and printlastlog to 'no'
+sed -ri '/^[[:space:]]*PrintMotd[[:space:]]+.*/s/yes/no/' $SSH
+sed -ri '/^[[:space:]]*PrintLastLog[[:space:]]+.*/s/yes/no/' $SSH
+
+# Modify ssh server's pam module's config
+
+SSH=/etc/pam.d/sshd
+
+[ -f $SSH ] || exit 1
+
+# Comment the line refering to the pam_motd module
+sed -ri '/^[[:space:]]*session.*pam_motd\.so/s/^/#/' $SSH

@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# Only continue if a new image is being created
+[ "$1" = "add" ] || continue
+
+log=/tmp/${0##*/}-$$.log
+touch ${log}
+
+# We need to add the user's group before adding the user
+list_users |
+while read user; do
+    user_gid=$(id -g ${user})
+    user_group_name=$(id -gn ${user})
+
+    (
+        export LANG=C
+        chroot ${image_dir} groupadd  --gid ${user_gid} \
+                                      ${user_group_name} 
+    ) &> ${log}
+
+    # Only show the output if something went wrong and it wasn't because 
+    # the group was already present
+    (( $? != 0 && $? != 9 )) && cat ${log}
+
+done
+
+# Add kestrel's users to the new image
+list_users |
+while read user; do
+    user_uid=$(id -u ${user})
+    user_gid=$(id -g ${user})
+    user_groups=$(id -Gn ${user})
+
+    # A pipe implies a subshell, so we don't have to worry about the export.
+    (
+        export LANG=C
+        chroot ${image_dir} useradd --uid ${user_uid} \
+                                    --gid ${user_gid} \
+                                    --no-create-home \
+                                    --shell "/bin/bash" \
+                                    ${user} 
+    ) &> ${log}
+
+    # Only show the output if something went wrong and it wasn't because 
+    # the user was already present
+    (( $? != 0 && $? != 9 )) && cat ${log}
+
+    for group in $user_groups; do
+        chroot ${image_dir} usermod -a -G ${group} ${user}
+    done &>/dev/null
+
+done
+
+# Add kestrel user to the group admin
+(
+    export LANG=C
+    chroot ${image_dir} usermod -a -G admin ${KESTREL_USER} 
+) &> ${log}
+
+rm ${log}
+
+
+# Add the user kestrel to the list of sudoers
+##############################################
+
+install -d ${image_dir}/etc/sudoers.d/
+
+# Create a new config file for our sudoer prefs
+cat <<SUDOERS > ${image_dir}/etc/sudoers.d/kestrel
+kestrel ALL=NOPASSWD: ALL
+SUDOERS
+
+# Ensure the config line enabling the /etc/sudoers.d dir is present
+if ! grep -Eq "^[[:space:]]*#includedir[[:space:]]+\/etc\/sudoers.d[[:space:]]*$"\
+    ${image_dir}/etc/sudoers;
+then
+    echo -e "\n#includedir \/etc\/sudoers.d" >> ${image_dir}/etc/sudoers
+fi
+
+chmod 0440 ${image_dir}/etc/sudoers.d/kestrel &> /dev/null
+

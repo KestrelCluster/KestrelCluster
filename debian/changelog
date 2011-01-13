@@ -1,0 +1,31 @@
+kestrelhpc (1.9.13-2011-01-02-19-09-45+0100) maverick; urgency=low
+
+  * Fixed the halt of nodes.
+
+ -- Jon Ander Hernández <jonan.h@gmail.com>  Sun, 02 Jan 2011 19:09:47 +0100
+
+kestrelhpc (1.9.13-2010-12-31-18-53-52+0100) maverick; urgency=low
+
+  * Fix in the feedbkack mechanism.
+
+ -- Jon Ander Hernández <jonan.h@gmail.com>  Fri, 31 Dec 2010 18:44:50 +0100
+
+kestrelhpc (1.9.13-2010-12-31-17-56-52+0100) maverick; urgency=low
+
+  * Disable the halt of the cluster while the package is being reinstalled.
+
+ -- jon Ander Hernández <jonan.h@gmail.com>  Fri, 31 Dec 2010 16:52:00 +0100
+
+kestrelhpc (1.9.13-2010-12-31-15-06-00+0100) maverick; urgency=low
+
+  * New Snapshot. Tons of fixes and new code in this release.
+  * The node register process now should work.
+  * Added a new feedback mechanism to notify the user while the nodes are being registered.
+
+ -- Jon Ander Hernández <jonan.h@gmail.com>  Fri, 31 Dec 2010 15:06:01 +0100
+
+kestrelhpc (1.9.12) unstable; urgency=low
+
+  * Initial Release.
+
+ -- Jon Ander Hernández <jonan.h@gmail.com>  Mon, 18 Oct 2010 23:44:13 +0200

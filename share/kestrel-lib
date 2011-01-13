@@ -1,0 +1,942 @@
+#!/bin/bash
+
+# Copyright (C) 2010 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+
+KESTREL_VERSION="1.9.13"
+
+
+# Loads the config from the config file default.conf, from the defaul.d dir
+# and from the user's 
+
+load_config() {
+    # Source default config file
+    [ -f ${KESTREL_SHARE}/default.conf ] && . ${KESTREL_SHARE}/default.conf
+
+    # Source default config dir
+    for configfile in ${KESTREL_SHARE}/default.d/*; do
+        [ -e "$configfile" ] && . "$configfile"
+    done
+
+    # Load user's local config
+    [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
+}
+
+# All the functions defined in this library require the config is loaded
+load_config
+
+
+# Export config variables. This is useful for executing scripts under a chroot
+# which require access to kestrel's config.
+
+export_config() {
+    for variable in \
+        $(cat ${KESTREL_SHARE}/default.conf \
+              ${KESTREL_SHARE}/default.conf.d/* \
+              ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
+              sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)[[:space:]]*=.*$/\1/p' | \
+              sort | uniq)
+    do
+        export $variable
+    done
+}
+
+kestrel_version() {
+    echo "KestrelHPC ${KESTREL_VERSION}"
+}
+
+
+# Image functions
+##################
+
+
+# mount_chroot_image <image_dir>
+# 
+# Mount proc, sys, dev and tmp within the directory containing the image, which
+# is a necessary step for a complete working system once chrooted.
+
+mount_chroot_image(){
+    local image_dir=$1
+
+    mount -t proc none ${image_dir}/proc
+    mount -t sysfs node ${image_dir}/sys
+    mount -t tmpfs -o rw,noatime,mode=755 tmpfs ${image_dir}/tmp
+
+    #mount -t tmpfs -o rw,nosuid,mode=0755 tmpfs ${image_dir}/var/run
+    #mount -t tmpfs -o rw,noexec,nosuid,nodev tmpfs ${image_dir}/var/lock
+
+    mount -t devpts -o rw,noexec,nosuid,gid=5,mode=0620 devpts ${image_dir}/dev/pts
+    mount -t tmpfs -o rw,nosuid,nodev tmpfs ${image_dir}/dev/shm
+
+    # Share apt's preferences, package's cache, etc...
+    for mount in etc/apt/ \
+                 var/lib/apt/lists/ \
+                 var/cache/apt/
+    do
+         mount --bind /${mount} ${image_dir}/${mount}
+    done
+
+    # Create a fake initctl and a fake start-stop-daemon to prevent dpkg from
+    # starting services when installing or upgrading those services
+    mv ${image_dir}/sbin/start-stop-daemon \
+       ${image_dir}/sbin/start-stop-daemon.real
+
+    [ -x "${image_dir}/sbin/initctl" ] &&
+    mv ${image_dir}/sbin/initctl \
+       ${image_dir}/sbin/initctl.real
+
+    ln ${image_dir}/bin/true ${image_dir}/sbin/start-stop-daemon
+    ln ${image_dir}/bin/true ${image_dir}/sbin/initctl
+}
+
+
+# umount_chroot_image <image_dir>
+# 
+#     Unmounts the chrooted image.
+
+umount_chroot_image(){
+    local image_dir=$1
+
+    for mount in proc sys tmp \
+                 dev/pts dev/shm \
+                 etc/apt/ \
+                 var/lib/apt/lists/ \
+                 var/cache/apt/
+    do
+         umount ${image_dir}/${mount}
+    done
+
+    mv -f ${image_dir}/sbin/start-stop-daemon.real \
+          ${image_dir}/sbin/start-stop-daemon
+
+    [ -x "${image_dir}/sbin/initctl.real" ] &&
+    mv -f ${image_dir}/sbin/initctl.real \
+          ${image_dir}/sbin/initctl
+
+}
+
+
+# check_image <image_name>
+# 
+#     Check if ${image_name} contains the name of an installed and valid image.
+#     
+#     If check_image is used as parameter, it doesn't check if the image is 
+#     running.
+
+check_image() {
+    
+    [ -n "$1" ] && image_name=$1
+    
+    [[ "${image_name}" =~ ^${image_re}$ ]] ||
+        die "Invalid image name \"${image_name}\""
+    
+    # If the image is the "default" one, get which image it points to
+    if [ "${image_name}" = "default" ]; then
+        image_name=$(default-image)
+        image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    fi
+    
+    [ "${image_name}" = "cached-image" ] &&
+        die "Invalid image name, \"cached-image\" is reserved"
+    
+    # Verify if the image exists
+    [ -z "${image_dir}" -o ! -d "${image_dir}/usr" ] &&
+        die "The image \"${image_name}\" hasn't been found"
+    
+    # Verify the image is not being currently used
+    [[ -f "${KESTREL_IMAGE_DIR}/.${image_name}.running" && \
+          "$1" != "no_running_check" ]] &&
+        die "The image \"${image_name}\" is being used by some client node"
+}
+
+
+# list_images
+# 
+#     List installed images
+
+list_images() {
+    ls -1 ${KESTREL_IMAGE_DIR} | grep -Ev "default|cached-image"
+}
+
+
+# default-image
+# 
+#     Show the default image
+
+default-image() {
+    [ -e ${KESTREL_IMAGE_DIR}/default ] &&
+    echo $(basename $(readlink -n ${KESTREL_IMAGE_DIR}/default))
+}
+
+
+# lock_image <image_name>
+#
+# example :
+# (
+#    lock_image test_image
+# 
+#    critical section
+# )
+
+lock_image() {
+    local image_name=$1
+
+    exec 200>${KESTREL_IMAGE_DIR}/.${image_name}.lock
+
+    if ! flock --nonblock --exclusive 200; then 
+        echo "Waiting till the image gets unlocked"
+        flock --exclusive 200
+    fi
+}
+
+
+# Node functions
+#################
+
+# Connected nodes are stored in the host config file.
+#
+#   When a node starts, a register script adds a new entry in the /etc/host file
+#
+# Registered nodes are stored in kestrel dnsmasq's config file.
+#
+#   When a node is registered with the kestrel-control --register command a new 
+#   entry is created in the file : ${KESTREL_REGISTERED_NODES}
+#
+#
+# The hostname of a node has the following general structure :
+#
+#   <kestrel_hostame>-<group_name>-<node_id>
+#
+# Also each node has a hostname available with the image-name appended :
+#
+#   <kestrel_hostame>-<group_name>-<node_id>-<image-name>
+#
+#
+# Regular expresions for each field :
+#
+#   <group_name> --> [0-9A-Za-z_]+
+#   <group_name> --> [0-9A-Za-z_]+
+#   <node_id>    --> [0-9]+
+#   <ip>         --> ([0-9]{1,3}\.){3}[0-9]{1,3}
+#   <mac>        --> ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2}
+#
+
+# Variables with regular expressions
+group_re="[0-9A-Za-z_]+"
+image_re="[0-9A-Za-z_]+"
+node_re="[0-9]+"
+hostname_re="${KESTREL_HOSTNAME}-${group_re}-${node_re}"
+
+# Note: We could also use a shorter version of these RE using groups, but that
+# add the complexity of taking into accound that group in each sed expression.
+# Another option is to use a Perl RE and use Super sed, but that would require
+# adding Super sed as a dependency.
+ip_re="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
+mac_re="[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}";
+mac_re="${mac_re}\:${mac_re}"
+
+
+# list_groups
+# 
+#     List registered groups
+
+list_groups() {
+    
+    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq 
+}
+
+
+# check_group <group name>
+# 
+#     Check if the group exits
+
+check_group() {
+    local group=$1
+    
+     [[ "${group}" =~ ^${group_re}$ ]] ||
+        die "Invalid group name \"${group}\""
+     
+     list_groups | grep -Eq "^${group}$" ||
+        die "The group \"${group} hasn't been found"
+}
+
+# check_hostname <hostname name>
+# 
+#     Check if the hostname exits
+
+check_hostname() {
+    local host=$1
+    
+     [[ "${host}" =~ ^${hostname_re}$ ]] ||
+        die "Invalid hostname \"${host}\""
+     
+     registered_nodes | grep -Eq "^${host}\$" ||
+        die "The hostname \"${host} hasn't been found"
+}
+
+# connected_nodes [<group>]
+# 
+#     List all connected nodes.
+#     List a group's connected connected nodes if the group is specified.
+
+connected_nodes() {
+    if [ -n "$1" ]; then
+        group="${1}"
+    else
+        group="${group_re}"
+    fi
+    
+    re="^\s*${ip_re}\s+(${hostname_re})([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort
+}
+
+# connected_images [<group>]
+# 
+#     List all connected nodes.
+#     List a group's connected connected nodes if the group is specified.
+
+connected_images() {
+    if [ -n "$1" ]; then
+        group="${1}"
+    else
+        group="${group_re}"
+    fi
+    
+    re="^\s*${ip_re}\s.*(${hostname_re}-${image_re})([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES}  | sort
+}
+
+# connected_groups
+# 
+#     List groups of nodes with connected nodes
+
+connected_groups() {
+    
+    re="^\s*${ip_re}\s+${KESTREL_HOSTNAME}-(${group_re})-${node_re}([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort | uniq
+}
+
+
+# connected_images <hostname>
+# 
+#     Get the image of a connected image.
+
+connected_image() {
+    if [[ $1 =~ ${hostname_re}-(${image_re}) ]]
+    then
+        echo ${BASH_REMATCH[1]}
+    else
+        re="^\s*${ip}\s+${1}\s${hostname_re}-(${image_re})(\s|$)"
+        
+        sed -rn "s/.*${1}-([0-9A-Za-z_]+)([[:space:]].*|$)/\1/p" \
+            ${KESTREL_CON_NODES}
+    fi
+}
+
+# disconnected_nodes [<group>]
+# 
+#     List all the disconnected nodes.
+#     List a group's disconnected nodes if the group is specified.
+
+disconnected_nodes() {
+
+    # All connected nodes, are also registered. We can combine both lists and 
+    # look for those lines which only appear once, which that means that they
+    # are registered, but not connected.
+    echo $(connected_nodes $1) $(registered_nodes $1) | 
+    sed -r 's/[[:space:]]/\n/g' | sort | uniq --unique
+}
+
+
+# disconnected_groups
+# 
+#     List groups with disconnected nodes
+
+disconnected_groups() {
+    
+    re="^${KESTREL_HOSTNAME}-(${group_re})-.*$"
+    
+    disconnected_nodes | sed -rn "s/${re}/\1/p" | sort | uniq
+}
+
+
+# registered_nodes [<group>]
+# 
+#     List all the registered nodes
+#     List a group's registered nodes if the group is specified.
+
+registered_nodes() {
+
+    if [[ -n "$1" && "$1" =~ ${group_re} ]]; then
+        group="${1}"
+    else
+        group="${group_re}"
+    fi
+    
+    re="^[^#]*,\s*(${KESTREL_HOSTNAME}-${group}-${node_re})[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort
+}
+
+
+# registered_groups
+# 
+#     List the registered groups of nodes.
+
+registered_groups() {
+    
+    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq
+}
+
+
+# mac_2_hostname
+# 
+#     Get the mac of a registered node using its hostname.
+
+hostname_2_mac() {
+    
+    re="^[^#]*(${mac_re})(\s*.*,\s*)+${1}(\s.*)*$"
+    
+    [[ "${1}" =~ ${hostname_re} ]] &&
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES}
+}
+
+
+# hostname_2_ip
+# 
+#     Get the current ip of a connected node using its hostname.
+
+hostname_2_ip() {
+    
+    re="^\s*(${ip_re})\s.*${1}([^0-9].*)*$"
+    
+    [[ "${1}" =~ ${hostname_re} ]] &&
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES}
+}
+
+
+# mac_2_hostname
+# 
+#     Get the hostname of a registered node using its mac.
+
+mac_2_hostname() {
+    
+    re="^[^#]*${1}(\s*.*,\s*)+(${hostname_re})[^0-9]*$"
+    
+    [[ "${1}" =~ ${mac_re} ]] &&
+    sed -rn "s/${re}/\2/p" ${KESTREL_REG_NODES} | tail -n1
+}
+
+
+# mac_2_pxemac
+# 
+#     Convert mac to pxelinux mac.
+
+mac_2_pxemac() {
+    # - Add ethernet header 01
+    # - Convert any ":" to "-"
+    # - Convert to lowercase
+    echo $1 | sed -r 's/^/01-/; s/:/-/g; s/(.*)/\L\1/g;'
+}
+
+
+# register script <parameters>*
+
+run_register_scripts() {
+    echo
+    echo "======================"
+    echo
+    
+    date
+    
+    echo
+    echo " Event's parameters : "
+    echo
+    
+    # Export the variables of the event. For security reasons we check if a
+    # variable is trying to replace an existing variable. We only allow to
+    # export non existant variables.
+    for param in $@; do
+    
+         # Check if parameter is a key=value
+         if [[ "${param}" =~ [0-9A-Za-z_]+=.* ]]; then
+         
+             key=${param%%=*}
+             value=${param#*=}
+             
+             # Only export the "key" variable when it is not defined.
+             if [ -z "${!key}" ]; then
+                 export ${key}=${value}
+                 
+                 # Debug :
+                 echo "${key}=${!key}"
+             fi
+         fi
+    done
+    
+    # Get the mac with the ip from dnsmasq's leases database
+    mac=$( awk "/[[:space:]]${ip//./\\.}[[:space:]]/ { print \$2 }" \
+               /var/lib/misc/dnsmasq.leases )
+    
+    # Get the hostname from the registered node file.
+    hostname=$( mac_2_hostname "${mac}" )
+    
+    if [ "${action}" == "register" ]; then
+        # Check if the node is not registered to the same group
+        if ! registered_nodes "${group}" | grep -Eq "^${hostname}$"; then
+
+            # Look for the last registered node number
+            re="^${KESTREL_HOSTNAME}-${group_re}-(${node_re})$"
+            
+            last_node=$( registered_nodes ${group} | sed -rn "s/${re}/\1/p" |\
+                         sort -n | tail -n1 )
+            
+            [ -z "${last_node}" ] && last_node=0
+            
+            hostname=${KESTREL_HOSTNAME}-${group}-$(( ${last_node} + 1 ))
+            echo "Registering node \"${hostname}\"" \
+                >> ${KESTREL_DATA_DIR}/register_feedback
+            
+        else
+            echo "The node \"${hostname}\" was already registered" \
+                 >> ${KESTREL_DATA_DIR}/register_feedback
+        fi
+        
+        echo -e "\tmac : ${mac}" >> ${KESTREL_DATA_DIR}/register_feedback
+        echo -e "\tip  : ${ip}"  >> ${KESTREL_DATA_DIR}/register_feedback
+        echo                     >> ${KESTREL_DATA_DIR}/register_feedback
+    fi
+    
+    echo
+    echo "action   : ${action}"
+    echo "mac      : ${mac}"
+    echo "ip       : ${ip}"
+    echo "hostname : ${hostname}"
+    echo
+
+    echo "----------------------"
+    echo
+    
+    # Check we don't get an invalid event (an event with an empty action)
+    # Check if the node is registered
+    if [ -n "${action}" ] && \
+       [[ "${action}" != "connect" || -n "$(mac_2_hostname ${mac})" ]]; 
+    then
+    
+        # Run register.d script.
+        list_scripts "node/register.d" | \
+        while read script; do
+            echo ${script}
+            . ${script}
+        done
+    else
+        echo "Unexpected event. This node is not a registered node."
+    fi
+
+    echo
+    echo "======================"
+    echo
+}
+
+
+# User and Permission functions
+################################
+
+
+# list_users
+# 
+#     List the users members of the group kestrel
+
+list_users() {
+    echo $KESTREL_USER
+    sed < /etc/group -nr "s/^${KESTREL_GROUP}:.*:.*:(.+)$/\1/p" | sed 's/,/\n/'
+}
+
+
+home_dir() {
+    sed -nr "s/^${1}:.*:.*:.*:.*:(.*):.*/\1/p" < /etc/passwd
+}
+
+
+# user_sshkeygen <user>
+# 
+#    Recreate ssh keys for the user, and add them to 'authorized _keys' allowing
+#    password-less authentication into the cluster's nodes.
+
+user_sshkeygen() {
+    local user=$1
+    
+    pushd $(home_dir ${user}) > /dev/null
+
+    mkdir -p .ssh
+    chmod 700 .ssh
+
+    rm .ssh/id_rsa 2>/dev/null
+
+    ssh-keygen -q -t rsa -N "" -f ".ssh/id_rsa"
+
+    cp .ssh/id_rsa.pub .ssh/authorized_keys
+    chmod 600 .ssh/authorized_keys
+    
+    chown -R ${user}:${user} .ssh
+    
+    popd > /dev/null
+    #sudo su ${user} -c "ssh-add"
+}
+
+
+# check_root
+# 
+#     Ensure this script is executed as root
+
+check_root() {
+    if (( $(id -u) != 0 )); then
+        die "You need root rights to do this action."
+    fi
+}
+
+
+# Check if the user has rights
+
+#check_image_perm() {
+#    (( $(id -u) != 0 )) && sudo $0 $@
+#    
+#    grep -Eq "^$1$"
+#}
+
+
+# Install and configure functions
+##################################
+
+# list_scripts <dir>
+#   List the scripts found at dir <dir>.
+
+# install_node <image_name>
+#   Executes install scripts and installs software packages on <image_name>.
+
+# uninstall_node <image_name>
+#   Executes install scripts with "remove" flag on <image_name>.
+
+# reconfigure_node <image_name>
+#   Executes node configure scripts on <image_name>.
+
+# install_frontend
+#   Executes frontend's install scripts.
+
+# reconfigure_frontend
+#   Executes frontend's configure scripts.
+
+
+# run_register_scripts <parameters>*
+#   Runs register scripts.
+
+
+# list_scripts <dir>
+#
+# Get a list of files under a kestrel dir while taking into account that files 
+# at /etc have bigger priority than the system's ones.
+# 
+# This lets any default script be replaced/customized easily by the user.
+#
+# Example : 
+#    list_scripts "node/packages.d" | more
+#
+# This lists all the scripts under the dir /usr/share/kestrel/node/packages.d
+# and in the dir /etc/kestrel/node/packages.d. If there is a file named the same
+# in /etc/kestrel/node/packages.d if will replace the /usr one.
+
+list_scripts() {
+    local get_files_dir=$1
+    local share_dir=${KESTREL_SHARE}/${get_files_dir}
+    local etc_dir=${KESTREL_ETC}/${get_files_dir}
+
+    # Look for files at kestrel's lib and etc dirs.
+    for files in ${share_dir}/* ${etc_dir}/*; do
+        [ -e ${files} ] && echo ${files##*/}
+    done | \
+    # sort them and remove duplicates
+    sort | uniq | \
+    while read file; do
+    
+        # If the file is present in /etc/ use it instead of the standard one. 
+        if [ -x "${etc_dir}/${file}" ]; then
+            echo ${etc_dir}/${file}
+        elif [ -x "${share_dir}/${file}" ]; then 
+            echo ${share_dir}/${file}
+        fi
+    
+    done
+}
+
+
+# install_node <image_name>
+#
+#     Execute install scripts and install software packages on an image 
+#     specified by the parameter <image_name> or by the global variable 
+#     ${image_name}
+
+install_node() {
+
+    [ -n "$1" ] && image_name=$1
+    
+    export image_name
+
+    echo
+    echo "Executing install scripts"
+    echo
+
+    list_scripts "node/install.d" | \
+    while read hook; do
+        echo "Executing : ${hook##*/} "
+        
+        # if the script if postfixed with chroot run it under a chroot
+        if [[ ${hook} =~ chroot ]]; then
+        
+            # Copy the script under the chroot
+            cp ${hook} ${image_dir}/tmp/hook
+            chmod 755 ${image_dir}/tmp/hook
+            
+            (
+                # Avoid any locale setting
+                export LANG=C
+                
+                chroot ${image_dir} /tmp/hook add
+            )
+        else
+            . ${hook} add
+        fi || echo "error while executing ${hook##*/}"
+        
+    done | sed -r 's/^/    /' # add some indentation to the output
+    
+    echo
+    echo "Installing extra software"
+    echo
+    
+    list_scripts "node/packages.d" | \
+    while read package; do
+    
+        packages=$(. ${package} | \
+                   sed -r 's/[[:space:]]/\ /; /^[[:space:]]*$/d')
+        echo "Installing kestrel extra packages : ${package##*/}"
+        
+        # Package log file
+        echo "install ${packages}" \
+             >> ${KESTREL_IMAGE_DIR}/.${image_name}.history
+        (
+        
+            # Avoid any locale setting
+            export LANG=C
+            chroot ${image_dir} apt-get -qq install ${packages}
+            
+        ) &>> ${KESTREL_IMAGE_DIR}/.${image_name}.apt.log || 
+              echo "error while installing ${package##*/}"
+              
+    done | sed -r 's/^/    /'
+}
+
+
+# uninstall_node <image_name>
+#
+#     Execute uninstall scripts on an image specified by the parameter 
+#     <image_name> or by the global variable ${image_name}.
+
+uninstall_node() {
+
+    [ -n "$1" ] && image_name=$1
+    
+    echo
+    echo "Executing uninstall scripts"
+    echo
+
+    # Execute the uninstall scripts
+    list_scripts "node/install.d" | \
+    while read hook; do
+    
+        # if the script if postfixed with chroot run it under a chroot
+        if [[ ! ${hook} =~ chroot ]]; then
+        
+            echo "Executing : ${hook##*/} "
+            
+            . ${hook} remove
+            
+        fi || echo "error while executing ${hook##*/}"
+        
+    done | sed -r 's/^/    /' # add some indentation to the output
+}
+
+
+# reconfigure_node <image_name>
+#
+#     Reconfigure an image specified by the parameter <image_name> or by the 
+#     global variable ${image_name}.
+
+reconfigure_node() {
+
+    [ -n "$1" ] && image_name=$1
+    
+    echo
+    echo "Executing configure scripts"
+    echo
+
+    export image_name
+
+    list_scripts "node/configure.d" | \
+    while read hook; do
+    
+        echo "Executing : ${hook##*/} "
+        
+        # if the script if postfixed with chroot run it under a chroot
+        if [[ ${hook} =~ chroot ]]; then
+        
+            # Copy the script under the chroot
+            cp ${hook} ${image_dir}/tmp/hook
+            chmod 755 ${image_dir}/tmp/hook
+            
+            (
+                # Avoid any locale setting
+                export LANG=C
+                chroot ${image_dir} /tmp/hook
+            )
+            
+        else
+            . ${hook}
+            
+        fi || echo "error while executing ${hook##*/}"
+        
+    done | sed -r 's/^/    /' # add some indentation to the output
+}
+
+# install_frontend  install|uninstall
+# 
+#     Execute install scripts.
+
+install_frontend() {
+        echo
+        echo "Executing ${1} scripts"
+        echo
+
+        # Execute the install scripts
+        list_scripts "frontend/install.d" | \
+        while read hook; do
+        
+            if [[ ! ${hook} =~ chroot ]]; then
+            
+                echo "Executing : ${hook##*/} "
+                
+                . ${hook} ${1}
+                
+            fi || echo "error while executing ${hook##*/}"
+            
+        done | sed -r 's/^/    /' # add some indentation to the output
+}
+
+
+# reconfigure_frontend
+# 
+#     Reconfigure the frontend
+
+reconfigure_frontend() {
+    echo
+    echo "Reconfiguring the frontend"
+    echo
+
+    list_scripts "frontend/configure.d" | \
+    while read config; do
+    
+        echo "Executing script : ${config##*/} "
+        
+        . $config || echo "error while executing ${config##*/}"
+        
+    done | sed -r 's/^/    /' # add some indentation to the output
+    echo
+}
+
+
+# Util functions
+#################
+
+
+# question_yN <question>
+# 
+#     Ask questions whose answer is true or false, example of use :
+#     
+#     question_yN "question" \
+#         && echo "the answer was 'yes'" \
+#         || echo "the answer was 'no' or something else"
+#     
+#     Note: Only use it on the tools not in any hook or config script
+
+question_yN() {
+    echo -n "${1} (y/N)? "
+    read response
+    # Check if the response is 'y' or 'yes' in a case insensitive way
+    [[ $response =~ ^[[:space:]]*([yY]|[yY][eE][sS])[[:space:]]*$ ]]
+}
+
+
+# die <messages>* [error number]
+# 
+#     Show a message and exit with error
+
+die() {
+    while (( $# > 0 )); do
+        if [[ ! "${1}" =~ ^[0-9]+$ ]]; then
+            echo -e "    ${1}"
+            shift
+        else
+            break
+        fi
+    done
+    
+    exit ${1:-1}
+}
+
+
+# usage-error
+# 
+#     Show usage and exit with error
+
+usage-error() {
+    usage
+    exit 1;
+}
+
+
+# run_from_script
+# 
+#     When we reconfigure kestrel, we use a lock which makes any other kestrel
+#     command wait till everything is reconfigured. While the reconfiguration
+#     stage we restart several daemons, and some of them may inherit our lock
+#     locking kestrel.
+#
+#     This function runs a daemon in a subshell after having closed our lock's
+#     file descriptor.
+
+run_from_script(){
+    # Create a subshell and close the descriptor
+    (   exec 200>&-
+        $@
+    )
+}
+

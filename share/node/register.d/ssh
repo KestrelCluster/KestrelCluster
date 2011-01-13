@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Check if the hostname is defined
+if [ -n "${hostname}" ]; then
+
+case ${action} in
+    connect|register)
+        sed -ri "/^${hostname}[[:space:]]/d" /etc/ssh/ssh_known_hosts
+        
+        key=$(awk '{print $2}' \
+                  ${KESTREL_IMAGE_DIR}/${image}/etc/ssh/ssh_host_rsa_key.pub)
+        
+        echo "${hostname} ssh-rsa ${key}" >> /etc/ssh/ssh_known_hosts
+        
+        su kestrel -c "ssh ${hostname} sudo set_hostname ${hostname}" 
+        ;;
+        
+    disconnect)
+        sed -ri "/${hostname}[[:space:]]/d" /etc/ssh/ssh_known_hosts
+        ;;
+esac
+
+fi

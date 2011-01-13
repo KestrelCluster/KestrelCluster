@@ -1,0 +1,53 @@
+An install script is executed when we create or we remove an image node.
+
+
+nfs4_export-image                                   (applies to the frontend)
+
+   Removes the the nfs and the fstab entries of the image, when the image is
+   being removed.
+   Note, the entries are created during the configuration phase.
+
+
+charm++_hosts                                       (applies to the frontend)
+   
+   Adds a new node group in the file ${KESTREL_DATA_DIR}/charm_hosts.
+   This file is used to run a charm++ task over a group of nodes.
+
+
+system_wake-on-lan_chroot                         (applies to the node image)
+
+   Configures the network interfaces so they activate the wake on lan mode.
+
+
+system_num-of-cpus_chroot                        (applies to the node image)
+
+   Adds a command which counts the number of real cpus on the node.
+
+
+system_add_kestrel_users                          (applies to the node image)
+
+   Adds kestrel's users to the node image.
+   Add kestrel user to the group admin.
+   Add the user kestrel to the list of sudoers
+
+
+system_dpkg-upstart-hold_chroot                   (applies to the node image)
+
+   Fix which prevents daemons to be launched while installing or upgrading
+   packages under the chroot of the node image.
+
+
+sshd_delete-motd_chroot                           (applies to the node image)
+
+   Removes the message of the day (motd) of the ssh server.
+
+
+openmpi_oldlinks-fix_chroot                       (applies to the node image)
+
+   Creates links for supporting software linked to old openmpi libraries
+
+
+system_beep-on-startup_chroot                      (applies to the node image)
+
+   Installs a service which makes the nodes beep when starting up.
+

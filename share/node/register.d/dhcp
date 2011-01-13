@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Registered nodes are stored in kestrel dnsmasq's config file.
+#
+#   When a node is registered with the kestrel-control --register command,
+#   a new entry is created in the file : ${KESTREL_REG_NODES}
+
+# Check if the mac is defined
+if [ -n "${mac}" ]; then
+
+case ${action} in
+    register)
+       if [ -n "${hostname}" ]; then
+       
+       # Remove any old entry
+       sed -ri "/${mac}/d" ${KESTREL_REG_NODES}
+       
+       # Add the new entry
+       echo "${mac},${hostname}" >> ${KESTREL_REG_NODES}
+       
+       fi
+       ;;
+
+    desregister)
+       # Remove any old entry
+       sed -ri "/${mac}/d" ${KESTREL_REG_NODES}
+       ;;
+esac
+
+# Send hup signal to reload dhcp host file
+kill -1 $(cat /var/run/dnsmasq/dnsmasq.pid)
+
+fi

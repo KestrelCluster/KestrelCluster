@@ -1,0 +1,20 @@
+#!/bin/bash
+
+case $1 in
+    add)
+        # The fstab and the export entries will be created during the 
+        # configuration stage
+        continue
+        ;;
+
+    remove)
+        # umount the image
+        umount ${NFS4_ROOT}/kestrel/${image_name} > /dev/null 2>&1 
+
+        # Delete from the fstab
+        sed -ri "/[^#]*\/kestrel\/${image_name}/d" /etc/fstab
+
+        # Delete from the exports
+        sed -ri "/[^#]*\/kestrel\/${image_name}/d" /etc/exports
+        ;;
+esac

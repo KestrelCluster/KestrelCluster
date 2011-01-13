@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Install the RPC client
+cat << KESTREL > /etc/init.d/kestrel_connect
+#!/usr/bin/env python
+
+# This script is the responsible of notifying the frontend via a rpc call the 
+# started up of a node.
+#
+# The node notifies the frontend :
+#
+#    - the num of real cpus (using the command "num-of-cpus")
+#    - the node image (reading the file /etc/kestrel_image_name)
+#    - the node group while being registered (reading the cmdline)
+#
+#
+# Note : Do NOT modify this file! 
+#
+# This file depends on the frontend's ip and port, and it is recreated each time
+# the image is reconfigured.
+# 
+# If you wish to modify it, create your own copy of the template from :
+#     /usr/lib/kestrel/node/configure.d/system_kestrel-rpc_chroot
+# to :
+#     /etc/kestrel/node/configure.d/system_kestrel-rpc_chroot
+#
+
+import re
+import xmlrpclib
+import subprocess
+
+# Create the xmlrpc client
+s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
+
+# Execute command num-of-cpus, and read the result
+num_cpus=subprocess.Popen("num-of-cpus", shell=True, stdout=subprocess.PIPE, 
+                          close_fds=True ).stdout.read()
+
+# Read the kernel cmdline
+f = open('/proc/cmdline', 'r')
+cmdline=f.readline()
+f.close()
+
+# Read the image's name
+f = open('/etc/kestrel_image_name', 'r')
+image=f.readline()
+f.close()
+
+
+# Check if the client is in register mode, and save also the group
+m = re.search("\sregister=([^\s]*)(?:\s|$)",cmdline)
+if m:
+    group=m.group(1)
+    s.register(num_cpus, image, group)
+    
+else:
+    
+    s.connect(num_cpus, image)
+
+KESTREL
+
+
+cat << KESTREL > /etc/init.d/kestrel_disconnect
+#!/usr/bin/env python
+
+import xmlrpclib
+
+s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
+s.disconnect()
+KESTREL
+
+
+# Give them read, write, and execute permissions
+chmod 755 /etc/init.d/kestrel_connect
+chmod 755 /etc/init.d/kestrel_disconnect
+
+
+for runlevel in /etc/rc{2..4}.d/S40kestrel_connect; do
+   ln -sf /etc/init.d/kestrel_connect ${runlevel}
+done
+
+ln -sf /etc/init.d/kestrel_disconnect /etc/rc0.d/K20kestrel_disconnect
+ln -sf /etc/init.d/kestrel_disconnect /etc/rc6.d/K20kestrel_disconnect

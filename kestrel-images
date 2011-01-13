@@ -1,0 +1,382 @@
+#!/bin/bash
+
+# Copyright (C) 2010 Jon Ander Hernández
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
+
+# Load kestrel_lib
+. "$KESTREL_LIB"/kestrel-lib
+
+export_config
+
+_new() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    # Verify the name only includes [0-9A-Za-z_] characters
+    if ! echo ${image_name} | grep -Eqx "[0-9A-Za-z_]+"; then
+        die "Invalid image name"
+    fi
+
+    # Verify the image name
+    [ "${image_name}" = "default" ] &&
+        die "Invalid image name, \"default\" is reserved"
+
+    [ "${image_name}" = "cached-image" ] &&
+        die "Invalid image name, \"cached-image\" is reserved"
+
+    # Verify the image exists
+    [ -d $image_dir/usr ] &&
+        die "Invalid image name, already exists an image named ${image_name}"
+
+    # Ensure this script is executed as root
+    check_root
+
+    # Check installed distribution
+    # First check if the installed distribution is LSB compatible
+    if [ -n $(which lsb_release) ]; then
+
+        OS_ARCHITECTURE=$(uname -m)
+        OS_DISTRIBUTION=$(lsb_release -is)
+        OS_CODENAME=$(lsb_release -cs)
+        OS_RELEASE=$(lsb_release -rs)
+
+        echo
+        echo "Detecting host :"
+        echo
+        echo "    Architecture: ${OS_ARCHITECTURE}"
+        echo "    Distribution: ${OS_DISTRIBUTION}"
+        echo "    Codename:     ${OS_CODENAME}"
+        echo "    Release:      ${OS_RELEASE}"
+
+        # FIX: Debian/Ubuntu's x86_64 port is called amd64
+        [ ${OS_ARCHITECTURE} = x86_64 ] && OS_ARCHITECTURE=amd64
+
+    else
+        # Currently Kestrel only works for Debian/Ubuntu based distros
+        die "Unkown Distribution. Please install lsb_release package"
+    fi
+
+    if [[ $OS_DISTRIBUTION != "Ubuntu" && $OS_DISTRIBUTION != "Debian" ]]; then
+        die "Unsupported Distribution." \
+            "We currently only support Debian/Ubuntu based distributions"
+    fi
+
+    # Lock the image, so nobody can start any node while the image is being
+    # modified
+    (
+        lock_image ${image_name}
+
+        local image_cache=${KESTREL_IMAGE_DIR}/cached-image
+
+        # Check if we support cached images, and if there is already a cached
+        # image
+        if [ ${CACHED_IMAGE} == "true" ] && 
+           [ -d "${image_cache}" ]; then
+
+            echo
+            echo "Creating image from image cache"
+            echo
+
+            
+            cp -Rav ${KESTREL_IMAGE_DIR}/cached-image ${image_dir} |
+                # Only show as progress : usr, lib, etc...
+                sed -rn "s#.*${image_cache}/([[:alnum:]]*).*#    Copying \1#p" |
+                uniq ${quiet}
+
+        # Create a new image using debootstrap
+        else
+
+            echo
+            echo "Creating image"
+            echo
+
+            # Share packages, binding to the directory of the host's package 
+            # cache  
+            mkdir -p ${image_dir}/var/cache/apt/archives
+            mount --bind /var/cache/apt/archives \
+                         ${image_dir}/var/cache/apt/archives
+
+            echo "   debootstrap will take some time, please wait"
+            echo
+
+            # Create the image using debootstrap
+            debootstrap ${OS_CODENAME} ${image_dir} |
+                # remove the 'I: ' and show a tab instead.
+                sed 's/^I: /   /' ${quiet} || \
+                {   # if an error occurred
+                    sync
+                    umount ${image_dir}/var/cache/apt/archives
+                    rm -R ${image_dir}; 
+                    die "deboostrap failed to create an image, exiting!"
+                }
+
+             sync
+
+             umount ${image_dir}/var/cache/apt/archives
+
+             if [ ${CACHED_IMAGE} == "true" ] && 
+                [ ! -d "${KESTREL_IMAGE_DIR}/cached-image" ]; then
+
+                echo
+                echo "Creating image cache, please wait"
+                cp -Ra ${image_dir} ${KESTREL_IMAGE_DIR}/cached-image
+             fi
+        fi
+
+        mount_chroot_image ${image_dir}
+
+        install_node
+
+        reconfigure_node
+
+        echo "${image_name}" > ${image_dir}/etc/kestrel_image_name
+
+        sync
+
+        umount_chroot_image ${image_dir}
+
+        # If there is no other image, make it the default
+        [ ! -e ${KESTREL_IMAGE_DIR}/default ] &&
+            ln -snf ${image_dir} ${KESTREL_IMAGE_DIR}/default
+
+   )
+}
+
+
+_remove() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image
+
+    # Ensure this script is executed as root
+    check_root
+
+    if [ -z "${quiet}" ]; then
+        echo
+        question="Do you really want to delete the image \"${image_name}\""
+        question_yN "${question}" || exit 0
+    fi
+
+    # Lock the image, so nobody can start any node while the image is being
+    # modified
+    (
+        lock_image ${image_name}
+
+        uninstall_node
+
+        # If the deleted image was the default, set another one as default
+        if [ "${image_name}" = "$(default-image)" ]; then
+
+            new_default=$(list_images | grep -v "${image_name}" | head -n1)
+
+            if [ -n "${new_default}" ]; then 
+                ln -snf "${KESTREL_IMAGE_DIR}/${new_default}" \
+                        "${KESTREL_IMAGE_DIR}/default"
+            else
+                rm ${KESTREL_IMAGE_DIR}/default
+            fi
+        fi
+
+        rm -R ${image_dir}
+        rm ${KESTREL_IMAGE_DIR}/.${image_name}.*
+    )
+
+    echo
+    echo "Image \"${image_name}\" deleted"
+    echo
+}
+
+
+_delete() {
+    _remove $1
+}
+
+
+_list() {
+    list_images
+}
+
+
+_default-image() {
+    default-image
+}
+
+
+_set-default() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image no_running_check
+
+    # Ensure this script is executed as root
+    check_root
+
+    # Verify the image name
+    if [ "$image_name" = "$(default-image)" ]; then
+        die "default is already the default"
+    fi
+
+    ln -snf ${image_dir} ${KESTREL_IMAGE_DIR}/default
+}
+
+
+_chroot() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image
+
+    # Ensure this script is executed as root
+    check_root
+
+    # Lock the image, so nobody can start any node while the image is being
+    # modified
+    (
+        lock_image ${image_name}
+
+        mount_chroot_image ${image_dir}
+
+        (
+            export LANG=C
+            chroot ${image_dir} /bin/bash
+        )
+
+        sync 
+
+        umount_chroot_image ${image_dir}
+
+    )
+}
+
+
+_unlock() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image
+
+    # Ensure this script is executed as root
+    check_root
+
+    rm ${KESTREL_IMAGE_DIR}/.${image_name}.lock
+}
+
+
+_umount() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image
+
+    # Ensure this script is executed as root
+    check_root
+
+    umount_chroot_image ${image_dir}
+}
+
+
+usage() {
+echo "
+Usage: ${0##*/} options
+
+OPTIONS:
+
+   --new <image name>
+     Create a new image for nodes
+
+   --remove <image name>
+     Delete the image from the system
+
+   --list
+     List installed images
+
+   --chroot <image>
+     Chroot into an image
+
+   --set-default <image>
+   --default-image
+     Set and show default image
+
+   --quiet
+     When creating a new image, hide debootstrap's output
+
+   --use-cache
+   --use-no-cache
+     Use cache when creating a new image
+
+   Only use these ones if you know what you are doing :
+
+   --unlock <image>
+   --umount <image>
+"
+}
+
+
+for param in $@; do
+   [ ${param} == "--use-cache"    ] && CACHED_IMAGE="true"
+   [ ${param} == "--use-no-cache" ] && CACHED_IMAGE="false"
+   [ ${param} == "--quiet" ] && quiet=">/dev/null"
+done
+
+
+# If no parameter is specified
+(( $# == 0 )) && usage-error
+
+
+while (( $# > 0 )); do
+    case $1 in
+        --new|--set-default)
+            (( $# >= 2 )) || usage-error
+            _${1#--} "$2"
+            shift
+            ;;
+        --remove|--delete|--chroot|--unlock|--umount)
+            op=${1#--}
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            else
+                image=default
+            fi
+            
+            _${op} "${image}"
+            ;;
+
+        --list|--default-image)
+            _${1#--}
+            ;;
+
+        --quiet)
+            ;;
+
+        --version|-v)
+            kestrel_version
+            ;;
+
+        --help|-h)
+            usage
+            ;;
+
+        *)
+            usage-error
+            ;;
+    esac
+    shift
+done
+

@@ -1,0 +1,86 @@
+#!/bin/bash
+
+install -d ${TFTPBOOT_DIR}/pxelinux.cfg/
+
+rm ${TFTPBOOT_DIR}/reboot &> /dev/null
+rm ${TFTPBOOT_DIR}/pxelinux.cfg/default &> /dev/null
+
+# Create the default pxelinux entry. Useful when a node starts up and it should
+# not join the cluster.
+
+#cp ${TFTPBOOT_DIR}/template ${TFTPBOOT_DIR}/reboot
+cat <<EOF > ${TFTPBOOT_DIR}/reboot
+include template
+
+label local
+  menu label Boot from local drive
+  localboot 0
+
+label Reboot
+  menu Reboot
+  kernel reboot.c32
+
+label All KestrelHPC node images
+  menu Available kestrel node images
+  config image-list
+EOF
+
+cp -f ${TFTPBOOT_DIR}/reboot ${TFTPBOOT_DIR}/pxelinux.cfg/default
+
+chown dnsmasq:kestrel ${TFTPBOOT_DIR}/reboot
+chown dnsmasq:kestrel ${TFTPBOOT_DIR}/pxelinux.cfg/default
+
+# Copy the kernel and the initramfs to the tftpboot
+ 
+if [ "${NODE_KERNEL}" == "auto" ]; then
+    # Check if $(uname -r) kernel exists on the system. If we are installing
+    # KestrelHPC using debootstrap the installed kernel may not be present on
+    # the installed system.
+    if [ -e /boot/vmlinuz-$(uname -r) ]; then
+        KERNEL_VERSION=$(uname -r)
+    
+    # If $(uname -r) was not present, look for another kernel
+    else
+        KERNEL_VERSION=$(ls -1 /boot/vmlinuz-* | tail -n1 | \
+                         sed -rn "s#/boot/vmlinuz-(.*)#\1#p")
+        echo "    Current kernel \"$(uname -r)\" not found on the system"
+        echo "    Using \"${KERNEL_VERSION}\" instead"
+    fi
+
+else
+    if [ ! -e /boot/vmlinuz-${NODE_KERNEL} ]; then
+        
+        KERNEL_VERSION=$(ls -1 /boot/vmlinuz-* | tail -n1 | \
+                         sed -rn "s#/boot/vmlinuz-(.*)#\1#p")
+        
+        echo "    Kernel \"${NODE_KERNEL}\" not found, please check your kestrel config"
+        echo "    Using \"${KERNEL_VERSION}\" instead"
+    else
+        KERNEL_VERSION=${NODE_KERNEL}
+    fi 2> /dev/null
+fi
+
+if [ -n "${KERNEL_VERSION}" ]; then
+    
+    [ -e /boot/vmlinuz-${KERNEL_VERSION} ] && 
+        cp /boot/vmlinuz-${KERNEL_VERSION}    ${TFTPBOOT_DIR}/vmlinuz
+    
+    [ -e /boot/initrd.img-${KERNEL_VERSION} ] && 
+        cp /boot/initrd.img-${KERNEL_VERSION} ${TFTPBOOT_DIR}/initrd.img
+    
+    if [ ! -e /boot/dracut.img-${KERNEL_VERSION} ]; then
+        echo "Please wait, Dracut will take some time"
+        dracut-update-initramfs -c -k ${KERNEL_VERSION} |& cat
+    fi
+    
+    [ -e /boot/dracut.img-${KERNEL_VERSION} ] &&
+        cp /boot/dracut.img-${KERNEL_VERSION} ${TFTPBOOT_DIR}/dracut-img
+    
+    chown dnsmasq:kestrel ${TFTPBOOT_DIR}/{vmlinuz,dracut-img,initrd.img}
+
+else
+    echo "No kernel found on the system" 2>/dev/null
+    # Fail
+    false
+fi
+

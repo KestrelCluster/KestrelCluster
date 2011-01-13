@@ -1,0 +1,8 @@
+
+# Ganglia
+##########
+
+GANGLIA_NAME="KestrelHPC Cluster"
+GANGLIA_OWNER="Centro de Estudios e Investigaciones Técnicas de Guipuzkoa"
+GANGLIA_LATLONG="N43.304, W-2.009"
+GANGLIA_URL="http://kestrelhpc.sourceforge.net/"

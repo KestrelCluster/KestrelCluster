@@ -1,0 +1,3 @@
+share/default.d/openmpi                             usr/share/kestrel/default.d
+share/node/packages.d/openmpi                       usr/share/kestrel/node/packages.d
+share/node/install.d/openmpi_oldlinks-fix_chroot    usr/share/kestrel/node/install.d

@@ -1,0 +1,4 @@
+share/default.d/ganglia                         usr/share/kestrel/default.d
+share/node/packages.d/ganglia                   usr/share/kestrel/node/packages.d
+share/node/configure.d/ganglia_monitor_chroot   usr/share/kestrel/node/configure.d
+share/frontend/configure.d/ganglia_webfrontend  usr/share/kestrel/frontend/configure.d

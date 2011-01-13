@@ -1,0 +1,620 @@
+#!/bin/bash
+ 
+# This command helps handling nodes and groups of nodes :
+#
+# - Start up/reboot/halt nodes or group of nodes
+# 
+# - List connected/disconnected/registered nodes
+# 
+# - Add new nodes to a group
+#
+# Copyright (C) 2010 Jon Ander Hernández
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
+
+# Load kestrel_lib
+. "$KESTREL_LIB"/kestrel-lib
+
+
+# check_connected <hostname>
+# 
+#     Checks if the node is connected
+
+check_connected() {
+   if ! connected_nodes | grep -Eq "^${host}$"; then
+        die "Node \"${host}\" is not connected"
+   fi
+}
+
+
+# _ssh <hostname> [commands]
+# 
+#     Start a ssh session on the hostname, or run commands on the hostname
+
+_ssh() {
+    local host=${1}
+    
+    check_hostname "${host}"
+    
+    check_connected "${host}"
+    
+    if ! list_users | grep -Eq "^$(whoami)$"; then
+        die "User \"$(whoami)\" is not member of KestrelHPC's user." \
+            "" \
+            "Add the user to the cluster with : " \
+            "   sudo kestrel-users --add-to-cluster $(whoami)"
+    fi
+    
+    shift
+    
+    ssh-add
+    
+    ssh "${host}" "$@"
+}
+
+
+# _list_groups
+# 
+#     --groups
+
+_groups() {
+    list_groups
+}
+
+# _connected
+# 
+#     --connected [<group_name]|[image_name]
+
+_connected() {
+    local group
+    local image
+    if [[ "$1" =~ [0-9A-Za-z_]+ ]]; then
+        if list_groups | grep -Eq "^$1$"; then
+            group="${1}"
+        elif list_images | grep -Eq "^$1$"; then
+            image="${1}"
+        else
+            die "Unknown hostname or group \"${1}\""
+        fi
+    elif [ -n "$1" ]; then
+        die "Invalid hostname or group \"${host}\""
+    fi
+    
+    echo
+    connected_nodes "${group}" | while read node; do
+        ip=$(hostname_2_ip ${node})
+        mac=$(hostname_2_mac ${node})
+        node_image=$(connected_image ${node})
+        [[ -z "${image}" || "${image}" == "${node_image}" ]] && 
+        echo -e "\t${node}, image:${node_image}, mac:${mac}"
+    done
+    echo
+}
+
+# _disconnected
+# 
+#     --disconnected [<group_name]
+
+_disconnected() {
+    [ -n "${1}" ] && check_group ${1}
+    
+    echo
+    registered_nodes "$1" | while read node; do
+        ip=$(hostname_2_ip ${node})
+        mac=$(hostname_2_mac ${node})
+        echo -e "\t${node}, mac:${mac}"
+    done
+    echo
+}
+
+# _registered
+# 
+#     --registered [<group_name]
+
+_registered(){
+    [ -n "${1}" ] && check_group ${1}
+    
+    echo
+    registered_nodes "$1" | while read node; do
+        ip=$(hostname_2_ip ${node})
+        mac=$(hostname_2_mac ${node})
+        echo -e "\t${node}, mac:${mac}, ip:${ip}"
+    done
+    echo
+}
+
+# wake_node <mac> <image_name>
+# 
+#     Start up a node
+
+wake_node() {
+    local mac=${1}
+    local pxemac=$(mac_2_pxemac ${1})
+    
+    cp -f ${TFTPBOOT_DIR}/${image_name} \
+          ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+    chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+    
+    wakeonlan ${mac} > /dev/null
+}
+
+# shutdown_node <halt|reboot> <hostname> <image_name>
+# 
+#      Halt or reboot a node
+
+shutdown_node() {
+    local op=${1}
+    local host=${2}
+    local image_name=${3}
+    
+    local ip=$(hostname_2_ip ${host})
+    local mac=$(hostname_2_mac ${host})
+    local pxemac=$(mac_2_pxemac ${mac})
+    
+    if [ "${op}" == "reboot" ]; then
+        cp -f ${TFTPBOOT_DIR}/${image_name} \
+              ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+        chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+    else
+        rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} 2>/dev/null
+    fi
+    
+    su kestrel -c "ssh ${host} sudo ${op}" 2> /dev/null ||
+    echo -e "\tUnable to ${op} ${host} (ip:${ip})" &
+    
+    wait $!
+}
+
+
+# op_mac <wake|halt|reboot> <mac> <image_name>
+# 
+#     wake|halt|reboot a node by its mac
+
+op_mac() {
+    local op=$1
+    local mac=$2
+    image_name=$3
+    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local title=$(echo ${1} | sed -r '/^(.)/s//\U\1\E/')
+    
+    [[ -n "${mac}" && "${mac}" =~ ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2} ]] ||
+        die "Invalid mac address"
+    
+    host=$(mac_2_hostname ${mac})
+    
+    [ -z "${host}" ] &&
+        die "Mac not registered on the system"
+    
+    check_root
+    
+    case ${op} in
+        wake)
+            echo
+            check_image ${image_name}
+            echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
+            wake_node "${mac}" "${image_name}"
+            ;;
+        reboot)
+            check_connected "${host}"
+            check_image ${image_name}
+            echo -e "\n\tRebooting the \"${host}\", ip:$(hostname_2_ip ${host})"
+            shutdown_node "reboot" "${host}" "${image_name}"
+            ;;
+        halt)
+            check_connected "${host}"
+            echo -e "\n\tHalting the \"${host}\", ip:$(hostname_2_ip ${host})"
+            shutdown_node "halt" "${host}" 
+            ;;
+     esac
+     echo
+}
+
+
+# op_hostname <wake|halt|reboot> <hostname> <image_name>
+# 
+#     wake|halt|reboot a node
+
+op_node() {
+    local op=$1
+    local host=$2
+    image_name=$3
+    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    
+    check_hostname "${host}"
+    
+    check_root
+    
+    case ${op} in
+        wake)
+            echo
+            check_image ${image_name}
+            mac=$(hostname_2_mac ${host})
+            echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
+            wake_node "${mac}" "${image_name}"
+            ;;
+        reboot)
+            check_connected "${host}"
+            check_image ${image_name}
+            echo -e "\n\tRebooting the \"${host}\", ip:$(hostname_2_ip ${host})"
+            shutdown_node "reboot" "${host}" "${image_name}"
+            ;;
+        halt)
+            check_connected "${host}"
+            echo -e "\n\tHalting the \"${host}\", ip:$(hostname_2_ip ${host})"
+            shutdown_node "halt" "${host}" 
+            ;;
+     esac
+     echo
+}
+
+
+# op_hostname <wake|halt|reboot> <group> <image_name>
+# 
+#     wake|halt|reboot a group of nodes.
+
+op_group() {
+    local op=$1
+    local group=$2
+    image_name=$3
+    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    
+    check_group "${group}"
+    
+    check_root
+    
+    echo
+    case ${op} in
+        wake)
+            check_image ${image_name}
+            disconnected_nodes "${group}" | while read node; do
+                mac=$(hostname_2_mac ${node})
+                wake_node "${mac}"
+                echo -e "\tStarting up \"${node}\", mac:\"${mac}\""
+                sleep ${WAKEUP_SLEEP}
+            done;
+            ;;
+        reboot)
+            check_image ${image}
+            connected_nodes "${group}" | while read node; do
+                echo -e "\tRebooting the \"${node}\", ip:$(hostname_2_ip ${node})"
+                shutdown_node "reboot" "${node}" "${image_name}"
+            done;
+            ;;
+        halt)
+            connected_nodes "${group}" | while read node; do
+                echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
+                shutdown_node "halt" "${node}"
+            done;
+            ;;
+    esac
+    echo
+}
+
+# _remove_mac <mac>
+# 
+#     Creates a disregister event
+
+_remove_mac() {
+    
+    true
+    
+}
+
+
+# _remove_node <mac>
+# 
+#     Creates a disregister event
+
+_remove_node() {
+    
+    true
+    
+}
+
+
+# _remove_group <group>
+# 
+#     Creates a disregister event
+
+_remove_group() {
+    
+    registered_nodes "${1}" | while read node; do
+        
+        _remove_node "${node}"
+        
+    done
+}
+
+_halt-cluster() {
+    echo
+    connected_nodes | while read node; do
+        echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
+        shutdown_node "halt" "${node}"
+    done
+    echo
+}
+
+# control_c
+# 
+#     Executed when the SIGINT signal is received
+
+control_c() {
+
+    cp -f ${TFTPBOOT_DIR}/reboot ${TFTPBOOT_DIR}/pxelinux.cfg/default
+    
+    # Clean the feedback file
+    [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
+    rm ${KESTREL_DATA_DIR}/register_feedback &> /dev/null
+    
+    chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/default
+    exit 0
+}
+
+
+# register <group_name> [<image>]
+# 
+#     Register new nodes to the group <group_name>, and boot them using 
+#     <image> or the default image
+
+_register() {
+    local group=$1
+    image_name=$2
+    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+
+    check_image "${image_name}"
+
+    # Ensure this script is executed as root
+    check_root
+
+#    exec 200>${KESTREL_IMAGE_DIR}/.${image_name}.lock
+#
+#    if ! flock --nonblock --exclusive 200; then 
+#        echo "Waiting till the image gets unlocked"
+#        flock --exclusive 200
+#    fi
+
+    # Set the pxelinux register configuration as the default
+    sed "/append/s/$/ register=${group} /" \
+        < ${TFTPBOOT_DIR}/${image_name}   \
+        > ${TFTPBOOT_DIR}/pxelinux.cfg/default
+        
+    chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/default
+    
+    # Clean the feedback file
+    [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
+    rm ${KESTREL_DATA_DIR}/register_feedback &> /dev/null
+    
+    # Set the trap
+    trap control_c SIGINT SIGTERM
+    
+    echo
+    echo "Turn now on the nodes to add them to the group \"${image_name}\""
+    echo
+    echo "Press crtl+c when you are done"
+    echo
+    
+    # Show feedback
+    while :; do
+       sleep 1;
+       [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
+       cat ${KESTREL_DATA_DIR}/register_feedback &&
+       rm ${KESTREL_DATA_DIR}/register_feedback
+    done
+}
+
+
+usage() {
+echo "
+Usage: ${0##*/} options
+
+OPTIONS:
+
+   Run
+   
+   --ssh  <hostname> [commands]
+
+   Node status
+
+   --groups
+       List registered groups
+     
+   --connected      [<group name>]|[image name]
+   --disconnected   [<group name>]
+   --registered     [<group name>]
+       List connected nodes.
+       List the group's nodes if the group is specified.
+
+   --connected-groups
+   --disconnected-groups
+       List groups with connected or disconnected nodes.
+
+   Add/Remove nodes
+
+   --register      <group-name>  [<image>]
+   --remove-mac    <mac>         
+   --remove-node   <hostname>    
+   --remove-group  <group-name>  
+   
+   Wake up/halt nodes
+
+   --wake-mac      <mac>         [<image>]
+   --wake-node     <hostname>    [<image>]
+   --wake-group    <group name>  [<image>]
+   
+   --reboot-mac    <mac>         [<image>]
+   --reboot-node   <hostname>    [<image>]
+   --reboot-group  <group name>  [<image>]
+   
+   --halt-mac      <mac>         
+   --halt-node     <hostname>    
+   --halt-group    <group name>  
+   
+   --halt-cluster
+"
+}
+
+
+for param in $@; do
+   [ ${param} == "--quiet" ] && quiet=">/dev/null"
+done
+
+
+# If no parameter is specified
+(( $# == 0 )) && usage-error
+
+
+while (( $# > 0 )); do
+    case $1 in
+        --ssh)
+            (( $# >= 2 )) || usage-error
+            hostname=$2
+            shift
+            shift
+            _ssh ${hostname} $@
+            exit 0
+            ;;
+
+        --groups)
+            _${1#--}
+            exit 0
+            ;;
+
+#       --connected      [<group name>]|[image name]
+#       --disconnected   [<group name>]
+#       --registered     [<group name>]
+        --connected|--disconnected|--registered)
+            op=${1#--}
+            
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                group=$2
+                shift
+            fi
+            
+            _${op} "${group}"
+            exit 0
+            ;;
+
+#       --connected-groups
+#       --disconnected-groups
+        --connected_groups|--disconnected_groups)
+            ${1#--}
+            ;;
+
+#       --register      <group-name>  [<image>]
+        --register)
+            (( $# >= 2 )) || usage-error
+            
+            group=${2}
+            shift
+            
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            fi
+            
+            _register "${group}" ${image:-default}
+            exit 0
+            ;;
+
+#       --wake-mac      <mac>         [<image>]
+#       --wake-node     <hostname>    [<image>]
+#       --wake-group    <group name>  [<image>]
+#       --reboot-mac    <mac>         [<image>]
+#       --reboot-node   <hostname>    [<image>]
+#       --reboot-group  <group name>  [<image>]
+        --wake-mac|--wake-node|--wake-group)
+            (( $# >= 2 )) || usage-error
+            op=${1#--wake-}
+            
+            data=${2}
+            shift
+            
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            fi
+            
+            op_${op} "wake" "${data}" ${image:-default}
+            exit 0
+            ;;
+
+        --reboot-mac|--reboot-node|--reboot-group)
+            (( $# >= 2 )) || usage-error
+            op=${1#--reboot-}
+            
+            data=${2}
+            shift
+            
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            fi
+            
+            op_${op} "reboot" "${data}" ${image:-default}
+            exit 0
+            ;;
+            
+#       --halt-mac      <mac>         
+#       --halt-node     <hostname>    
+#       --halt-group    <group name>  
+        --halt-mac|--halt-node|--halt-group)
+            (( $# >= 2 )) || usage-error
+            op=${1#--halt-}
+            
+            data=${2}
+            shift
+            
+            op_${op} "halt" "${data}" ${image:-default}
+            exit 0
+            ;;
+
+#       --remove-mac    <mac>         
+#       --remove-node   <hostname>    
+#       --remove-group  <group-name>  
+        --remove-mac|--remove-node|--remove-group)
+            (( $# >= 2 )) || usage-error
+            op=${1#--remove-}
+            
+            data=${2}
+            shift
+            
+            _remove_${op} "${data}"
+            exit 0
+            ;;
+            
+        --halt-cluster)
+            _halt-cluster
+            exit 0
+            ;;
+            
+        --version|-v)
+            kestrel_version
+            exit 0
+            ;;
+
+        --help|-h)
+            usage
+            exit 0
+            ;;
+
+        *)
+            usage-error
+            ;;
+    esac
+    shift
+done
+

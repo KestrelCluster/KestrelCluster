@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Change the starting up beep melody
+
+if [ -n "$BEEP" ]; then
+cat <<BEEP > /etc/beep_melody
+$BEEP
+BEEP
+fi

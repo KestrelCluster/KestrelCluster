@@ -1,0 +1,30 @@
+Source: kestrelhpc
+Section: utils
+Priority: extra
+Maintainer: Jon Ander Hernández <jonan.h@gmail.com>
+Build-Depends: debhelper (>= 7.0)
+Standards-Version: 3.9.1
+Homepage: http://kestrelhpc.sourceforge.net/
+#Vcs-Git: git://git.debian.org/collab-maint/kestrel.git
+Vcs-Browser: http://kestrelhpc.svn.sourceforge.net/viewvc/kestrelhpc/Kestrelhpc/Src/
+
+Package: kestrelhpc
+Architecture: all
+Depends: adduser, nfs-kernel-server, dnsmasq, wakeonlan, debootstrap, dracut, dracut-network, dracut-aufs, openssh-server, ${python:Depends}, ${misc:Depends}
+Description: A set of utilities for setting up a cluster with live nodes
+ It helps creating and managing live os image for the nodes, and setting all 
+ the required frontend's services (dhcp, tftpboot, nfs, ssh...).
+
+Package: kestrelhpc-ganglia
+Architecture: all
+Depends: kestrelhpc, ganglia-webfrontend, ganglia-monitor, gmetad, ${misc:Depends}
+Description: A set of utilities for setting up a cluster with live nodes
+ It helps creating and managing live os image for the nodes, and setting all 
+ the required frontend's services (dhcp, tftpboot, nfs, ssh...).
+
+Package: kestrelhpc-openmpi
+Architecture: all
+Depends: kestrelhpc, openmpi-bin, libopenmpi-dev, openmpi-doc, openmpi-common, ${misc:Depends}
+Description: A set of utilities for setting up a cluster with live nodes
+ It helps creating and managing live os image for the nodes, and setting all 
+ the required frontend's services (dhcp, tftpboot, nfs, ssh...).

@@ -1,0 +1,4 @@
+
+# Default beep melody
+BEEP="-f 1000 -r 2 -n -r 5 -l 10 --new"
+

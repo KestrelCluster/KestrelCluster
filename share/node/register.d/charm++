@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#
+# Not used in this release. Charm++ support is postponed.
+#
+
+charm_file=${KESTREL_DATA_DIR}/charm_hosts
+
+touch ${charm_file}
+
+case ${action} in
+    connect|register)
+       sed -ri "/${hostname}[[:space:]]/d
+                
+                /group ${image}$/ a\    host ${hostname} ++cpus ${cpus}
+                
+                /group ${group}$/ a\    host ${hostname} ++cpus ${cpus}
+                
+                /group main/ a\    host ${hostname} ++cpus ${cpus}
+               " ${charm_file}
+       ;;
+    disconnect)
+       sed -ri "/${hostname}/d" ${charm_file}
+       ;;
+esac

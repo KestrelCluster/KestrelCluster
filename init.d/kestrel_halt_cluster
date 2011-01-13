@@ -1,0 +1,61 @@
+#! /bin/bash
+### BEGIN INIT INFO
+# Provides:          halt_cluster
+# Required-Start:    $remote_fs $network
+# Required-Stop:     $remote_fs $network
+# Default-Start:     
+# Default-Stop:      0 1 6
+# Short-Description: Halt cluster's nodes
+# Description:       
+### END INIT INFO
+
+# Author: Jon Ander Hernández <jonan.h@gmail.org>
+
+[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
+
+# Load kestrel_lib
+. "$KESTREL_LIB"/kestrel-lib
+export_config
+
+# PATH should only include /usr/* if it runs after the mountnfs.sh script
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+NAME="kestrel-control --halt-cluster"
+DESC="cluster's nodes"
+
+# Load the VERBOSE setting and other rcS variables
+. /lib/init/vars.sh
+
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
+. /lib/lsb/init-functions
+
+
+#
+# Function that stops the daemon/service
+#
+do_stop() {
+    $NAME
+}
+
+case "$1" in
+  start)
+	;;
+  stop)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  status)
+        ;;
+  restart|force-reload)
+	;;
+  *)
+	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+	exit 3
+	;;
+esac
+
+:

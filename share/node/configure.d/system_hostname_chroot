@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# This hostname will be only use when booting, afterwards the dhcp client will
+# set the real one
+cat << HOSTNAME > /etc/hostname
+${KESTREL_HOSTNAME}-${image_name}-unset
+HOSTNAME
+
+cat << HOSTNAME > /etc/hosts
+127.0.0.1 localhost ${KESTREL_HOSTNAME}-${image_name}-unset
+HOSTNAME
+

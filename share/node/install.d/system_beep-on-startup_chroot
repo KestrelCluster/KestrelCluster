@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Installs a service which makes the nodes beep when starting up.
+
+# Ubuntu lucid has by default the pcspkr (PC speaker) module blacklisted
+sed -i "/^blacklist pcspkr/s/^/#/" /etc/modprobe.d/blacklist.conf
+
+
+# Install the service
+cat <<-BEEP > /etc/init.d/beep_on_startup
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          beep_on_startup
+# Required-Start:    
+# Required-Stop:     
+# Default-Start:     S
+# Default-Stop:      0 1 6
+# Short-Description: Beep on start up
+# Description:       
+### END INIT INFO
+
+case "\$1" in
+  start)
+      beep \$(cat /etc/beep_melody)
+      ;;
+  stop)
+      beep
+      ;;
+esac
+BEEP
+
+(
+    chmod 755 /etc/init.d/beep_on_startup
+    update-rc.d -f beep_on_startup remove
+    update-rc.d beep_on_startup start 10 S . stop 50 0 1 6 .
+) &>/dev/null
+
+
+# Define a default melody
+cat <<-BEEP > /etc/beep_melody
+-f 1000 -r 2 -n -r 5 -l 10 --new
+BEEP

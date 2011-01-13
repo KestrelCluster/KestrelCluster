@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Check if the mac is defined
+if [ -n "${mac}" ]; then
+
+case ${action} in
+    disconnect)
+       pxemac=$(mac_2_pxemac ${mac})
+       [ -n "${pxemac}" ] &&
+       rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} 2>/dev/null
+       ;;
+esac
+
+fi

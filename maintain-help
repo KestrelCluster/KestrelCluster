@@ -1,0 +1,145 @@
+#!/bin/bash
+
+# Copyright (C) 2010 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+
+# load kestrel_lib
+. "$KESTREL_SHARE"/kestrel-lib
+
+dir=${0%%/*}
+
+usage() {
+echo "
+Usage: ${0##*/} options
+
+OPTIONS:
+
+   --web <user>
+     Upgrade the web page
+
+   --tarball
+     Create debian source tarball
+
+   --deb
+     Create debian package
+
+   --launchpad
+     Upload packages to launchpad
+     
+   --launchpad-snapshot
+     Upload snapshot packages to launchpad
+     
+   --install
+     Install the created package
+
+"
+    exit 1
+}
+
+clean(){
+    ${dir}/debian/rules clean
+    rm ${dir}/kestrelhpc*.tar.gz* 2> /dev/null
+    rm ${dir}/*.dsc 2> /dev/null
+    rm ${dir}/../{*.upload,*.deb,*.build,*.dsc,*.changes,*.tar.gz} 2> /dev/null
+    rm ${dir}/debian/*.manpages 2> /dev/null
+    rm ${dir}/*.8 2> /dev/null
+}
+
+build(){
+    clean
+    # create man files
+    pushd ${dir} &> /dev/null
+    for i in *; do
+        [ ! -f ${i} -o ! -x ${i} ] && continue
+        for install in debian/*.install; do
+            if grep -q "${i}" "${install}"; then
+                help2man "./${i}" -s 8 -o "${i}.8"
+                echo "${i}.8" >> ${install%%.install}.manpages
+            fi
+        done
+    done
+    popd &> /dev/null
+}
+
+
+for param in $@; do
+   [[ ${param} == "--install" ]] && m_install=true;
+done
+
+
+# If no parameter is specified
+(( $# == 0 )) && usage-error
+
+
+case ${1} in
+    --install)
+        ;;
+        
+    --web)
+        user=${2}
+        dir=${0}/../Web/
+        rsync -avP --delete --exclude .svn -e ssh ${dir} ${2},kestrelhpc@frs.sourceforge.net:htdocs
+        exit 0
+        ;;
+        
+    --build)
+        build
+        exit 0
+        ;;
+        
+    --tarball)
+        build
+        dpkg-source -I.svn '-i^\.svn/' -b .
+        exit 0
+        ;;
+        
+    --deb)
+        build &&
+        debuild -I.svn '-i^\.svn/' -us -uc &&
+        [ "${m_install}" == "true" ] && sudo dpkg -i ../*.deb &&
+        exit 0
+        ;;
+        
+    --launchpad)
+        exit 0
+        ;;
+        
+    --launchpad-snapshot)
+        build
+        . share/kestrel-lib
+        release=${KESTREL_VERSION}-$(date +%F-%0k-%0M-%0S)
+        dch -b -v ${release} &&
+        debuild -S -kA37CCC70 -I.svn '-i^\.svn/' &&
+        dput ppa:kestrel/kestrelhpc ../kestrelhpc_${release}_source.changes &&
+        [ "${m_install}" == "true" ] && sudo dpkg -i ../*.deb &&
+        exit 0
+        ;;
+        
+    --clean)
+        clean
+        exit 0
+        ;;
+     
+    --version|-v)
+        kestrel_version
+        ;;
+        
+    *)
+        usage-error
+        ;;
+esac
