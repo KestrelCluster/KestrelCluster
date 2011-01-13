@@ -53,7 +53,7 @@ if [ "${SSH_PUBLICKEY}" == "false" ]; then
     if ! grep -qE ^[[:space:]]*PubkeyAuthentication /etc/ssh/sshd_config; then
         echo "PubkeyAuthentication no " >> /etc/ssh/sshd_config
     fi
-else if [ "${SSH_PUBLICKEY}" == "true" ]; then
+elif [ "${SSH_PUBLICKEY}" == "true" ]; then
     sed -ri "/^[[:space:]]*PubkeyAuthentication[[:space:]]+no/s/no/yes/" \
              /etc/ssh/sshd_config
 fi
