@@ -586,12 +586,21 @@ home_dir() {
 
 user_sshkeygen() {
     local user=$1
+    local user_group=$(id -gn ${user})
     
     pushd $(home_dir ${user}) > /dev/null
 
     mkdir -p .ssh
     chmod 700 .ssh
 
+    if [ -e .ssh/id_rsa -a ! -e .ssh/id_rsa.bak ]; then
+        echo "Kestrel has created a new ssh key."
+        echo "The old one has been backed up to ~/.ssh/id_rsa.bak"
+        cp .ssh/id_rsa .ssh/id_rsa.bak
+    else
+        touch .ssh/id_rsa.bak
+    fi
+    
     rm .ssh/id_rsa 2>/dev/null
 
     ssh-keygen -q -t rsa -N "" -f ".ssh/id_rsa"
@@ -599,10 +608,9 @@ user_sshkeygen() {
     cp .ssh/id_rsa.pub .ssh/authorized_keys
     chmod 600 .ssh/authorized_keys
     
-    chown -R ${user}:${user} .ssh
+    chown -R ${user}:${user_group} .ssh
     
     popd > /dev/null
-    #sudo su ${user} -c "ssh-add"
 }
 
 
