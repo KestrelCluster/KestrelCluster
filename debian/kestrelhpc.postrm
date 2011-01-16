@@ -30,7 +30,7 @@ case "$1" in
         [ -e /etc/init.d/kestrel_rpc ] &&
             update-rc.d -f kestrel_rpc remove >/dev/null
 
-        if [ -n "`id -u kestrel 2> /dev/null`" ]; then
+        if [ -n "`id -u kestrel`" ]; then
             deluser --remove-home kestrel > /dev/null 2>&1
         fi
     ;;
