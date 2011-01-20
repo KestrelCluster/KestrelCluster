@@ -48,6 +48,8 @@ check_connected() {
 _ssh() {
     local host=${1}
     
+    shift
+    
     check_hostname "${host}"
     
     check_connected "${host}"
@@ -58,8 +60,6 @@ _ssh() {
             "Add the user to the cluster with : " \
             "   sudo kestrel-users --add-to-cluster $(whoami)"
     fi
-    
-    shift
     
     ssh-add
     
@@ -94,15 +94,13 @@ _connected() {
         die "Invalid hostname or group \"${host}\""
     fi
     
-    echo
     connected_nodes "${group}" | while read node; do
         ip=$(hostname_2_ip ${node})
         mac=$(hostname_2_mac ${node})
         node_image=$(connected_image ${node})
         [[ -z "${image}" || "${image}" == "${node_image}" ]] && 
-        echo -e "\t${node}, image:${node_image}, mac:${mac}"
+        echo -e "\t${node}, image:${node_image}, mac:${mac}, ip=${ip}"
     done
-    echo
 }
 
 # _disconnected
@@ -112,13 +110,11 @@ _connected() {
 _disconnected() {
     [ -n "${1}" ] && check_group ${1}
     
-    echo
     registered_nodes "$1" | while read node; do
         ip=$(hostname_2_ip ${node})
         mac=$(hostname_2_mac ${node})
         echo -e "\t${node}, mac:${mac}"
     done
-    echo
 }
 
 # _registered
@@ -128,13 +124,11 @@ _disconnected() {
 _registered(){
     [ -n "${1}" ] && check_group ${1}
     
-    echo
     registered_nodes "$1" | while read node; do
         ip=$(hostname_2_ip ${node})
         mac=$(hostname_2_mac ${node})
         echo -e "\t${node}, mac:${mac}, ip:${ip}"
     done
-    echo
 }
 
 # wake_node <mac> <image_name>
@@ -340,12 +334,18 @@ _remove_group() {
 }
 
 _halt-cluster() {
-    echo
+    
+    check_root
+    
     connected_nodes | while read node; do
         echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
         shutdown_node "halt" "${node}"
     done
     echo
+    echo -e "\tWaiting till the nodes shutdown"
+    while (( $(connected_nodes | wc -l) > 0 )); do
+        sleep .5
+    done
 }
 
 # control_c
