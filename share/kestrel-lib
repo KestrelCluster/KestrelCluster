@@ -480,12 +480,12 @@ run_register_scripts() {
     for param in $@; do
     
          # Check if parameter is a key=value
-         if [[ "${param}" =~ [0-9A-Za-z_]+=.* ]]; then
+         if [[ "${param}" =~ [0-9A-Za-z_]+=.+ ]]; then
          
              key=${param%%=*}
              value=${param#*=}
              
-             # Only export the "key" variable when it is not defined.
+             # Only export the "key" variable if it is undefined.
              if [ -z "${!key}" ]; then
                  export ${key}=${value}
                  
@@ -496,10 +496,12 @@ run_register_scripts() {
     done
     
     # Get the mac with the ip from dnsmasq's leases database
+    [ -z "${mac}" ] &&
     mac=$( awk "/[[:space:]]${ip//./\\.}[[:space:]]/ { print \$2 }" \
                /var/lib/misc/dnsmasq.leases )
     
     # Get the hostname from the registered node file.
+    [ -z "${hostname}" ] &&
     hostname=$( mac_2_hostname "${mac}" )
     
     if [ "${action}" == "register" ]; then
