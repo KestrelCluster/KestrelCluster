@@ -32,10 +32,13 @@
 _check() {
     
     connected_nodes | while read node; do
-        su kestrel -c "ssh ${node} true" || {
+        su kestrel -c "ssh ${node} true" &> /dev/null || {
             ip=$(hostname_2_ip ${node})
-            echo " action=disconnect ip=${ip} " > ${KESTREL_DATA_DIR}/rpc/fifo
-        }
+            mac=$(hostname_2_mac ${node})
+            echo " action=disconnect ip=${ip} mac=${mac} hostname=${node} " \
+                 > ${KESTREL_DATA_DIR}/rpc/fifo
+        } &
+        wait $!
     done
 }
 
