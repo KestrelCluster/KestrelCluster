@@ -75,7 +75,7 @@ chmod 755 /etc/init.d/kestrel_connect
 chmod 755 /etc/init.d/kestrel_disconnect
 
 
-for runlevel in /etc/rc{2..4}.d/S40kestrel_connect; do
+for runlevel in /etc/rc{2..4}.d/S10kestrel_connect; do
    ln -sf /etc/init.d/kestrel_connect ${runlevel}
 done
 
