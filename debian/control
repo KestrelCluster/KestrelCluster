@@ -10,7 +10,7 @@ Vcs-Browser: http://kestrelhpc.svn.sourceforge.net/viewvc/kestrelhpc/Kestrelhpc/
 
 Package: kestrelhpc
 Architecture: all
-Depends: adduser, nfs-kernel-server, dnsmasq, wakeonlan, debootstrap, dracut, dracut-network, dracut-aufs, openssh-server, ${python:Depends}, ${misc:Depends}
+Depends: syslinux, adduser, nfs-kernel-server, dnsmasq, wakeonlan, debootstrap, dracut, dracut-network, dracut-aufs, openssh-server, ${python:Depends}, ${misc:Depends}
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
