@@ -79,5 +79,5 @@ for runlevel in /etc/rc{2..4}.d/S10kestrel_connect; do
    ln -sf /etc/init.d/kestrel_connect ${runlevel}
 done
 
-ln -sf /etc/init.d/kestrel_disconnect /etc/rc0.d/K20kestrel_disconnect
-ln -sf /etc/init.d/kestrel_disconnect /etc/rc6.d/K20kestrel_disconnect
+ln -sf /etc/init.d/kestrel_disconnect /etc/rc0.d/S38kestrel_disconnect
+ln -sf /etc/init.d/kestrel_disconnect /etc/rc6.d/S38kestrel_disconnect
