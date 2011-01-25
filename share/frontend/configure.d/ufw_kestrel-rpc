@@ -1,0 +1,16 @@
+#!/bin/bash
+
+/etc/init.d/kestrel_rpc restart >/dev/null
+
+if [ -d /etc/ufw/applications.d/ ]; then
+    cat << UFW > /etc/ufw/applications.d/kestrel
+[KestrelHPC]
+title=KestrelHPC's RPC
+description=KestrelHPC is a set of utilities for setting up a cluster with live nodes.
+ports=${KESTREL_RPC_PORT}/tcp
+UFW
+
+    if [ "$(initctl status ufw)" == "ufw start/running" ]; then
+        initctl restart ufw > /dev/null
+    fi
+fi
