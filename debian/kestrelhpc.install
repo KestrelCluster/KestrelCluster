@@ -24,36 +24,38 @@ share/kestrel-lib                   usr/share/kestrel
 share/default.d/beep-on-startup     usr/share/kestrel/default.d
 share/default.d/initramfs           usr/share/kestrel/default.d
 
+share/event.d/dhcp-server_register-node                 usr/share/kestrel/event.d
+share/event.d/etc-hosts_connect-node                    usr/share/kestrel/event.d
+share/event.d/pxe_default-on-shutdown                   usr/share/kestrel/event.d
+share/event.d/running_lock                              usr/share/kestrel/event.d
+share/event.d/ssh_add-to-known-hosts                    usr/share/kestrel/event.d
+
 share/frontend/install.d/dnsmasq_config                 usr/share/kestrel/frontend/install.d
 share/frontend/install.d/nfs4_root-export               usr/share/kestrel/frontend/install.d
 
 share/frontend/configure.d/dnsmasq_config               usr/share/kestrel/frontend/configure.d
-share/frontend/configure.d/nfs4_root-export             usr/share/kestrel/frontend/configure.d
 share/frontend/configure.d/dnsmasq_tftpboot             usr/share/kestrel/frontend/configure.d
+share/frontend/configure.d/nfs4_root-export             usr/share/kestrel/frontend/configure.d
 share/frontend/configure.d/sshd_users-keygen            usr/share/kestrel/frontend/configure.d
-share/frontend/configure.d/system_rpc                   usr/share/kestrel/frontend/configure.d
-
-share/node/register.d/running_lock                      usr/share/kestrel/node/register.d
-share/node/register.d/tftpboot                          usr/share/kestrel/node/register.d
-share/node/register.d/dhcp                              usr/share/kestrel/node/register.d
-share/node/register.d/hosts                             usr/share/kestrel/node/register.d
-share/node/register.d/ssh                               usr/share/kestrel/node/register.d
-
-share/node/install.d/nfs4_export-image                  usr/share/kestrel/node/install.d
-share/node/install.d/sshd_delete-motd_chroot            usr/share/kestrel/node/install.d
-share/node/install.d/system_add_kestrel_users           usr/share/kestrel/node/install.d
-share/node/install.d/system_num-of-cpus_chroot          usr/share/kestrel/node/install.d
-share/node/install.d/system_beep-on-startup_chroot      usr/share/kestrel/node/install.d
-share/node/install.d/system_dpkg-upstart-hold_chroot    usr/share/kestrel/node/install.d
-share/node/install.d/system_dhcp_hostname_wol_chroot    usr/share/kestrel/node/install.d
-share/node/install.d/tftpboot_imagelist                 usr/share/kestrel/node/install.d
-share/node/install.d/system_network_wol_chroot          usr/share/kestrel/node/install.d
-
-share/node/configure.d/nfs4_export-image                usr/share/kestrel/node/configure.d
-share/node/configure.d/nfs4_home-fstab_chroot           usr/share/kestrel/node/configure.d
-share/node/configure.d/tftpboot_add-image               usr/share/kestrel/node/configure.d
-share/node/configure.d/system_beep-on-startup_chroot    usr/share/kestrel/node/configure.d
-share/node/configure.d/system_hostname_chroot           usr/share/kestrel/node/configure.d
-share/node/configure.d/system_kestrel-rpc_chroot        usr/share/kestrel/node/configure.d
+share/frontend/configure.d/ufw_kestrel-rpc              usr/share/kestrel/frontend/configure.d
 
 share/node/packages.d/basic_packages                    usr/share/kestrel/node/packages.d
+
+share/node/configure.d/host_nfs_export-image                usr/share/kestrel/node/configure.d
+share/node/configure.d/host_pxe_image-menu                  usr/share/kestrel/node/configure.d
+share/node/configure.d/image_core_beep-on-startup_chroot    usr/share/kestrel/node/configure.d
+share/node/configure.d/image_core_kestrel-rpc_chroot        usr/share/kestrel/node/configure.d
+share/node/configure.d/image_default-hostname_chroot        usr/share/kestrel/node/configure.d
+share/node/configure.d/image_nfs_home-fstab_chroot          usr/share/kestrel/node/configure.d
+
+share/node/install.d/host_nfs_export-image                          usr/share/kestrel/node/install.d
+share/node/install.d/host_pxe_add-to-imagelist                      usr/share/kestrel/node/install.d
+share/node/install.d/image_core_add-kestrel-users                   usr/share/kestrel/node/install.d
+share/node/install.d/image_core_beep-on-startup_chroot              usr/share/kestrel/node/install.d
+share/node/install.d/image_core_delete-sshd-motd_chroot             usr/share/kestrel/node/install.d
+share/node/install.d/image_core_dhclient-hook-set-hostname_chroot   usr/share/kestrel/node/install.d
+share/node/install.d/image_core_dhclient-wol-on-startup_chroot      usr/share/kestrel/node/install.d
+share/node/install.d/image_core_disable-dhclient-script_chroot      usr/share/kestrel/node/install.d
+share/node/install.d/image_core_disable-dpkg-upstart_chroot         usr/share/kestrel/node/install.d
+share/node/install.d/image_core_num-of-cpus_chroot                  usr/share/kestrel/node/install.d
+share/node/install.d/image_core_set-hostname_chroot                 usr/share/kestrel/node/install.d

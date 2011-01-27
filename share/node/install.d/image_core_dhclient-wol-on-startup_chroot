@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Only continue if a new image is being created
+[ "$1" = "add" ] || exit 0
+
 cat <<NETWORK > /etc/init.d/kestrel_network
 #!/bin/bash
 ### BEGIN INIT INFO
@@ -26,9 +29,7 @@ case "\$1" in
 esac
 NETWORK
 
-(
-    chmod 755 /etc/init.d/kestrel_network
-    update-rc.d -f kestrel_network remove
-    update-rc.d kestrel_network start 10 S . stop 50 0 1 6 .
-) &>/dev/null
+chmod 755 /etc/init.d/kestrel_network                     > /dev/null
+update-rc.d -f kestrel_network remove                    &> /dev/null
+update-rc.d kestrel_network start 10 S . stop 50 0 1 6 . &> /dev/null
 

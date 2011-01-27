@@ -35,7 +35,9 @@ case "$1" in
         fi
 
         # Create the file of registered nodes
+        [ ! -e "${KESTREL_REG_NODES}" ] &&
         touch ${KESTREL_REG_NODES}
+        #echo "# [<hwaddr>][,id:<client_id>|*][,set:<tag>][,<ipaddr>][,<hostname>][,<lease_time>][,ignore]" > ${KESTREL_REG_NODES}
 
         # Create hardlinks to files needed for running kestrel's rpc in a chroot
         mkdir -p ${KESTREL_DATA_DIR}/rpc/etc
@@ -72,7 +74,7 @@ case "$1" in
         [ -e /etc/init.d/kestrel_rpc ] &&
             update-rc.d -f kestrel_rpc remove >/dev/null
         
-        update-rc.d kestrel_halt_cluster stop 20 0 1 6 . > /dev/null
+        update-rc.d kestrel_halt_cluster stop 10 0 1 6 . > /dev/null
         
         update-rc.d kestrel_daemon defaults > /dev/null
         

@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Only continue if a new image is being created
+[ "$1" = "add" ] || exit 0
+
+cat <<-DHCPHOOK > /etc/dhcp3/dhclient-exit-hooks.d/kestrel_dhcp
+#!/bin/sh
+
+        echo "\$new_host_name"
+        echo "\$old_host_name"
+
+        echo "\$new_host_name"
+        echo "\$old_host_name"
+
+
+case "\$reason" in
+    BOUND|RENEW|REBIND|REBOOT)
+        
+        if [ -n "\$new_host_name" ]; then
+            hostname "\$new_host_name"
+            echo "\$new_host_name" > /etc/hostname
+            
+            cat > /etc/hosts <<FILE 
+127.0.0.1 localhost
+127.0.1.1 \${new_hostname}
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+FILE
+        fi
+        ;;
+esac
+DHCPHOOK
+
+chmod 755 /etc/dhcp3/dhclient-exit-hooks.d/kestrel_dhcp

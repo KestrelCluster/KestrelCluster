@@ -19,7 +19,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
         sys.stdout.write(" action=connect" + \
                          " ip=" + self.client_address[0] + \
                          " cpu=" + num_cpus + \
-                         " image=" + image + "\n")
+                         " image=" + image )
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -28,26 +28,19 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
                          " ip=" + self.client_address[0] + \
                          " cpu=" + num_cpus + 
                          " group=" + group + \
-                         " image=" + image + "\n")
+                         " image=" + image )
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
-    def kestrel_disconnect(self):
+    def kestrel_disconnect(self, reboot):
         sys.stdout.write(" action=disconnect " + \
-                         " ip=" + self.client_address[0] + "\n")
+                         " ip=" + self.client_address[0] + 
+                         " reboot=" + reboot )
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
-
-#    def kestrel_disconnect(self, reboot):
-#        sys.stdout.write(" action=disconnect " + \
-#                         " ip=" + self.client_address[0] + 
-#                         " reboot=" + reboot + "\n")
-#
-#        return time.strftime("%Y-%m-%d %H:%M:%S")
 
 class MyDaemon(Daemon):
     def run(self):
-        print "hola"
         frontend_ip = os.environ["FRONTEND_IP"]
         port =    int(os.environ["KESTREL_RPC_PORT"])
         

@@ -302,7 +302,7 @@ connected_nodes() {
         group="${group_re}"
     fi
     
-    re="^\s*${ip_re}\s+(${hostname_re})([^0-9].*)*$"
+    re="^\s*${ip_re}\s+(${KESTREL_HOSTNAME}-${group}-${node_re})([^0-9].*)*$"
     
     sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort
 }
@@ -461,9 +461,9 @@ mac_2_pxemac() {
 }
 
 
-# register script <parameters>*
+# run_event_scripts <parameters>*
 
-run_register_scripts() {
+run_event_scripts() {
     echo
     echo "======================"
     echo
@@ -497,7 +497,7 @@ run_register_scripts() {
     
     # Get the mac with the ip from dnsmasq's leases database
     [ -z "${mac}" ] &&
-    mac=$( awk "/[[:space:]]${ip//./\\.}[[:space:]]/ { print \$2 }" \
+    mac=$( awk "/[[:space:]]${ip//\./\\\.}[[:space:]]/ { print \$2 }" \
                /var/lib/misc/dnsmasq.leases )
     
     # Get the hostname from the registered node file.
@@ -518,7 +518,7 @@ run_register_scripts() {
             
             hostname=${KESTREL_HOSTNAME}-${group}-$(( ${last_node} + 1 ))
             echo "Registering node \"${hostname}\"" \
-                >> ${KESTREL_DATA_DIR}/register_feedback
+                 >> ${KESTREL_DATA_DIR}/register_feedback
             
         else
             echo "The node \"${hostname}\" was already registered" \
@@ -546,8 +546,8 @@ run_register_scripts() {
        [[ "${action}" != "connect" || -n "$(mac_2_hostname ${mac})" ]]; 
     then
     
-        # Run register.d script.
-        list_scripts "node/register.d" | \
+        # Run event.d script.
+        list_scripts "event.d" | \
         while read script; do
             echo ${script}
             . ${script}

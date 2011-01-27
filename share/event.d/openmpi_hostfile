@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Check if the hostname is defined and is a valid hostname
+if [[ "${hostname}" =~ ^${KESTREL_HOSTNAME}-([0-9A-Za-z_]+)-[0-9]+$ ]]; then
+
+case ${action} in
+    connect|register)
+       
+       # Remove any old entry related to this node
+       sed -ri "/^[^#]*\s+${hostname}([^0-9]|$)/d" ${OPENMPI_HOSTFILE}
+       
+       # Add new entries
+       echo "${hostname} slots=${cpus:-1} " >> ${OPENMPI_HOSTFILE}
+       ;;
+
+    disconnect)
+    
+       # Remove any old entry related to this node
+       sed -ri "/^[^#]*\s+${hostname}([^0-9]|$)/d" ${OPENMPI_HOSTFILE}
+       ;;
+esac
+
+fi

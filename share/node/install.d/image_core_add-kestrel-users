@@ -68,6 +68,7 @@ install -d ${image_dir}/etc/sudoers.d/
 # Create a new config file for our sudoer prefs
 cat <<SUDOERS > ${image_dir}/etc/sudoers.d/kestrel
 kestrel ALL=NOPASSWD: ALL
+%kestrel ALL=NOPASSWD: ALL
 SUDOERS
 
 # Ensure the config line enabling the /etc/sudoers.d dir is present

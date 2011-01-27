@@ -65,8 +65,8 @@ close() {
                 ( 
                 #    flock -s 200
                     
-                    # Run the register scripts when we read a line
-                    run_register_scripts ${read_line}
+                    # Run the event scripts when we read a line
+                    run_event_scripts ${read_line}
                     
                 ) # 200> ${LOCKFILE} &
             done < ${KESTREL_DATA_DIR}/rpc/fifo

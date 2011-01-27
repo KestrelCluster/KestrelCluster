@@ -60,6 +60,24 @@ clean(){
     rm ${dir}/*.8 2> /dev/null
 }
 
+check_install_files(){
+    pushd ${dir} &> /dev/null
+    non_installed_files=0
+    find share -type f | grep -v "\/\." | while read file; do
+       installed=""
+       for inst in debian/*.install; do
+           grep -q "${file}" "${inst}" && installed=${inst}
+       done
+       if [ -z "${installed}" ]; then
+           non_installed_files=$(( $non_installed_files + 1 ))
+           echo "file ${file} not installed"
+       #else
+       #    echo "file ${file} installed on ${inst}"
+       fi
+    done
+    #echo "Total of non installed files : ${non_installed_files}"
+    popd &> /dev/null
+}
 build(){
     clean
     # create man files
@@ -135,6 +153,11 @@ case ${1} in
         exit 0
         ;;
      
+    --check-install-files)
+        check_install_files
+        exit 0
+        ;;
+
     --version|-v)
         kestrel_version
         ;;

@@ -20,9 +20,9 @@ cat << KESTREL > /etc/init.d/kestrel_connect
 # the image is reconfigured.
 # 
 # If you wish to modify it, create your own copy of the template from :
-#     /usr/lib/kestrel/node/configure.d/system_kestrel-rpc_chroot
+#     /usr/lib/kestrel/node/configure.d/image_kestrel-rpc_chroot
 # to :
-#     /etc/kestrel/node/configure.d/system_kestrel-rpc_chroot
+#     /etc/kestrel/node/configure.d/image_kestrel-rpc_chroot
 #
 
 import re
@@ -63,10 +63,15 @@ KESTREL
 cat << KESTREL > /etc/init.d/kestrel_disconnect
 #!/usr/bin/env python
 
-import xmlrpclib
+import re, sys, xmlrpclib
 
 s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
-s.disconnect()
+
+# Check if the client is being shut down or being rebooted
+if re.search("/etc/rc6\.d/",sys.argv[0]):
+    s.disconnect(True)
+else:
+    s.disconnect(False)
 KESTREL
 
 
@@ -74,10 +79,9 @@ KESTREL
 chmod 755 /etc/init.d/kestrel_connect
 chmod 755 /etc/init.d/kestrel_disconnect
 
+update-rc.d -f kestrel_connect remove &>/dev/null
+update-rc.d -f kestrel_disconnect remove &>/dev/null
 
-for runlevel in /etc/rc{2..4}.d/S10kestrel_connect; do
-   ln -sf /etc/init.d/kestrel_connect ${runlevel}
-done
+update-rc.d kestrel_connect start 10 2 3 4 5 . &>/dev/null
+update-rc.d kestrel_disconnect stop 38 0 6 . &>/dev/null
 
-ln -sf /etc/init.d/kestrel_disconnect /etc/rc0.d/S38kestrel_disconnect
-ln -sf /etc/init.d/kestrel_disconnect /etc/rc6.d/S38kestrel_disconnect

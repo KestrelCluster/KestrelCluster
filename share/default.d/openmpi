@@ -1,2 +1,4 @@
 
 OPENMPI=true
+
+OPENMPI_HOSTFILE=/etc/openmpi/openmpi-default-hostfile

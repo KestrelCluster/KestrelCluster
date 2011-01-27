@@ -1,15 +1,7 @@
 /etc/kestrel
-/var/lib/kestrel
 /var/lib/kestrel/rpc
 /var/lib/kestrel/rpc/lib
 /var/lib/kestrel/rpc/etc
 /var/lib/kestrel/images
 /var/lib/kestrel/tftpboot
 /var/lib/kestrel/tftpboot/pxelinux.cfg
-/usr/share/kestrel
-/usr/share/kestrel/node
-/usr/share/kestrel/node/hooks.d
-/usr/share/kestrel/node/config.d
-/usr/share/kestrel/node/register.d
-/usr/share/kestrel/frontend
-/usr/share/kestrel/frontend/config.d
