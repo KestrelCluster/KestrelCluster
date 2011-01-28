@@ -9,7 +9,23 @@ Dracut is a new initramfs infrastructure, very well designed and very efficient.
     of services, and we look for a simple and clean solution (KISS).
     
     
-Download Dracut 007 :
+
+Download the latest _patched_ Dracut 007 from :
+
+   https://launchpad.net/~kestrel/+archive/kestrelhpc
+
+Build Dracut Debian Package :
+
+   debuild -uc -us
+
+
+Note: We don't mantain anymore a Dracut patch inside the tarball of KestrelHPC.
+
+
+ Deprecated instructions
+=========================
+
+Official Dracut 007 :
 
    http://dracut.git.sourceforge.net/git/gitweb.cgi?p=dracut/dracut;a=snapshot;h=59a232ddcd1563362fd988037921dab9859042a3;sf=tgz
 
@@ -23,3 +39,4 @@ Create and install the debian package :
    popd
    rm -R dracut-*/
    sudo dpkg -i dracut*.deb
+
