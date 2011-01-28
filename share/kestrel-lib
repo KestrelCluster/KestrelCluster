@@ -290,6 +290,22 @@ check_hostname() {
         die "The hostname \"${host} hasn't been found"
 }
 
+# check_mac <mac>
+# 
+#     Check if the mac is valid a registered
+
+check_mac() {
+    local host=$1
+    
+    [[ -n "${mac}" && "${mac}" =~ ^${mac_re}$ ]] ||
+        die "Invalid mac address"
+    
+    host=$(mac_2_hostname ${mac})
+    
+    [ -z "${host}" ] &&
+        die "The mac \"${mac} is not registered on the system"
+}
+
 # connected_nodes [<group>]
 # 
 #     List all connected nodes.
