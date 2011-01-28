@@ -45,7 +45,6 @@ share/node/configure.d/host_nfs_export-image                usr/share/kestrel/no
 share/node/configure.d/host_pxe_image-menu                  usr/share/kestrel/node/configure.d
 share/node/configure.d/image_core_beep-on-startup_chroot    usr/share/kestrel/node/configure.d
 share/node/configure.d/image_core_kestrel-rpc_chroot        usr/share/kestrel/node/configure.d
-share/node/configure.d/image_default-hostname_chroot        usr/share/kestrel/node/configure.d
 share/node/configure.d/image_nfs_home-fstab_chroot          usr/share/kestrel/node/configure.d
 
 share/node/install.d/host_nfs_export-image                          usr/share/kestrel/node/install.d
