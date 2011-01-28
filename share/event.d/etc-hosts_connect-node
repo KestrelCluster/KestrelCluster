@@ -14,7 +14,7 @@
 #   <kestrel_hostame>-<group_name>-<node_id>-<image-name>
 
 # Check if the hostname is defined and is a valid hostname
-if [[ "${hostname}" =~ ^${KESTREL_HOSTNAME}-([0-9A-Za-z_]+)-[0-9]+$ ]]; then
+if [[ "${hostname}" =~ ^${hostname_re}$ ]]; then
 
 case ${action} in
     connect|register)
@@ -24,10 +24,11 @@ case ${action} in
        sed -ri "/^\s*${ip}\s+/d"                   ${KESTREL_CON_NODES}
        
        # Add new entries
-       echo -e "${ip}    ${hostname} ${hostname}-${image}" >> ${KESTREL_CON_NODES}
+       echo -e "${ip}    ${hostname} ${hostname}-${image}" \
+            >> ${KESTREL_CON_NODES}
        ;;
 
-    disconnect)
+    disconnect|desregister)
     
        # Remove any old entry related to this node
        sed -ri "/^[^#]*\s+${hostname}([^0-9]|$)/d" ${KESTREL_CON_NODES}

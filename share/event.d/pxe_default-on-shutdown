@@ -4,7 +4,7 @@
 if [ -n "${mac}" ]; then
 
 case ${action} in
-    disconnect)
+    disconnect|desregister)
        pxemac=$(mac_2_pxemac ${mac})
        [[ -n "${pxemac}" && "$reboot" = "False" ]] &&
        rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} 2>/dev/null
