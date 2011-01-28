@@ -513,7 +513,7 @@ run_event_scripts() {
     
     # Get the mac with the ip from dnsmasq's leases database
     [ -z "${mac}" ] &&
-    mac=$( awk "/[[:space:]]${ip//./\\.}[[:space:]]/ { print \$2 }" \
+    mac=$( awk "/[^0-9]${ip//./\\.}[^0-9]/ { print \$2 }" \
                /var/lib/misc/dnsmasq.leases )
     
     # Get the hostname from the registered node file.
