@@ -3,6 +3,7 @@
 # Only continue if a new image is being created
 [ "$1" = "add" ] || exit 0
 
+# Install set_hostname command
 cat <<SETHOSTNAME > /sbin/set_hostname
 #!/bin/sh
 
@@ -25,7 +26,25 @@ FILE
 # Set the new hostname
 echo "\$new_hostname" > /etc/hostname
 hostname "\$new_hostname"
-
 SETHOSTNAME
 
 chmod 755 /sbin/set_hostname
+
+# This hostname will be only use when booting, afterwards the dhcp client will
+# set the real one
+cat << HOSTNAME > /etc/hostname
+${KESTREL_HOSTNAME}-${image_name}-unset
+HOSTNAME
+
+cat << HOSTNAME > /etc/hosts
+127.0.0.1 localhost
+127.0.1.1 ${KESTREL_HOSTNAME}-${image_name}-unset
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+ff02::3 ip6-allhosts
+HOSTNAME
