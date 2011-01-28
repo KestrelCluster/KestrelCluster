@@ -1,0 +1,13 @@
+/var/log/kestrel-daemon.log {
+        weekly
+        missingok
+        rotate 52
+        compress
+        delaycompress
+        notifempty
+        sharedscripts
+        postrotate
+                /etc/init.d/kestrel_rpc restart > /dev/null
+                /etc/init.d/kestrel_daemon restart > /dev/null
+        endscript
+}
