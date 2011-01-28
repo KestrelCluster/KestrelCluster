@@ -185,13 +185,9 @@ op_mac() {
     image_dir=${KESTREL_IMAGE_DIR}/${image_name}
     local title=$(echo ${1} | sed -r '/^(.)/s//\U\1\E/')
     
-    [[ -n "${mac}" && "${mac}" =~ ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2} ]] ||
-        die "Invalid mac address"
+    check_mac "${mac}"
     
     host=$(mac_2_hostname ${mac})
-    
-    [ -z "${host}" ] &&
-        die "Mac not registered on the system"
     
     check_root
     
@@ -303,9 +299,18 @@ op_group() {
 #     Creates a disregister event
 
 _remove_mac() {
+    local mac=$1
     
-    true
+    check_mac "${mac}"
     
+    check_root
+    
+    host=$(mac_2_hostname ${mac})
+    
+    echo " action=desregister mac=${mac} hostname=${host} " \
+         > ${KESTREL_DATA_DIR}/rpc/fifo
+    
+    echo -e "\t${host}, mac:${mac} removed"
 }
 
 
@@ -314,9 +319,18 @@ _remove_mac() {
 #     Creates a disregister event
 
 _remove_node() {
+    local host=$1
     
-    true
+    check_hostname "${host}"
     
+    check_root
+    
+    mac=$(hostname_2_mac ${host})
+    
+    echo " action=desregister mac=${mac} hostname=${host} " \
+         > ${KESTREL_DATA_DIR}/rpc/fifo
+    
+    echo -e "\t${host}, mac:${mac} removed"
 }
 
 
@@ -325,10 +339,20 @@ _remove_node() {
 #     Creates a disregister event
 
 _remove_group() {
+    local group=$1
+    
+    check_group "${group}"
+    
+    check_root
     
     registered_nodes "${1}" | while read node; do
         
-        _remove_node "${node}"
+        mac=$(hostname_2_mac ${node})
+        
+        echo " action=desregister mac=${mac} hostname=${node} " \
+             > ${KESTREL_DATA_DIR}/rpc/fifo
+        
+        echo -e "\t${node}, mac:${mac} removed"
         
     done
 }
@@ -337,15 +361,17 @@ _halt-cluster() {
     
     check_root
     
-    connected_nodes | while read node; do
-        echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
-        shutdown_node "halt" "${node}"
-    done
-    echo
-    echo -e "\tWaiting till the nodes shutdown"
-    while (( $(connected_nodes | wc -l) > 0 )); do
-        sleep .5
-    done
+    if (( $(connected_nodes | wc -l) > 0 )); then
+        connected_nodes | while read node; do
+            echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
+            shutdown_node "halt" "${node}"
+        done
+        echo
+        echo -e "\tWaiting till the nodes shutdown"
+        while (( $(connected_nodes | wc -l) > 0 )); do
+            sleep .5
+        done
+    fi
 }
 
 # control_c
