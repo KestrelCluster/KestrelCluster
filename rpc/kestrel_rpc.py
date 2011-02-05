@@ -18,24 +18,24 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
     def kestrel_connect(self, num_cpus, image):
         sys.stdout.write(" action=connect" + \
                          " ip=" + self.client_address[0] + \
-                         " cpu=" + num_cpus + \
-                         " image=" + image )
+                         " cpu=" + str(num_cpus) + \
+                         " image=" + str(image) )
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
     def kestrel_register(self, num_cpus, image, group):
         sys.stdout.write(" action=register" + \
                          " ip=" + self.client_address[0] + \
-                         " cpu=" + num_cpus + 
-                         " group=" + group + \
-                         " image=" + image )
+                         " cpu=" + str(num_cpus) + 
+                         " group=" + str(group) + \
+                         " image=" + str(image) )
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
     def kestrel_disconnect(self, reboot):
         sys.stdout.write(" action=disconnect " + \
                          " ip=" + self.client_address[0] + 
-                         " reboot=" + reboot )
+                         " reboot=" + str(reboot) )
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
