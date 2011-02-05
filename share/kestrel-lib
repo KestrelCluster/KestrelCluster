@@ -17,7 +17,7 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-KESTREL_VERSION="1.9.13"
+KESTREL_VERSION="1.9.14"
 
 
 # Loads the config from the config file default.conf, from the defaul.d dir
@@ -148,6 +148,12 @@ check_image() {
     if [ "${image_name}" = "default" ]; then
         image_name=$(default-image)
         image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+        
+        if [ -z "$image_name" ]; then
+            die "There is no node image available" \
+                "Create an image with :" \
+                "   sudo kestrel-images --new \"image_name\""
+        fi
     fi
     
     [ "${image_name}" = "cached-image" ] &&
@@ -731,7 +737,7 @@ install_node() {
     echo
     echo "Executing install scripts"
     echo
-
+    
     list_scripts "node/install.d" | \
     while read hook; do
         echo "Executing : ${hook##*/} "
@@ -779,6 +785,33 @@ install_node() {
               echo "error while installing ${package##*/}"
               
     done | sed -r 's/^/    /'
+    
+    echo
+    echo "Executing post install scripts"
+    echo
+    
+    list_scripts "node/post-install.d" | \
+    while read hook; do
+        echo "Executing : ${hook##*/} "
+        
+        # if the script if postfixed with chroot run it under a chroot
+        if [[ ${hook} =~ chroot ]]; then
+        
+            # Copy the script under the chroot
+            cp ${hook} ${image_dir}/tmp/hook
+            chmod 755 ${image_dir}/tmp/hook
+            
+            (
+                # Avoid any locale setting
+                export LANG=C
+                
+                chroot ${image_dir} /tmp/hook add
+            )
+        else
+            . ${hook} add
+        fi || echo "error while executing ${hook##*/}"
+        
+    done | sed -r 's/^/    /' # add some indentation to the output
 }
 
 
@@ -901,7 +934,6 @@ reconfigure_frontend() {
 
 # Util functions
 #################
-
 
 # question_yN <question>
 # 
