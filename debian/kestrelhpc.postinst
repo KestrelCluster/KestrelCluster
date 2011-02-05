@@ -39,6 +39,9 @@ case "$1" in
         touch ${KESTREL_REG_NODES}
         #echo "# [<hwaddr>][,id:<client_id>|*][,set:<tag>][,<ipaddr>][,<hostname>][,<lease_time>][,ignore]" > ${KESTREL_REG_NODES}
 
+        # Debian doesn't create ssh_known_hosts by default
+        touch /etc/ssh/ssh_known_hosts
+        
         # Create hardlinks to files needed for running kestrel's rpc in a chroot
         mkdir -p ${KESTREL_DATA_DIR}/rpc/etc
         mkdir -p ${KESTREL_DATA_DIR}/rpc/lib
@@ -46,8 +49,10 @@ case "$1" in
         ln -f /etc/hosts                          ${KESTREL_DATA_DIR}/rpc/etc/
         ln -f /etc/hostname                       ${KESTREL_DATA_DIR}/rpc/etc/
         ln -f /etc/nsswitch.conf                  ${KESTREL_DATA_DIR}/rpc/etc/
-        ln -f /lib/libnss_files.so.2*             ${KESTREL_DATA_DIR}/rpc/lib/
-        ln -f /lib/libnss_files-2.12.1.so         ${KESTREL_DATA_DIR}/rpc/lib/
+        
+        LIBNSS=$(readlink -f /lib/libnss_files.so.2)
+        ln -f /${LIBNSS}                          ${KESTREL_DATA_DIR}/rpc/lib/
+        ( cd ${KESTREL_DATA_DIR}/rpc/lib/; ln -s $LIBNSS libnss_files.so.2 )
 
         [ -e ${KESTREL_DATA_DIR}/rpc/fifo ] &&
         rm                  ${KESTREL_DATA_DIR}/rpc/fifo
