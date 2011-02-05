@@ -72,7 +72,12 @@ kestrel ALL=NOPASSWD: ALL
 SUDOERS
 
 # Ensure the config line enabling the /etc/sudoers.d dir is present
-if ! grep -Eq "^[[:space:]]*#includedir[[:space:]]+\/etc\/sudoers.d[[:space:]]*$"\
+if [ ! -e ${image_dir}/etc/sudoers ]; then
+   touch  -e ${image_dir}/etc/sudoers
+   chmod 0440 ${image_dir}/etc/sudoers
+fi
+
+if ! grep -Eq "^\s*#includedir\s+\/etc\/sudoers.d\s*$" \
     ${image_dir}/etc/sudoers;
 then
     echo -e "\n#includedir \/etc\/sudoers.d" >> ${image_dir}/etc/sudoers
