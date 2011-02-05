@@ -10,7 +10,9 @@ description=KestrelHPC is a set of utilities for setting up a cluster with live 
 ports=${KESTREL_RPC_PORT}/tcp
 UFW
 
-    if [ "$(initctl status ufw)" == "ufw start/running" ]; then
+    if [ -e /etc/init/ufw.conf ] && [ "$(initctl status ufw)" == "ufw start/running" ]; then
         initctl restart ufw > /dev/null
-    fi
+    elif [ -x /etc/init.d/ufw ] && /etc/init.d/ufw status &> /dev/null; then
+        /etc/init.d/ufw restart > /dev/null
+    fi 
 fi
