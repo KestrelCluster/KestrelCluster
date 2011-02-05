@@ -7,8 +7,9 @@ cp /etc/ssh/ssh_config /etc/ssh/ssh_config.bak
 if ! grep -qE "^[[:space:]]*orte_default_hostfile=" \
      /etc/openmpi/openmpi-mca-params.conf; 
 then
-    echo "orte_default_hostfile=${OPENMPI_HOSTFILE}" >> /etc/ssh/sshd_config
+    echo "orte_default_hostfile=${OPENMPI_HOSTFILE}" \
+         >> /etc/openmpi/openmpi-mca-params.conf
 else
-    sed -ri '/orte_default_hostfile=/s/=.*/=${OPENMPI_HOSTFILE}/' \
+    sed -ri "/orte_default_hostfile=/s/=.*/=${OPENMPI_HOSTFILE//\//\\/}/" \
             /etc/openmpi/openmpi-mca-params.conf
 fi
