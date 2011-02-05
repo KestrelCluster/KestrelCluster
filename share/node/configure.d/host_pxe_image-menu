@@ -10,12 +10,12 @@ include template
 label linux1
   menu label Dracut NFS 3
   kernel vmlinuz
-  append initrd=dracut-img root=nfs:${FRONTEND_IP}:${NFS4_ROOT}/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro
+  append initrd=dracut-img root=nfs:${FRONTEND_IP}:${NFS4_ROOT}/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro quiet splash vga=789
 
 label linux0
   menu label Dracut NFS 4
   kernel vmlinuz
-  append initrd=dracut-img root=nfs4:${FRONTEND_IP}:/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro
+  append initrd=dracut-img root=nfs4:${FRONTEND_IP}:/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro quiet splash vga=789
 
 label reboot
   menu label reboot
@@ -36,7 +36,7 @@ label local
 label linux0
   menu label Dracut NFS4 DEBUG
   kernel vmlinuz
-  append initrd=dracut-img root=nfs4:${FRONTEND_IP}:/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro rdshell rdnetdebug rdinfo
+  append initrd=dracut-img root=nfs4:${FRONTEND_IP}:/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro rdshell rdnetdebug rdinfo plymouth:debug
 
 EOF
 
