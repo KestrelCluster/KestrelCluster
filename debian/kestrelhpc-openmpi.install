@@ -1,5 +1,9 @@
-share/default.d/openmpi                                 usr/share/kestrel/default.d
-share/event.d/openmpi_hostfile                          usr/share/kestrel/event.d/
-share/node/packages.d/openmpi                           usr/share/kestrel/node/packages.d
-share/node/install.d/image_openmpi_fix-oldlinks_chroot  usr/share/kestrel/node/install.d
-share/frontend/configure.d/openmpi_set-default-hostfile usr/share/kestrel/frontend/configure.d/
+share/default.d/openmpi                                         usr/share/kestrel/default.d
+
+share/event.d/openmpi_hostfile                                  usr/share/kestrel/event.d/
+
+share/node/packages.d/openmpi                                   usr/share/kestrel/node/packages.d
+
+share/node/post-install.d/image_openmpi_fix-oldlinks_chroot     usr/share/kestrel/node/post-install.d
+
+share/frontend/configure.d/openmpi_set-default-hostfile         usr/share/kestrel/frontend/configure.d/

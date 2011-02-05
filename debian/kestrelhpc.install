@@ -51,10 +51,11 @@ share/node/install.d/host_nfs_export-image                          usr/share/ke
 share/node/install.d/host_pxe_add-to-imagelist                      usr/share/kestrel/node/install.d
 share/node/install.d/image_core_add-kestrel-users                   usr/share/kestrel/node/install.d
 share/node/install.d/image_core_beep-on-startup_chroot              usr/share/kestrel/node/install.d
-share/node/install.d/image_core_delete-sshd-motd_chroot             usr/share/kestrel/node/install.d
 share/node/install.d/image_core_dhclient-hook-set-hostname_chroot   usr/share/kestrel/node/install.d
 share/node/install.d/image_core_dhclient-wol-on-startup_chroot      usr/share/kestrel/node/install.d
 share/node/install.d/image_core_disable-dhclient-script_chroot      usr/share/kestrel/node/install.d
 share/node/install.d/image_core_disable-dpkg-upstart_chroot         usr/share/kestrel/node/install.d
 share/node/install.d/image_core_num-of-cpus_chroot                  usr/share/kestrel/node/install.d
 share/node/install.d/image_core_set-hostname_chroot                 usr/share/kestrel/node/install.d
+
+share/node/post-install.d/image_core_delete-sshd-motd_chroot        usr/share/kestrel/node/post-install.d
