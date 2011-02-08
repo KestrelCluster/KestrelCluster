@@ -52,16 +52,25 @@ sed -ri '/^NEED_STATD=/s/=.*/=yes/' \
 sed -ri '/^NEED_IDMAPD=/s/=.*/=yes/' \
         /etc/default/nfs-common
 
+
 if [ -e /etc/init/idmapd.conf ]; then
-    initctl start idmapd
-else
-    /etc/init.d/idmapd start
+    initctl restart idmapd
+
+elif [ -x /etc/init.d/idmapd ]; then
+    /etc/init.d/idmapd restart
+
+elif [ -x /etc/init.d/nfs-common ]; then
+    /etc/init.d/nfs-common restart
+
 fi &> /dev/null
 
+
 if [ -e /etc/init/statd.conf ]; then
-    initctl start statd
-else
-    /etc/init.d/statd start
+    initctl restart statd
+
+elif [ -x /etc/init.d/statd ]; then
+    /etc/init.d/statd restart
+
 fi &> /dev/null
 
 
