@@ -368,7 +368,9 @@ _halt-cluster() {
         done
         echo
         echo -e "\tWaiting till the nodes shutdown"
-        while (( $(connected_nodes | wc -l) > 0 )); do
+        TIMEOUT=10 # Waits 5 seconds. (sleeps 0.5s)
+        while (( $(connected_nodes | wc -l) > 0 && ${TIMEOUT} > 0)); do
+            TIMEOUT=$(( ${TIMEOUT} - 1 ))
             sleep .5
         done
     fi
