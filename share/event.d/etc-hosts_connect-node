@@ -24,7 +24,7 @@ case ${action} in
        sed -ri "/^\s*${ip}\s+/d"                   ${KESTREL_CON_NODES}
        
        # Add new entries
-       echo -e "${ip}    ${hostname} ${hostname}-${image}" \
+       echo "${ip}    ${hostname} ${hostname}-${image}" \
             >> ${KESTREL_CON_NODES}
        ;;
 
