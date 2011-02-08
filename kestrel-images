@@ -50,14 +50,15 @@ _new() {
     # First check if the installed distribution is LSB compatible
     if [ -n $(which lsb_release) ]; then
 
-        OS_ARCHITECTURE=$(uname -m)
-        OS_DISTRIBUTION=$(lsb_release -is)
-        OS_CODENAME=$(lsb_release -cs)
-        OS_RELEASE=$(lsb_release -rs)
-
         echo
         echo "Detecting host :"
         echo
+        
+        export OS_ARCHITECTURE=$(uname -m)
+        export OS_DISTRIBUTION=$(lsb_release -is)
+        export OS_CODENAME=$(lsb_release -cs)
+        export OS_RELEASE=$(lsb_release -rs)
+        
         echo "    Architecture: ${OS_ARCHITECTURE}"
         echo "    Distribution: ${OS_DISTRIBUTION}"
         echo "    Codename:     ${OS_CODENAME}"
@@ -140,12 +141,24 @@ _new() {
 
         mount_chroot_image ${image_dir}
 
-        install_node
-
-        reconfigure_node
-
+        # Save the image's name
         echo "${image_name}" > ${image_dir}/etc/kestrel_image_name
-
+        
+        # Save the Distribution's info
+        OS="${OS_ARCHITECTURE}-${OS_DISTRIBUTION}-${OS_CODENAME}-${OS_RELEASE}"
+        echo "${OS}" > ${image_dir}/etc/kestrel_image_os
+        
+        
+        # Run the install scripts, install the required packages and run 
+        # post-install scripts
+        
+        install_node
+        
+        # Run the configuration scripts
+        
+        reconfigure_node
+        
+        
         sync
 
         umount_chroot_image ${image_dir}
