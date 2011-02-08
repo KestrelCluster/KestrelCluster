@@ -428,7 +428,7 @@ _register() {
     trap control_c SIGINT SIGTERM
     
     echo
-    echo "Turn now on the nodes to add them to the group \"${image_name}\""
+    echo "Turn now on the nodes to add them to the group \"${group}\" with the image \"${image_name}\""
     echo
     echo "Press crtl+c when you are done"
     echo
