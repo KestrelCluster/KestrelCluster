@@ -19,7 +19,11 @@ case "\$1" in
   start)
       dhclient
       
+      [ -x /etc/network/if-up.d/mountnfs ] && \
+          /etc/network/if-up.d/mountnfs
+
       for net in /sys/class/net/*; do 
+          [ "$net" == "lo" ] && continue
           iface="\${net##*/}"
           ethtool -s "\${iface}" wol g
       done
