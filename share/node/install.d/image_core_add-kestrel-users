@@ -73,7 +73,7 @@ SUDOERS
 
 # Ensure the config line enabling the /etc/sudoers.d dir is present
 if [ ! -e ${image_dir}/etc/sudoers ]; then
-   touch  -e ${image_dir}/etc/sudoers
+   touch ${image_dir}/etc/sudoers
    chmod 0440 ${image_dir}/etc/sudoers
 fi
 
