@@ -1,7 +1,10 @@
 #!/bin/bash
 
+# Install kestrel_connect and kestrel_disconnect commands on the image
+#######################################################################
+
 # Install the RPC client
-cat << KESTREL > /etc/init.d/kestrel_connect
+cat << KESTREL > /sbin/kestrel_connect
 #!/usr/bin/env python
 
 # This script is the responsible of notifying the frontend via a rpc call the 
@@ -60,7 +63,7 @@ else:
 KESTREL
 
 
-cat << KESTREL > /etc/init.d/kestrel_disconnect
+cat << KESTREL > /sbin/kestrel_disconnect
 #!/usr/bin/env python
 
 import re, sys, xmlrpclib
@@ -68,12 +71,106 @@ import re, sys, xmlrpclib
 s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
 
 # Check if the client is being shut down or being rebooted
-if re.search("/etc/rc6\.d/",sys.argv[0]):
+if re.search("/etc/rc6\.d/",sys.argv[1]):
     s.disconnect(True)
 else:
     s.disconnect(False)
 KESTREL
 
+
+# Give them read, write, and execute permissions
+chmod 755 /sbin/kestrel_connect
+chmod 755 /sbin/kestrel_disconnect
+
+
+# Install kestrel_connect's and kestrel_disconnect's init.d services
+#####################################################################
+
+# Ubuntu and Debian differ significantly 
+
+# Check the image distribution
+if [ -e /etc/kestrel_image_os ]; then
+    read IMAGE_OS < /etc/kestrel_image_os
+
+# Ensure backwards compatibility (KestrelHPC < 1.9.14)
+else
+    # Save the Distribution's info
+    OS_ARCHITECTURE=$(uname -m)
+    OS_DISTRIBUTION=$(lsb_release -is)
+    OS_CODENAME=$(lsb_release -cs)
+    OS_RELEASE=$(lsb_release -rs)
+    IMAGE_OS="${OS_ARCHITECTURE}-${OS_DISTRIBUTION}-${OS_CODENAME}-${OS_RELEASE}"
+    echo "${IMAGE_OS}" > ${image_dir}/etc/kestrel_image_os
+fi
+
+# IMAGE_OS=${OS_ARCHITECTURE}-${OS_DISTRIBUTION}-${OS_CODENAME}-${OS_RELEASE}
+case $IMAGE_OS in
+    *)
+        REQUIRED_START="\$remove_fs"
+        REQUIRED_STOP=
+        DEFAULT_START="2 3 4 5"
+        DEFAULT_STOP=
+        ;;
+esac
+
+# Install the init.d scripts
+cat <<-INITD > /etc/init.d/kestrel_connect
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          kestrel_connect
+# Required-Start:    ${REQUIRED_START}
+# Required-Stop:     ${REQUIRED_STOP}
+# Default-Start:     ${DEFAULT_START}
+# Default-Stop:      ${DEFAULT_STOP}
+# Short-Description: Kestrel Connect
+# Description:       
+### END INIT INFO
+
+case "\$1" in
+  start)
+      /sbin/kestrel_connect
+      ;;
+  stop)
+      ;;
+esac
+INITD
+
+# IMAGE_OS=${OS_ARCHITECTURE}-${OS_DISTRIBUTION}-${OS_CODENAME}-${OS_RELEASE}
+case $IMAGE_OS in
+    *-Debian-*-*)
+        REQUIRED_START=
+        REQUIRED_STOP="\$umountfs"
+        DEFAULT_START=
+        DEFAULT_STOP="0 6"
+        ;;
+    *-Ubuntu-*-*)
+        REQUIRED_START="\$umountfs"
+        REQUIRED_STOP=
+        DEFAULT_START="0 6"
+        DEFAULT_STOP=
+        ;;
+esac
+
+cat <<-INITD > /etc/init.d/kestrel_disconnect
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          kestrel_disconnect
+# Required-Start:    ${REQUIRED_START}
+# Required-Stop:     ${REQUIRED_STOP}
+# Default-Start:     ${DEFAULT_START}
+# Default-Stop:      ${DEFAULT_STOP}
+# Short-Description: Kestrel Disconnect
+# Description:       
+### END INIT INFO
+
+case "\$1" in
+  start)
+      ;;
+  stop)
+      /sbin/kestrel_disconnect $0
+      ;;
+esac
+INITD
 
 # Give them read, write, and execute permissions
 chmod 755 /etc/init.d/kestrel_connect
@@ -83,5 +180,5 @@ update-rc.d -f kestrel_connect remove &>/dev/null
 update-rc.d -f kestrel_disconnect remove &>/dev/null
 
 update-rc.d kestrel_connect start 10 2 3 4 5 . &>/dev/null
-update-rc.d kestrel_disconnect stop 38 0 6 . &>/dev/null
+update-rc.d kestrel_disconnect start 38 0 6 . &>/dev/null
 
