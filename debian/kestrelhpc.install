@@ -57,5 +57,6 @@ share/node/install.d/image_core_disable-dhclient-script_chroot      usr/share/ke
 share/node/install.d/image_core_disable-dpkg-upstart_chroot         usr/share/kestrel/node/install.d
 share/node/install.d/image_core_num-of-cpus_chroot                  usr/share/kestrel/node/install.d
 share/node/install.d/image_core_set-hostname_chroot                 usr/share/kestrel/node/install.d
+share/node/install.d/image_nfs_configure_chroot                     usr/share/kestrel/node/install.d
 
 share/node/post-install.d/image_core_delete-sshd-motd_chroot        usr/share/kestrel/node/post-install.d
