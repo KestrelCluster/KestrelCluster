@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Only continue if a new image is being created
+[ "$1" = "add" ] || exit 0
+
+# Ensure idmapd and stad daemon are enabled and running
+########################################################
+
+sed -ri '/^NEED_STATD=/s/=.*/=yes/' \
+        /etc/default/nfs-common
+
+sed -ri '/^NEED_IDMAPD=/s/=.*/=yes/' \
+        /etc/default/nfs-common
+
