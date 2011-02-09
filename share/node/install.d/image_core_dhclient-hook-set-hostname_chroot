@@ -3,6 +3,9 @@
 # Only continue if a new image is being created
 [ "$1" = "add" ] || exit 0
 
+[ ! -d "/etc/dhcp/dhclient-exit-hooks.d" ] &&
+    mkdir -p "/etc/dhcp/dhclient-exit-hooks.d"
+
 cat <<-DHCPHOOK > /etc/dhcp/dhclient-exit-hooks.d/kestrel_dhcp
 #!/bin/sh
 
@@ -17,8 +20,9 @@ case "\$reason" in
     BOUND|RENEW|REBIND|REBOOT)
         
         if [ -n "\$new_host_name" ]; then
-            hostname "\$new_host_name"
+            
             echo "\$new_host_name" > /etc/hostname
+            hostname "\$new_host_name"
             
             cat > /etc/hosts <<FILE 
 127.0.0.1 localhost
@@ -40,6 +44,7 @@ DHCPHOOK
 chmod 755 /etc/dhcp/dhclient-exit-hooks.d/kestrel_dhcp
 
 if [ -d /etc/dhcp3/dhclient-exit-hooks.d ]; then
-    ln -s /etc/dhcp/dhclient-exit-hooks.d/kestrel_dhcp \
-          /etc/dhcp3/dhclient-exit-hooks.d
+    ln -sf /etc/dhcp/dhclient-exit-hooks.d/kestrel_dhcp \
+           /etc/dhcp3/dhclient-exit-hooks.d
 fi
+
