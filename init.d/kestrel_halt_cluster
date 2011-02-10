@@ -2,7 +2,7 @@
 ### BEGIN INIT INFO
 # Provides:          halt_cluster
 # Required-Start:    $remote_fs $network
-# Required-Stop:     $remote_fs $network kestrel_daemon kestrel_rpc
+# Required-Stop:     $remote_fs $network nfs-kernel-server kestrel_daemon kestrel_rpc
 # Default-Start:     
 # Default-Stop:      0 1 6
 # Short-Description: Halt cluster's nodes
