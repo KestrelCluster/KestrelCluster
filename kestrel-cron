@@ -24,10 +24,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
 # Load kestrel_lib
-. "$KESTREL_LIB"/kestrel-lib
+. "$KESTREL_SHARE"/kestrel-lib
 
 _check() {
     
