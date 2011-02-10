@@ -30,13 +30,10 @@ case "$1" in
             invoke-rc.d kestrel_halt_cluster stop
         fi
         
-        for daemon in kestrel_daemon kestrel_rpc; do
-            [ ! -x /etc/init.d/${daemon} ] && continue
-            
+        [ -x /etc/init.d/kestrel_daemon ] &&
             invoke-rc.d ${daemon} stop
-
-        done
-
+        
+        
         kestrel-reconfigure --disable
         
         if [ "$1" = "remove" ]; then

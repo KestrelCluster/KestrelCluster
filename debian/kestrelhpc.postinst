@@ -52,7 +52,7 @@ case "$1" in
         
         LIBNSS=$(readlink -f /lib/libnss_files.so.2)
         ln -f /${LIBNSS}                          ${KESTREL_DATA_DIR}/rpc/lib/
-        ( cd ${KESTREL_DATA_DIR}/rpc/lib/; ln -s $LIBNSS libnss_files.so.2 )
+        ( cd ${KESTREL_DATA_DIR}/rpc/lib/; ln -sf $LIBNSS libnss_files.so.2 )
 
         [ -e ${KESTREL_DATA_DIR}/rpc/fifo ] &&
         rm                  ${KESTREL_DATA_DIR}/rpc/fifo
@@ -76,14 +76,9 @@ case "$1" in
         [ -e /etc/init.d/kestrel_daemon ] &&
             update-rc.d -f kestrel_daemon remove >/dev/null
         
-        [ -e /etc/init.d/kestrel_rpc ] &&
-            update-rc.d -f kestrel_rpc remove >/dev/null
-        
         update-rc.d kestrel_halt_cluster stop 10 0 1 6 . > /dev/null
         
         update-rc.d kestrel_daemon defaults > /dev/null
-        
-        update-rc.d kestrel_rpc defaults > /dev/null
         
         
         act="restart"
@@ -91,7 +86,6 @@ case "$1" in
 
         invoke-rc.d kestrel_halt_cluster $act
         invoke-rc.d kestrel_daemon $act
-        invoke-rc.d kestrel_rpc $act
         
         kestrel-reconfigure --enable
         
@@ -105,9 +99,6 @@ case "$1" in
         
         [ -e /etc/init.d/kestrel_daemon ] &&
             update-rc.d -f kestrel_daemon remove >/dev/null
-        
-        [ -e /etc/init.d/kestrel_rpc ] &&
-            update-rc.d -f kestrel_rpc remove >/dev/null
         
     ;;
 

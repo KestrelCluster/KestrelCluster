@@ -27,9 +27,6 @@ case "$1" in
         [ -e /etc/init.d/kestrel_daemon ] &&
             update-rc.d -f kestrel_daemon remove >/dev/null
         
-        [ -e /etc/init.d/kestrel_rpc ] &&
-            update-rc.d -f kestrel_rpc remove >/dev/null
-
         if [ -n "`id -u kestrel`" ]; then
             deluser --remove-home kestrel > /dev/null || true
         fi

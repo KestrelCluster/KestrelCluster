@@ -11,10 +11,10 @@
 
 # Author: Jon Ander Hernández <jonan.h@gmail.org>
 
-[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
 # Load kestrel_lib
-. "$KESTREL_LIB"/kestrel-lib
+. "$KESTREL_SHARE"/kestrel-lib
 export_config
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
@@ -25,8 +25,15 @@ DAEMON=/usr/sbin/$NAME
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
+DESC_RPC="KestrelHPC's RPC"
+NAME_RPC=kestrel_rpc.py
+DAEMON_RPC=${KESTREL_DATA_DIR}/rpc/$NAME_RPC
+PIDFILE_RPC=/var/run/$NAME_RPC.pid
+SCRIPTNAME_RPC=/etc/init.d/$NAME_RPC
+
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
+[ -x "$DAEMON_RPC" ] || exit 0
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
@@ -38,73 +45,63 @@ SCRIPTNAME=/etc/init.d/$NAME
 #
 # Function that starts the daemon/service
 #
-do_start()
-{
-	# Return
-	#   0 if daemon has been started
-	#   1 if daemon was already running
-	#   2 if daemon could not be started
-	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON > /dev/null \
-		|| return 1
+do_start() {
+    local PIDFILE=$1
+    local DAEMON=$2
+    local DESC=$3
+    local NAME=$4
+    
+    [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+    
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
+	    > /dev/null
+	
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
 }
 
 #
 # Function that stops the daemon/service
 #
-do_stop()
-{
-	# Return
-	#   0 if daemon has been stopped
-	#   1 if daemon was already stopped
-	#   2 if daemon could not be stopped
-	#   other if a failure occurred
+do_stop(){
+    local PIDFILE=$1
+    local DAEMON=$2
+    local DESC=$3
+    local NAME=$4
+    
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	
 	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
-	[ "$?" = 2 ] && return 2
+	
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	
 	# Many daemons don't delete their pidfiles when they exit.
 	rm -f $PIDFILE
 }
 
 case "$1" in
   start)
-	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
-	do_start
-	case "$?" in
-		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
-	esac
-	;;
+    do_start $PIDFILE $DAEMON $DESC $NAME
+    do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+    ;;
   stop)
-	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
-	do_stop
-	case "$?" in
-		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
-	esac
-	;;
+    do_stop $PIDFILE $DAEMON $DESC $NAME
+    do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+    ;;
   status)
-       status_of_proc "$DAEMON" "$NAME" && exit 0 || exit $?
-       ;;
+    status_of_proc "$DAEMON" "$NAME" &&
+    status_of_proc "$DAEMON_RPC" "$NAME_RPC" && exit 0 || exit $?
+    ;;
   restart|force-reload)
-	#
-	# If the "reload" option is implemented then remove the
-	# 'force-reload' alias
-	#
-	log_daemon_msg "Restarting $DESC" "$NAME"
-	do_stop
-	case "$?" in
-	  0|1)
-		do_start
-		case "$?" in
-			0) log_end_msg 0 ;;
-			1) log_end_msg 1 ;; # Old process is still running
-			*) log_end_msg 1 ;; # Failed to start
-		esac
-		;;
-	  *)
-	  	# Failed to stop
-		log_end_msg 1
-		;;
-	esac
+    do_stop $PIDFILE $DAEMON $DESC $NAME
+    do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+    do_start $PIDFILE $DAEMON $DESC $NAME
+    do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
 	;;
   *)
 	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
