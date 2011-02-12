@@ -5,7 +5,7 @@ if [[ "${hostname}" =~ ^${hostname_re}$ ]]; then
 
 case ${action} in
     connect|register)
-       sed -ri "//^[^#]*\s+${hostname}([^0-9]|$)/d
+       sed -ri "/^\s*${hostname}([^0-9]|$)/d
                 
                 /group ${image}$/ a\    host ${hostname} ++cpus ${cpus}
                 
@@ -16,7 +16,7 @@ case ${action} in
        ;;
     disconnect|desregister)
        # Remove any old entry related to this node
-       sed -ri "/^[^#]*\s+${hostname}([^0-9]|$)/d" ${CHARM_HOSTFILE}
+       sed -ri "/^\s*${hostname}([^0-9]|$)/d" ${CHARM_HOSTFILE}
        ;;
 esac
 
