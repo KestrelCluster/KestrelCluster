@@ -2,7 +2,7 @@ Source: kestrelhpc
 Section: utils
 Priority: extra
 Maintainer: Jon Ander Hernández <jonan.h@gmail.com>
-Build-Depends: debhelper (>= 7.0)
+Build-Depends: debhelper (>= 7.0), help2man
 Standards-Version: 3.9.1
 Homepage: http://kestrelhpc.sourceforge.net/
 #Vcs-Git: git://git.debian.org/collab-maint/kestrel.git
