@@ -34,6 +34,9 @@ OPTIONS:
    --web <user>
      Upgrade the web page
 
+   --build
+     Create man files with help2man
+
    --tarball
      Create debian source tarball
 
@@ -57,7 +60,7 @@ clean(){
     ${dir}/debian/rules clean
     rm ${dir}/kestrelhpc*.tar.gz* 2> /dev/null
     rm ${dir}/*.dsc 2> /dev/null
-    rm ${dir}/../{*.upload,*.deb,*.build,*.dsc,*.changes,*.tar.gz} 2> /dev/null
+    rm ${dir}/../kestrelhpc*{.upload,.deb,.build,.dsc,.changes,.tar.gz} 2> /dev/null
     rm ${dir}/debian/*.manpages 2> /dev/null
     rm ${dir}/*.8 2> /dev/null
 }
