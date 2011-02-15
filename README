@@ -32,15 +32,15 @@ KestrelHPC is a set of tools which help setting up a diskless Beowulf cluster.
             kestrel-control --wake-node <hostname>
             kestrel-control --wake-mac  <mac>
         
-        You can also start a bunch of nodes associated to an image :
+        You can also start a bunch of nodes associated to a group :
         
-            kestrel-control --wake-node <image name>
+            kestrel-control --wake-group <group>
         
     - It helps creating and managing multiple images.
     
         You can create new images easily with kestrel-images.
         
-            kestrel-image --new "Biomedical research image 1"
+            kestrel-image --new "image 1"
             
         You can install or uninstall packages in each image with kestrel-apt.
         
@@ -58,32 +58,79 @@ KestrelHPC is a set of tools which help setting up a diskless Beowulf cluster.
  Install :
 ===========
 
-    Add KestrelHPC's ppa repository :
+    Ubuntu 10.04, 10.10 and 11.04 
+    -----------------------------
+
+        Add KestrelHPC's ppa repository :
+        
+            sudo add-apt-repository ppa:jonan-h/kestrelhpc
     
-        sudo add-apt-repository ppa:jonan-h/kestrelhpc
-    
-    Install KestrelHPC
-    
-        sudo apt-get install kestrelhpc kestrelhpc-ganglia kestrelhpc-openmpi
+       Update the packages
+
+           apt-get update
+
+       Install KestrelHPC
+
+           apt-get install --no-install-recommends kestrelhpc kestrelhpc-ganglia kestrelhpc-openmpi
+
+    Debian Squeezy 
+    --------------
+
+        Add the repository :
+
+           echo "deb http://ppa.launchpad.net/kestrel/kestrelhpc/ubuntu maverick main" > /etc/apt/sources.list.d/kestrelhpc.list
+
+       Add the PPA's Signing key :
+
+           apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 8475B36D
+
+       Update the packages
+
+           apt-get update
+
+       Install KestrelHPC
+
+           apt-get install --no-install-recommends kestrelhpc kestrelhpc-ganglia kestrelhpc-openmpi
 
 
  Configuration :
 =================
-    
-    When installed the first time, KestrelHPC asks the user the required minimal
-    config.
-    
-    Interactive reconfiguration :
-        
-        kestrel-reconfigure --ask basic
-        kestrel-reconfigure --ask advanced
-        
-        Note that only asks for an small subset of options.
-        
-        FIXME: Not currently implemented.
-        
-    Manual reconfiguration :
-    
+
+    Create minimal config :
+
+        # editor /etc/kestrel/kestrel.conf
+
+            # Al least you need to configure these variables :
+            
+            # Frontend's ip
+            FRONTEND_IP=192.168.30.1
+            FRONTEND_NETMASK=255.255.255.0
+            
+            # IP range of the DHCP service
+            DHCP_STARTING_IP=192.168.30.2
+            DHCP_ENDING_IP=192.168.30.255
+ 
+    Reconfigure kestrel :
+
+        # kestrel-reconfigure --all
+
+
+    Create a node image :
+
+        # kestrel-image --new "image"
+
+    Add users to cluster :
+
+        # kestrel-users --add-to-cluster <user>
+
+    Register nodes :
+
+        # kestrel-control --register "group1"
+
+ 
+ Advanced configuration :
+==========================
+
         Look at the system's configuration files for knowing which options are 
         available :
         
@@ -107,18 +154,31 @@ KestrelHPC is a set of tools which help setting up a diskless Beowulf cluster.
  Build KestrelHPC :
 ====================
 
-    Install Debian's Packaging Tools :
+    Install Debian Packaging Tools :
     
-    sudo apt-get install build-essential devscripts ubuntu-dev-tools debhelper \
-                 dh-make diff patch cdbs quilt gnupg fakeroot lintian pbuilder \
-                 piuparts
+    # apt-get install build-essential devscripts ubuntu-dev-tools debhelper \
+                      dh-make diff patch cdbs quilt gnupg fakeroot lintian pbuilder \
+                      piuparts
+
+    # apt-get install help2man
     
     Descompress kestrelhpc's tarball :
         
         tar -xjvf kestrelhpc*.tar.bz2
         
-    Build and install the package :
+    Build the package :
         
         cd kestrelhpc*
-        ./maintain-help --deb --install
+        
+        debuild -uc -us
+
+    Install :
+
+        dpkg -i ../kestrelhpc*.deb
+
+        Note : KestrelHPC requires Dracut, Dracut-network, Dracut-aufslive > 007.
+               
+               Dracut tarball and packages available at :
+
+                     https://launchpad.net/~kestrel/+archive/kestrelhpc
     
