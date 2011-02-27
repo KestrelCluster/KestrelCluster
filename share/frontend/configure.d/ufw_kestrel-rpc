@@ -1,7 +1,5 @@
 #!/bin/bash
 
-/etc/init.d/kestrel_rpc restart >/dev/null
-
 if [ -d /etc/ufw/applications.d/ ]; then
     cat << UFW > /etc/ufw/applications.d/kestrel
 [KestrelHPC]
