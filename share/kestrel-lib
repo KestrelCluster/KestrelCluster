@@ -929,6 +929,11 @@ reconfigure_frontend() {
         
     done | sed -r 's/^/    /' # add some indentation to the output
     echo
+
+    echo "Restarting KestrelHPC Daemon"
+    echo
+    /etc/init.d/kestrel_daemon restart | sed -r 's/^/    /'
+    echo
 }
 
 
