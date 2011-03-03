@@ -54,7 +54,8 @@ if __name__ == "__main__":
     daemon_path = os.environ["KESTREL_DATA_DIR"] + '/rpc/'
 
     daemon = MyDaemon(pidfile='/var/run/kestrel_rpc.py.pid',
-                      stdout=daemon_path+'fifo')
+                      stdout=daemon_path+'fifo',
+                      stderr='/var/log/kestrel_rpc.log')
                       #chroot=daemon_path)
     daemon.start()
     sys.exit(0)
