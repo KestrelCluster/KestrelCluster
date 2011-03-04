@@ -54,7 +54,8 @@ sed -ri '/^NEED_IDMAPD=/s/=.*/=yes/' \
 
 
 if [ -e /etc/init/idmapd.conf ]; then
-    initctl restart idmapd
+    initctl stop idmapd
+    initctl start idmapd
 
 elif [ -x /etc/init.d/idmapd ]; then
     /etc/init.d/idmapd restart
@@ -66,7 +67,8 @@ fi &> /dev/null
 
 
 if [ -e /etc/init/statd.conf ]; then
-    initctl restart statd
+    initctl stop statd
+    initctl start statd
 
 elif [ -x /etc/init.d/statd ]; then
     /etc/init.d/statd restart
