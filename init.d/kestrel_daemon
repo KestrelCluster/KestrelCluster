@@ -84,10 +84,18 @@ do_stop(){
 	rm -f $PIDFILE
 }
 
+check_and_start(){
+    if ifconfig | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
+        do_start $PIDFILE $DAEMON $DESC $NAME
+        do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+    else
+        log_failure_msg "KestrelHPC daemon: No network interface found with ip : \"${FRONTEND_IP}\"."
+    fi
+}
+
 case "$1" in
   start)
-    do_start $PIDFILE $DAEMON $DESC $NAME
-    do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+    check_and_start
     ;;
   stop)
     do_stop $PIDFILE $DAEMON $DESC $NAME
@@ -100,13 +108,12 @@ case "$1" in
   restart|force-reload)
     do_stop $PIDFILE $DAEMON $DESC $NAME
     do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
-    do_start $PIDFILE $DAEMON $DESC $NAME
-    do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
-	;;
+    check_and_start
+    ;;
   *)
-	echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
-	exit 3
-	;;
+    echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+    exit 3
+    ;;
 esac
 
 :
