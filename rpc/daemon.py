@@ -77,6 +77,7 @@ class Daemon:
 		atexit.register(self.delpid)
 		pid = str(os.getpid())
 		spid.write("%s\n" % pid)
+		spid.close()
 	
 	def delpid(self):
 		os.remove(self.pidfile)
@@ -92,7 +93,9 @@ class Daemon:
 			pf.close()
 		except IOError:
 			pid = None
-	
+		except ValueError:
+			pid = None
+		
 		if pid:
 			message = "pidfile %s already exist. Daemon already running?\n"
 			sys.stderr.write(message % self.pidfile)
@@ -113,7 +116,9 @@ class Daemon:
 			pf.close()
 		except IOError:
 			pid = None
-	
+		except ValueError:
+			pid = None
+			
 		if not pid:
 			message = "pidfile %s does not exist. Daemon not running?\n"
 			sys.stderr.write(message % self.pidfile)
