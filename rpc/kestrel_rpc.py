@@ -36,6 +36,12 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
         else:
             return func(*params)
 
+
+    # Basic KestrelHPC methods
+    #
+    # It passes the action and the parameters to kestrel_daemon through the
+    # FIFO file defined in KESTREL_RPC_FIFO
+
     def kestrel_connect(self, num_cpus, image):
         sys.stdout.write(" action=connect" + \
                          " ip=" + self.client_address[0] + \
@@ -60,6 +66,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
+
 class MyDaemon(Daemon):
     def run(self):
         frontend_ip = os.environ["FRONTEND_IP"]
@@ -75,13 +82,13 @@ class MyDaemon(Daemon):
 
 
 if __name__ == "__main__":
-    daemon_path = os.environ["KESTREL_RPC_DIR"]
+    chroot_dir  = os.environ["KESTREL_RPC_DIR"]
     fifo =        os.environ["KESTREL_RPC_FIFO"]
 
     daemon = MyDaemon(pidfile='/var/run/kestrel_rpc.py.pid',
                       stdout=fifo,
                       stderr='/var/log/kestrel_rpc.log')
-                      #chroot=daemon_path)
+                      #chroot=chroot_dir)
 
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
