@@ -67,28 +67,43 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def check_environ(key,default):
+    try:
+        return os.environ[key]
+    except KeyError:
+        return default
+
+
 class MyDaemon(Daemon):
     def run(self):
-        frontend_ip = os.environ["FRONTEND_IP"]
-        port =    int(os.environ["KESTREL_RPC_PORT"])
-        plugins_dir = os.environ["KESTREL_RPC_PLUGINS"]
+        ip =          check_environ("FRONTEND_IP",         "localhost")
+        port =    int(check_environ("KESTREL_RPC_PORT",    "8000"))
+        plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
 
         # Load the plugins from the plugin directory
         RequestHandler.load_plugins(plugins_dir)
 
-        server = SimpleXMLRPCServer((frontend_ip, port),
+        server = SimpleXMLRPCServer((ip, port),
                                     requestHandler=RequestHandler)
         server.serve_forever()
 
 
 if __name__ == "__main__":
-    chroot_dir  = os.environ["KESTREL_RPC_DIR"]
-    fifo =        os.environ["KESTREL_RPC_FIFO"]
+    user =    check_environ("KESTREL_USER",     None)
+    fifo =    check_environ("KESTREL_RPC_FIFO", os.getcwd() + "/output")
+    chroot =  check_environ("KESTREL_RPC_CHROOT",   None)
+    
+    if user is not None:
+        pid_dir='/var/run/'
+        log_dir='/var/log/'
+    else:
+        pid_dir=log_dir=os.getcwd()
 
-    daemon = MyDaemon(pidfile='/var/run/kestrel_rpc.py.pid',
+    daemon = MyDaemon(pidfile=pid_dir + '/kestrel_rpc.py.pid',
+                      stderr=log_dir + '/kestrel_rpc.log',
                       stdout=fifo,
-                      stderr='/var/log/kestrel_rpc.log')
-                      #chroot=chroot_dir)
+                      user=user,
+                      chroot=chroot)
 
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
