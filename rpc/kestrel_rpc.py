@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 
-import os, sys, time
+import os, sys, time, re
 from daemon import Daemon
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
-from os.path import join as pj
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
 
     @classmethod
     def load_plugins(cls, plugin_dir):
         try:
-            plugin_files = filter(lambda f:f.endswith('.py'),
+            plugin_files = filter(lambda f:re.search('plugin.*\.py',f),
                                     os.listdir(plugin_dir))
             # Make sure the files are sorted. This can be useful to set
             # priorities to plugins prefixing them with a number.
@@ -19,10 +18,11 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
             for plugin in plugin_files:
                 d = {}
-                execfile(pj(plugin_dir,plugin), d)
+                execfile(os.path.join(plugin_dir,plugin), d)
                 funcs = (filter(lambda f:f.startswith('kestrel_'),d))
                 for func in funcs:
-                    sys.stderr.write('Added function %s from plugin %s'%(func, plugin))
+                    sys.stderr.write('Added function %s from plugin %s\n' % 
+                                       (func, plugin))
                     setattr(cls, func, d[func])
 
         except OSError:
@@ -73,12 +73,12 @@ def check_environ(key,default):
     except KeyError:
         return default
 
+plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
 
 class MyDaemon(Daemon):
     def run(self):
         ip =          check_environ("FRONTEND_IP",         "localhost")
         port =    int(check_environ("KESTREL_RPC_PORT",    "8000"))
-        plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
 
         # Load the plugins from the plugin directory
         RequestHandler.load_plugins(plugins_dir)
