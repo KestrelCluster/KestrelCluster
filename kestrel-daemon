@@ -72,7 +72,7 @@ close() {
             done < ${KESTREL_DATA_DIR}/rpc/fifo
         done
     
-    ) &>> ${LOGFILE} </dev/null &
+    ) >> ${LOGFILE} 2>&1 </dev/null &
 
     # Write the pid of the innermost subshell to the PIDFILE
     echo $! > ${PIDFILE} 
