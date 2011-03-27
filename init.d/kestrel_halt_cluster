@@ -11,12 +11,6 @@
 
 # Author: Jon Ander Hernández <jonan.h@gmail.org>
 
-[ -z "$KESTREL_LIB" ] && KESTREL_LIB=/usr/share/kestrel
-
-# Load kestrel_lib
-. "$KESTREL_LIB"/kestrel-lib
-export_config
-
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 NAME="kestrel-control --halt-cluster"
