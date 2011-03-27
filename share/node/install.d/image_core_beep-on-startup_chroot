@@ -21,7 +21,8 @@ cat <<-BEEP > /etc/init.d/beep_on_startup
 
 case "\$1" in
   start)
-      beep \$(cat /etc/beep_melody)
+      modprobe -i pcspkr &> /dev/null
+      kestrel_beep
       ;;
   stop)
       beep
@@ -34,6 +35,18 @@ BEEP
     update-rc.d -f beep_on_startup remove
     update-rc.d beep_on_startup start 10 S . stop 50 0 1 6 .
 ) &>/dev/null
+
+
+cat <<-BEEP > /usr/bin/kestrel_beep
+#!/bin/sh
+
+[ -e /dev/input/by-path/platform-pcspkr-event-spkr ] &&
+    PCSPKR="-e /dev/input/by-path/platform-pcspkr-event-spkr"
+
+kestrel_beep \$PCSPKR \$(cat /etc/beep_melody)
+BEEP
+
+chmod 755 /usr/bin/kestrel_beep
 
 
 # Define a default melody
