@@ -19,45 +19,15 @@
 
 KESTREL_VERSION="2.0"
 
-
-# Loads the config from the config file default.conf, from the defaul.d dir
-# and from the user's 
-
-load_config() {
-    # Source default config file
-    [ -f ${KESTREL_SHARE}/default.conf ] && . ${KESTREL_SHARE}/default.conf
-
-    # Source default config dir
-    for configfile in ${KESTREL_SHARE}/default.d/*; do
-        [ -e "$configfile" ] && . "$configfile"
-    done
-
-    # Load user's local config
-    [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
-}
-
-# All the functions defined in this library require the config is loaded
-load_config
-
-
-# Export config variables. This is useful for executing scripts under a chroot
-# which require access to kestrel's config.
-
-export_config() {
-    for variable in \
-        $(cat ${KESTREL_SHARE}/default.conf \
-              ${KESTREL_SHARE}/default.conf.d/* \
-              ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
-              sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)[[:space:]]*=.*$/\1/p' | \
-              sort | uniq)
-    do
-        export $variable
-    done
-}
-
 kestrel_version() {
     echo "KestrelHPC ${KESTREL_VERSION}"
 }
+
+
+# Loads the config from the config file default.conf, from the defaul.d dir
+# and from the user's
+
+. ${KESTREL_SHARE}/defaults-lib
 
 
 # Image functions
