@@ -1,0 +1,275 @@
+if [ -e /usr/share/kestrel/kestrel-lib ]; then
+
+_kestrel_load_config() {
+    [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+
+    [ -f ${KESTREL_SHARE}/default.conf ] && . ${KESTREL_SHARE}/default.conf
+
+    for configfile in ${KESTREL_SHARE}/default.d/*; do
+        [ -e "$configfile" ] && . "$configfile"
+    done
+
+    [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
+}
+
+_kestrel_checkconfig() {
+    local KESTREL_LAST_STAT=$(stat -c %Y /etc/kestrel/kestrel.conf)
+    if [[ -z "${_KESTREL_CONFIG_STAT}" ]] || 
+       (( ${_KESTREL_CONFIG_STAT} < ${KESTREL_LAST_STAT} )); then
+            _kestrel_load_config
+    fi
+}
+
+_k_group_re="[0-9A-Za-z_]+"
+_k_image_re="[0-9A-Za-z_]+"
+_k_node_re="[0-9]+"
+_k_hostname_re="${KESTREL_HOSTNAME}-${_k_group_re}-${_k_node_re}"
+_k_ip_re="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
+_k_mac_re="[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}";
+_k_mac_re="${_k_mac_re}\:${_k_mac_re}"
+
+_kestrel_list_groups() {
+    
+    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${_k_group_re})-${_k_node_re}[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq 
+}
+
+_kestrel_connected_nodes() {
+    if [ -n "$1" ]; then
+        group="${1}"
+    else
+        group="${_k_group_re}"
+    fi
+    
+    re="^\s*${_k_ip_re}\s+(${KESTREL_HOSTNAME}-${group}-${_k_node_re})([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort
+}
+
+_kestrel_connected_groups() {
+    
+    re="^\s*${_k_ip_re}\s+${KESTREL_HOSTNAME}-(${_k_group_re})-${_k_node_re}([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort | uniq
+}
+
+_kestrel_disconnected_nodes() {
+
+    echo $(_kestrel_connected_nodes $1) $(_kestrel_registered_nodes $1) | 
+    sed -r 's/[[:space:]]/\n/g' | sort | uniq --unique
+}
+
+_kestrel_disconnected_groups() {
+    
+    re="^${KESTREL_HOSTNAME}-(${_k_group_re})-.*$"
+    
+    _kestrel_disconnected_nodes | sed -rn "s/${re}/\1/p" | sort | uniq
+}
+
+_kestrel_registered_nodes() {
+
+    if [[ -n "$1" && "$1" =~ ${_k_group_re} ]]; then
+        group="${1}"
+    else
+        group="${_k_group_re}"
+    fi
+    
+    re="^[^#]*,\s*(${KESTREL_HOSTNAME}-${group}-${_k_node_re})[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort
+}
+
+_kestrel_registered_groups() {
+    
+    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${_k_group_re})-${_k_node_re}[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq
+}
+
+_kestrel_list_users() {
+    echo $KESTREL_USER
+    sed < /etc/group -nr "s/^${KESTREL_GROUP}:.*:.*:(.+)$/\1/p" | sed 's/,/\n/'
+}
+
+_kestrel_list_images() {
+    ls -1 ${KESTREL_IMAGE_DIR} | grep -Ev "default|cached-image"
+}
+fi
+
+_kestrel_longopt() {
+    COMPREPLY=( $( compgen -W "$( $1 --help 2>&1 | \
+            sed -ne 's/.*\(--[-A-Za-z0-9]\{1,\}\).*/\1/p' | sort -u )" \
+            -- "$cur" ) )
+}
+
+
+have kestrel-apt &&
+_kestrel_apt()
+{
+    local cur prev special i
+    local kestrel_image=${KESTREL_IMAGE_DIR}/default
+    
+    COMPREPLY=()
+    _get_comp_words_by_ref cur prev
+    _kestrel_checkconfig
+
+    for (( i=0; i < ${#COMP_WORDS[@]}-1; i++ )); do
+        if [[ ${COMP_WORDS[i]} == @(--install|--remove|--delete) ]]; then
+            special=${COMP_WORDS[i]}
+        fi
+        ii==$(( i+1 ))
+        if [[ ${COMP_WORDS[i]} == --image && -n "${COMP_WORDS[ii]}" ]]; then
+            kestrel_image=${COMP_WORDS[ii]}
+        fi
+    done
+
+    if [ -n "$special" ]; then
+        case $special in
+#            --remove|--delete)
+#                    awk 'BEGIN {FS="\n"; RS="\n\n"} /install ok installed/ { } ' /var/lib/dpkg/status
+#                    COMPREPLY=( $( _comp_dpkg_installed_packages $cur ) )
+#                ;;
+            *)
+                COMPREPLY=( $( apt-cache --no-generate pkgnames "$cur" \
+                    2> /dev/null ) )
+                ;;
+        esac
+        return 0
+    fi
+
+    case $prev in
+        --image)
+            # some aliases removed
+            COMPREPLY=( $( compgen -W "$( _kestrel_list_images )" -- "$cur" ) )
+            return 0
+            ;;
+    esac
+        
+    _kestrel_longopt kestrel-apt
+    
+} &&
+complete -F _kestrel_apt kestrel-apt
+
+
+have kestrel-control &&
+_kestrel_control()
+{
+    local cur prev
+    COMPREPLY=()
+    _get_comp_words_by_ref cur prev
+    _kestrel_checkconfig
+
+    case $prev in
+        --ssh)
+            COMPREPLY=( $( compgen -W "$( _kestrel_connected_nodes )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+        --connected|--disconnected|--registered)
+            COMPREPLY=( $( compgen -W "$( _kestrel_registered_groups )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+        --wake-mac)
+            # TODO
+            return 0
+            ;;
+        --reboot-mac|--halt-mac)
+            # TODO
+            return 0
+            ;;
+        --wake-node)
+            COMPREPLY=( $( compgen -W "$( _kestrel_disconnected_nodes )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+        --reboot-node|--halt-node)
+            COMPREPLY=( $( compgen -W "$( _kestrel_connected_nodes )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+        --wake-group)
+            COMPREPLY=( $( compgen -W "$( _kestrel_disconnected_groups )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+        --reboot-group|--halt-group)
+            COMPREPLY=( $( compgen -W "$( _kestrel_disconnected_groups )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+    esac
+    
+    _kestrel_longopt kestrel-control
+    
+} &&
+complete -F _kestrel_control kestrel-control
+
+
+have kestrel-images &&
+_kestrel_images()
+{
+    local cur prev
+    COMPREPLY=()
+    _get_comp_words_by_ref cur prev
+    _kestrel_checkconfig
+
+    case $prev in
+      --remove|--delete|--chroot|--set-default|--unlock|--umount)
+            COMPREPLY=( $(compgen -W "$(_kestrel_list_images)" -- "$cur" ) )
+            return 0
+            ;;
+    esac
+
+    _kestrel_longopt kestrel-images
+    
+} &&
+complete -F _kestrel_images kestrel-images
+
+
+have kestrel-users &&
+_kestrel_users()
+{
+    local cur prev
+    COMPREPLY=()
+    _get_comp_words_by_ref cur prev
+    _kestrel_checkconfig
+
+    case $prev in
+      --delete|--remove)
+            COMPREPLY=( $(compgen -W "$(_kestrel_list_users)" -- "$cur" ) )
+            return 0
+            ;;
+      --add-to-cluster)
+            COMPREPLY=( $( compgen -u -- "$cur" ) )
+            return 0
+            ;;
+    esac
+    
+    _kestrel_longopt kestrel-users
+    
+} &&
+complete -F _kestrel_users kestrel-users
+
+
+have kestrel-reconfigure &&
+_kestrel_reconfigure()
+{
+    local cur prev
+    COMPREPLY=()
+    _get_comp_words_by_ref cur prev
+    _kestrel_checkconfig
+
+    case $prev in
+      --image)
+            COMPREPLY=( $(compgen -W "$(_kestrel_list_images)" -- "$cur" ) )
+            return 0
+            ;;
+    esac
+
+    _kestrel_longopt kestrel-reconfigure
+    
+} &&
+complete -F _kestrel_reconfigure kestrel-reconfigure
+
