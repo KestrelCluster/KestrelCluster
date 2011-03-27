@@ -973,3 +973,16 @@ run_from_script(){
     )
 }
 
+check_kestrel_daemon() {
+    /etc/init.d/kestrel_daemon status &> /dev/null || \
+    if ifconfig | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
+        die "Kestrel Daemon is not running" 
+            "\tNo network interface found with ip : \"${FRONTEND_IP}\"."
+            ""
+            "\t-Check the FRONTEND_IP variable at /etc/kestrel/kestrel.conf"
+            "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
+    else
+        die "Kestrel Daemon is not running"
+            "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
+    fi
+}
