@@ -189,6 +189,7 @@ op_mac() {
     
     host=$(mac_2_hostname ${mac})
     
+    check_kestrel_daemon
     check_root
     
     case ${op} in
@@ -226,6 +227,7 @@ op_node() {
     
     check_hostname "${host}"
     
+    check_kestrel_daemon
     check_root
     
     case ${op} in
@@ -264,6 +266,7 @@ op_group() {
     
     check_group "${group}"
     
+    check_kestrel_daemon
     check_root
     
     echo
@@ -405,6 +408,8 @@ _register() {
 
     check_image "${image_name}"
 
+    check_kestrel_daemon
+    
     # Ensure this script is executed as root
     check_root
 
@@ -472,20 +477,20 @@ OPTIONS:
 
    Add/Remove nodes
 
-   --register      <group-name>  [<image>]
+   --register      [<group-name>]   [<image>]
    --remove-mac    <mac>         
    --remove-node   <hostname>    
    --remove-group  <group-name>  
    
    Wake up/halt nodes
 
-   --wake-mac      <mac>         [<image>]
-   --wake-node     <hostname>    [<image>]
-   --wake-group    <group name>  [<image>]
+   --wake-mac      <mac>            [<image>]
+   --wake-node     <hostname>       [<image>]
+   --wake-group    <group name>     [<image>]
    
-   --reboot-mac    <mac>         [<image>]
-   --reboot-node   <hostname>    [<image>]
-   --reboot-group  <group name>  [<image>]
+   --reboot-mac    <mac>            [<image>]
+   --reboot-node   <hostname>       [<image>]
+   --reboot-group  <group name>     [<image>]
    
    --halt-mac      <mac>         
    --halt-node     <hostname>    
@@ -545,13 +550,19 @@ while (( $# > 0 )); do
 #       --register      <group-name>  [<image>]
         --register)
             (( $# >= 2 )) || usage-error
-            
-            group=${2}
-            shift
+
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                group=$2
+                shift
+            else
+                group="group1"
+            fi
             
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
+            else
+                image="default"
             fi
             
             _register "${group}" ${image:-default}
