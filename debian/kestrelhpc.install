@@ -13,7 +13,7 @@ init.d/kestrel_halt_cluster         etc/init.d
 
 network                             etc/network/
 
-bash_completion.d                   etc/bash_completion.d
+bash_completion.d                   etc/bash_completion.d/
 
 rpc/kestrel_rpc.py                  var/lib/kestrel/rpc/
 rpc/daemon.py                       var/lib/kestrel/rpc/
@@ -23,6 +23,7 @@ tftpboot/template                   var/lib/kestrel/tftpboot
 
 share/default.conf                  usr/share/kestrel
 share/kestrel-lib                   usr/share/kestrel
+share/defaults-lib                  usr/share/kestrel
 
 share/default.d/beep-on-startup     usr/share/kestrel/default.d
 share/default.d/initramfs           usr/share/kestrel/default.d
@@ -49,6 +50,7 @@ share/node/configure.d/host_pxe_image-menu                  usr/share/kestrel/no
 share/node/configure.d/image_core_beep-on-startup_chroot    usr/share/kestrel/node/configure.d
 share/node/configure.d/image_core_kestrel-rpc_chroot        usr/share/kestrel/node/configure.d
 share/node/configure.d/image_nfs_home-fstab_chroot          usr/share/kestrel/node/configure.d
+share/node/configure.d/image_sshd_authkeys_chroot           usr/share/kestrel/node/configure.d
 
 share/node/install.d/host_nfs_export-image                          usr/share/kestrel/node/install.d
 share/node/install.d/host_pxe_add-to-imagelist                      usr/share/kestrel/node/install.d
