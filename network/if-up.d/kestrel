@@ -28,7 +28,17 @@ fi
 
 
 if ifconfig $IFACE | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
+
+    # idmapd sometimes fails to start on Ubuntu
+    if [ -e /etc/init/idmapd.conf ]; then
+        initctl status idmapd || initctl start idmapd
+    fi
+
+    [ -x /etc/init.d/dnsmasq ] &&
+        /etc/init.d/dnsmasq restart
+
     /etc/init.d/kestrel_daemon restart
-fi
+
+fi > /dev/null
 
 exit 0
