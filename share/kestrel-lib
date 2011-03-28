@@ -17,7 +17,7 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-KESTREL_VERSION="2.0"
+KESTREL_VERSION="2.1"
 
 kestrel_version() {
     echo "KestrelHPC ${KESTREL_VERSION}"
@@ -583,11 +583,15 @@ user_sshkeygen() {
     local user_group=$(id -gn ${user})
     local user_home=/${HOME_MODE#/}/${user}
 
-    [ ! -d ${user_home} ] &&
-        mkdir -p ${user_home} > /dev/null
+    if [ ! -d ${user_home} ]; then
+        mkdir -p ${user_home}
+        chown ${user}:${user} ${user_home} 
+    fi > /dev/null
     
+    home_link=$(home_dir ${user})/kestrel
     [[ ! "/${HOME_MODE#/}" =~ /home/? ]] &&
-        ( cd /; ln -s ${user_home} $(home_dir ${user})/kestrel )
+    [[ -L ${home_link} || ! -e ${home_link} ]] &&
+        ( cd /; ln -snf ${user_home} $(home_dir ${user})/kestrel )
 
     pushd /${HOME_MODE#/}/${user} > /dev/null
 
