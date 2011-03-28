@@ -6,7 +6,13 @@ if [ -n "${hostname}" ]; then
 case ${action} in
     connect|register)
         sed -ri "/^${hostname}[[:space:]]/d" /etc/ssh/ssh_known_hosts
-        
+
+        list_users | while read user; do
+            [ -e /home/${user}/.ssh/known_hosts ] &&
+            sed -ri "/^${hostname}[[:space:]]/d" \
+                    /home/${user}/.ssh/known_hosts
+        done
+
         key=$(awk '{print $2}' \
                   ${KESTREL_IMAGE_DIR}/${image}/etc/ssh/ssh_host_rsa_key.pub)
         
