@@ -21,3 +21,5 @@ ${FRONTEND_IP}:/kestrel/home \t/${HOME_MODE#/} \t${HOME_FS} \t_netdev,auto \t0 \
 " /etc/fstab
 
 [ ! -d ${HOME_MODE} ] && mkdir ${HOME_MODE}
+
+:
