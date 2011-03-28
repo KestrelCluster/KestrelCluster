@@ -33,7 +33,6 @@ if [ -z "${num}" ]; then
     echo "Host ${KESTREL_HOSTNAME}-*"
     echo "    StrictHostKeyChecking yes"
     echo "    HashKnownHosts no"
-    echo "    UserKnownHostsFile /dev/null"
     ) >> /etc/ssh/ssh_config
 
 else
@@ -46,14 +45,15 @@ Host ${KESTREL_HOSTNAME}-*\n\
 fi
 
 
-if [ "${SSH_PUBLICKEY}" == "false" ]; then
+if [[ "${SSH_PUBLICKEY}" == "false" || 
+      "${SSH_PUBLICKEY}" != "true" && "$HOME_MODE" == "home" ]]; then
     sed -ri "/^[[:space:]]*PubkeyAuthentication[[:space:]]+yes/s/yes/no/" \
              /etc/ssh/sshd_config
 
     if ! grep -qE ^[[:space:]]*PubkeyAuthentication /etc/ssh/sshd_config; then
         echo "PubkeyAuthentication no " >> /etc/ssh/sshd_config
     fi
-elif [ "${SSH_PUBLICKEY}" == "true" ]; then
+else
     sed -ri "/^[[:space:]]*PubkeyAuthentication[[:space:]]+no/s/no/yes/" \
              /etc/ssh/sshd_config
 fi
