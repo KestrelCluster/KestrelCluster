@@ -95,7 +95,7 @@ fi
 ############################
 
 # Check if we should mount the home directory using a nfs4 export
-[[ "${NFS4_HOME}" == "true" ]] || continue
+[[ "${HOME_FS}" ~= ^nfs[34]*$ ]] || continue
 
 new_mount_dir=${NFS4_ROOT}/kestrel/home
 
@@ -108,7 +108,7 @@ sed -ri "/[^#]*\/kestrel[[:space:]]+/d"                    /etc/exports
 
 # Add the new entry after the comment
 sed -ri "/${comment}/a\
-${KESTREL_HOME_DIR} \t${new_mount_dir} \tnode \tbind \t0 \t0 \
+/${HOME_MODE#/} \t${new_mount_dir} \tnode \tbind \t0 \t0 \
 " /etc/fstab
 
 sed -ri "/${comment}/a\
@@ -127,7 +127,9 @@ mount_dir=$(mount | \
 # Check if the new mount dir is different from the old one
 if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
 
-    mount --bind ${KESTREL_HOME_DIR} ${new_mount_dir}
+    install -d /${HOME_MODE#/}
+    
+    mount --bind /${HOME_MODE#/} ${new_mount_dir}
 
     /etc/init.d/nfs-kernel-server restart &>/dev/null
 
@@ -135,7 +137,4 @@ if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
         umount ${mount_dir}
     fi
 fi
-
-
-
 
