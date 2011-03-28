@@ -581,8 +581,15 @@ home_dir() {
 user_sshkeygen() {
     local user=$1
     local user_group=$(id -gn ${user})
+    local user_home=/${HOME_MODE#/}/${user}
+
+    [ ! -d ${user_home} ] &&
+        mkdir -p ${user_home} > /dev/null
     
-    pushd $(home_dir ${user}) > /dev/null
+    [[ ! "/${HOME_MODE#/}" =~ /home/? ]] &&
+        ( cd /; ln -s ${user_home} $(home_dir ${user})/kestrel )
+
+    pushd /${HOME_MODE#/}/${user} > /dev/null
 
     mkdir -p .ssh
     chmod 700 .ssh
