@@ -14,7 +14,8 @@
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
 # Load kestrel_lib
-. "$KESTREL_SHARE"/kestrel-lib
+. "$KESTREL_SHARE"/defaults-lib
+
 export_config
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
