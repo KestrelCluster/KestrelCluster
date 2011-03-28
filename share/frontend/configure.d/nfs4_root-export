@@ -95,7 +95,7 @@ fi
 ############################
 
 # Check if we should mount the home directory using a nfs4 export
-[[ "${HOME_FS}" ~= ^nfs[34]*$ ]] || continue
+[[ "${HOME_FS}" =~ ^nfs[34]*$ ]] || continue
 
 new_mount_dir=${NFS4_ROOT}/kestrel/home
 
