@@ -152,8 +152,8 @@ _kestrel_apt()
 complete -F _kestrel_apt kestrel-apt
 
 
-have kestrel-control &&
-_kestrel_control()
+have kestrel-nodes &&
+_kestrel_nodes()
 {
     local cur prev
     COMPREPLY=()
@@ -201,10 +201,10 @@ _kestrel_control()
             ;;
     esac
     
-    _kestrel_longopt kestrel-control
+    _kestrel_longopt kestrel-nodes
     
 } &&
-complete -F _kestrel_control kestrel-control
+complete -F _kestrel_nodes kestrel-nodes
 
 
 have kestrel-images &&
