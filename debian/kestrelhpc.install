@@ -2,7 +2,7 @@ kestrel-apt                         usr/sbin
 kestrel-images                      usr/sbin
 kestrel-users                       usr/sbin
 kestrel-reconfigure                 usr/sbin
-kestrel-control                     usr/sbin
+kestrel-daemon                      usr/sbin
 kestrel-nodes                       usr/sbin
 kestrel-cron                        usr/sbin
 
