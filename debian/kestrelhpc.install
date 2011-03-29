@@ -8,12 +8,9 @@ kestrel-cron                        usr/sbin
 
 debian/kestrel.conf                 etc/kestrel
 
-init.d/kestrel_daemon               etc/init.d
-init.d/kestrel_halt_cluster         etc/init.d
-
-network                             etc/network/
-
-bash_completion.d                   etc/bash_completion.d/
+init.d                              etc
+network                             etc
+bash_completion.d                   etc
 
 rpc/kestrel_rpc.py                  var/lib/kestrel/rpc/
 rpc/daemon.py                       var/lib/kestrel/rpc/
