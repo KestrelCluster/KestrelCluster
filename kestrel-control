@@ -547,9 +547,8 @@ while (( $# > 0 )); do
             ${1#--}
             ;;
 
-#       --register      <group-name>  [<image>]
+#       --register      [<group-name>]  [<image>]
         --register)
-            (( $# >= 2 )) || usage-error
 
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 group=$2
@@ -565,7 +564,7 @@ while (( $# > 0 )); do
                 image="default"
             fi
             
-            _register "${group}" ${image:-default}
+            _register "${group}" "${image}"
             exit 0
             ;;
 
