@@ -967,6 +967,15 @@ usage-error() {
 }
 
 
+# eval_variables <expression>
+# 
+#     Expands the variables on <expression>
+
+eval_variables() {
+    eval echo $@
+}
+
+
 # run_from_script
 # 
 #     When we reconfigure kestrel, we use a lock which makes any other kestrel
