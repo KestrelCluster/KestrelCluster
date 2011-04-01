@@ -31,6 +31,12 @@ load_config() {
 
     # Load user's local config
     [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
+
+
+    # Some variable normalizations
+    # In the future we should add variable checking
+    [[ "$HOME_MODE" =~ ^/?([^/]*)/?$ ]]
+    HOME_MODE=${BASH_REMATCH[1]}
 }
 
 # All the functions defined in this library require the config is loaded
