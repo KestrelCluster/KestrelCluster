@@ -21,6 +21,13 @@
 # load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
 
+export_config
+
+export OS_ARCHITECTURE=$(uname -m)
+export OS_DISTRIBUTION=$(lsb_release -is)
+export OS_CODENAME=$(lsb_release -cs)
+export OS_RELEASE=$(lsb_release -rs)
+
 
 reconfigure_image() {
     local image_name=$1
@@ -49,8 +56,6 @@ _reconfigure_image() {
 
     check_image
 
-    export_config
-
     reconfigure_image ${image_name}
     echo
 }
@@ -58,8 +63,6 @@ _reconfigure_image() {
 
 reconfigure_all() {
     reconfigure_frontend
-
-    export_config
 
     list_images | \
     while read image_name; do
@@ -170,4 +173,3 @@ while (( $# > 0 )); do
     esac
     shift
 done
-
