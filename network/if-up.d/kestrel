@@ -28,9 +28,9 @@ if ifconfig $IFACE | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
     fi
 
     [ -x /etc/init.d/dnsmasq ] &&
-        /etc/init.d/dnsmasq restart
+        invoke-rc.d dnsmasq restart
 
-    /etc/init.d/kestrel_daemon restart
+    invoke-rc.d kestrel_daemon restart
 
 fi > /dev/null
 
