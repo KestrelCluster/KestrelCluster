@@ -10,7 +10,7 @@ Vcs-Browser: http://kestrelhpc.svn.sourceforge.net/viewvc/kestrelhpc/Kestrelhpc/
 
 Package: kestrelhpc
 Architecture: all
-Depends: syslinux, adduser, nfs-kernel-server, liblwipv6-2, dnsmasq, wakeonlan, debootstrap, dracut (>= 007), dracut-network (>= 007), dracut-aufs, openssh-server, ${python:Depends}, ${misc:Depends}
+Depends: syslinux, adduser, nfs-kernel-server, liblwipv6-2, dnsmasq, etherwake, debootstrap, dracut (>= 009), dracut-network (>= 009), dracut-aufs, openssh-server, ${python:Depends}, ${misc:Depends}
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
@@ -29,9 +29,23 @@ Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
  
-#Package: kestrelhpc-dracut
-#Architecture: all
-#Depends: plymouth, ${misc:Depends}
-#Description: A set of utilities for setting up a cluster with live nodes
-# It helps creating and managing live os image for the nodes, and setting all 
-# the required frontend's services (dhcp, tftpboot, nfs, ssh...).
+Package: kestrelhpc-plymouth
+Architecture: all
+Depends: plymouth, plymouth-themes-script, ${misc:Depends}
+Description: A set of utilities for setting up a cluster with live nodes
+ It helps creating and managing live os image for the nodes, and setting all 
+ the required frontend's services (dhcp, tftpboot, nfs, ssh...).
+
+Package: kestrelhpc-videowall
+Architecture: all
+Depends: xdmx, chromium-opengl-bin, chromium-opengl-lib, ${misc:Depends}
+Description: A set of utilities for setting up a cluster with live nodes
+ It helps creating and managing live os image for the nodes, and setting all
+ the required frontend's services (dhcp, tftpboot, nfs, ssh...).
+
+Package: dracut-aufs
+Architecture: all
+Depends: dracut (>= 009), ${misc:Depends}
+Description: A set of utilities for setting up a cluster with live nodes
+ It helps creating and managing live os image for the nodes, and setting all 
+ the required frontend's services (dhcp, tftpboot, nfs, ssh...).
