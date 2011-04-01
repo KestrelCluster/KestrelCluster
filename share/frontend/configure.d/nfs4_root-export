@@ -108,7 +108,7 @@ sed -ri "/[^#]*\/kestrel[[:space:]]+/d"                    /etc/exports
 
 # Add the new entry after the comment
 sed -ri "/${comment}/a\
-/${HOME_MODE#/} \t${new_mount_dir} \tnode \tbind \t0 \t0 \
+/${HOME_MODE} \t${new_mount_dir} \tnode \tbind \t0 \t0 \
 " /etc/fstab
 
 sed -ri "/${comment}/a\
@@ -127,9 +127,9 @@ mount_dir=$(mount | \
 # Check if the new mount dir is different from the old one
 if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
 
-    install -d /${HOME_MODE#/}
+    install -d /${HOME_MODE}
     
-    mount --bind /${HOME_MODE#/} ${new_mount_dir}
+    mount --bind /${HOME_MODE} ${new_mount_dir}
 
     /etc/init.d/nfs-kernel-server restart &>/dev/null
 

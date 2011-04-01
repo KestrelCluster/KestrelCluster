@@ -17,7 +17,7 @@ sed -ri "/kestrel\/home[[:space:]]+/d" /etc/fstab
 
 # Add the new entry after the comment
 sed -ri "/${comment}/a\
-${FRONTEND_IP}:/kestrel/home \t/${HOME_MODE#/} \t${HOME_FS} \t_netdev,auto \t0 \t0 \
+${FRONTEND_IP}:/kestrel/home \t/${HOME_MODE} \t${HOME_FS} \t_netdev,auto \t0 \t0 \
 " /etc/fstab
 
 [ ! -d ${HOME_MODE} ] && mkdir ${HOME_MODE}
