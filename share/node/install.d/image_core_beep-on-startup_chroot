@@ -43,7 +43,7 @@ cat <<-BEEP > /usr/bin/kestrel_beep
 [ -e /dev/input/by-path/platform-pcspkr-event-spkr ] &&
     PCSPKR="-e /dev/input/by-path/platform-pcspkr-event-spkr"
 
-kestrel_beep \$PCSPKR \$(cat /etc/beep_melody)
+beep \$PCSPKR \$(cat /etc/beep_melody)
 BEEP
 
 chmod 755 /usr/bin/kestrel_beep
