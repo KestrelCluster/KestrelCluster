@@ -1,0 +1,10 @@
+#!/bin/bash
+
+list_users | while read user; do
+
+   home=/${HOME_MODE}/${user}
+
+   sed -ri "/^${user}:/s#^(.*:.*:.*:.*:.*:).*(:.*)#\1/${home}\2#" \
+           ${KESTREL_IMAGE_DIR}/${image_name}/etc/passwd
+
+done
