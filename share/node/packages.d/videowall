@@ -1,0 +1,12 @@
+#!/bin/bash
+
+echo "xserver-xorg xinit libgl1-mesa-glx libgl1-mesa-dri chromium-opengl-bin chromium-opengl-lib"
+
+case ${OS_DISTRIBUTION}-${OS_RELEASE} in
+    Debian-*)
+        echo "nvidia-glx"
+        ;;
+    Ubuntu-*)
+        echo "nvidia-current"
+        ;;
+esac
