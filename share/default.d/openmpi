@@ -1,4 +1,7 @@
 
 OPENMPI=true
 
-OPENMPI_HOSTFILE=/etc/openmpi/openmpi-default-hostfile
+OPENMPI_HOSTDIR=/etc/openmpi
+OPENMPI_HOSTFILE=${OPENMPI_HOSTDIR}/openmpi-default-hostfile
+OPENMPI_GROUPFILE=${OPENMPI_HOSTDIR}/openmpi-group-\${group}
+
