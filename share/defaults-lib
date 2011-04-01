@@ -43,7 +43,7 @@ load_config
 export_config() {
     for variable in \
         $(cat ${KESTREL_SHARE}/default.conf \
-              ${KESTREL_SHARE}/default.conf.d/* \
+              ${KESTREL_SHARE}/default.d/* \
               ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
               sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)[[:space:]]*=.*$/\1/p' | \
               sort | uniq)
