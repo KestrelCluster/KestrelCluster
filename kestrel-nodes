@@ -143,7 +143,9 @@ wake_node() {
           ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
     chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
     
-    wakeonlan ${mac} > /dev/null
+    # $KESTREL_IFACE is exported by check_kestrel_daemon function
+    [ -n ${KESTREL_IFACE} ] &&
+    etherwake -i ${KESTREL_IFACE} ${mac} > /dev/null
 }
 
 # shutdown_node <halt|reboot> <hostname> <image_name>
