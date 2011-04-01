@@ -586,41 +586,41 @@ home_dir() {
 user_sshkeygen() {
     local user=$1
     local user_group=$(id -gn ${user})
-    local user_home=/${HOME_MODE#/}/${user}
+    local user_home=$(home_dir ${user})
+    local home_khome=/${HOME_MODE}/${user}
 
-    if [ ! -d ${user_home} ]; then
-        mkdir -p ${user_home}
-        chown ${user}:${user} ${user_home} 
-    fi > /dev/null
+    if [ ! -d ${user_khome} ]; then
+        mkdir -p ${user_khome}
+        chown ${user}:${user} ${user_khome} 
+    fi &> /dev/null
     
-    home_link=$(home_dir ${user})/kestrel
-    [[ ! "/${HOME_MODE#/}" =~ /home/? ]] &&
+    home_link=${user_home}/kestrel
+    [[ ! "/${HOME_MODE#/}" =~ ^/home/?$ ]] &&
     [[ -L ${home_link} || ! -e ${home_link} ]] &&
-        ( cd /; ln -snf ${user_home} $(home_dir ${user})/kestrel )
+        ( cd /; ln -snf ${user_khome} ${home_link})
 
-    pushd /${HOME_MODE#/}/${user} > /dev/null
+    mkdir -p ${user_home}/.ssh
+    chmod 700 ${user_home}/.ssh
+    mkdir -p ${user_khome}/.ssh
+    chmod 700 ${user_khome}/.ssh
 
-    mkdir -p .ssh
-    chmod 700 .ssh
-
-    if [ -e .ssh/id_rsa -a ! -e .ssh/id_rsa.bak ]; then
+    if [[   -e ${user_home}.ssh/id_rsa &&
+          ! -e ${user_home}.ssh/id_rsa.bak ]]; then
         echo "Kestrel has created a new ssh key."
         echo "The old one has been backed up to ~/.ssh/id_rsa.bak"
-        cp .ssh/id_rsa .ssh/id_rsa.bak
-    else
-        touch .ssh/id_rsa.bak
+        cp ${user_home}/.ssh/id_rsa ${user_home}.ssh/id_rsa.bak
     fi
     
-    rm .ssh/id_rsa 2>/dev/null
+    rm ${user_home}/.ssh/id_rsa 2>/dev/null
 
-    ssh-keygen -q -t rsa -N "" -f ".ssh/id_rsa"
+    ssh-keygen -q -t rsa -N "" -f "${user_home}/.ssh/id_rsa"
 
-    cp .ssh/id_rsa.pub .ssh/authorized_keys
-    chmod 600 .ssh/authorized_keys
+    cp ${user_home}/.ssh/id_rsa.pub \
+       ${user_khome}/.ssh/authorized_keys
+    chmod 600 ${user_khome}/.ssh/authorized_keys
     
-    chown -R ${user}:${user_group} .ssh
-    
-    popd > /dev/null
+    chown -R ${user}:${user_group} ${user_home}/.ssh
+    chown -R ${user}:${user_group} ${user_khome}/.ssh
 }
 
 
@@ -1000,14 +1000,20 @@ run_from_script(){
 
 check_kestrel_daemon() {
     /etc/init.d/kestrel_daemon status &> /dev/null || \
-    if ifconfig | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
-        die "Kestrel Daemon is not running" 
-            "\tNo network interface found with ip : \"${FRONTEND_IP}\"."
-            ""
-            "\t-Check the FRONTEND_IP variable at /etc/kestrel/kestrel.conf"
-            "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
-    else
-        die "Kestrel Daemon is not running"
-            "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
-    fi
+    {
+        for net in /sys/class/net/*; do
+            ifconfig ${net} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]" &&
+            export KESTREL_IFACE=${net}
+        done
+        if [ -z ${KESTREL_IFACE} ]; then
+            die "Kestrel Daemon is not running" 
+                "\tNo network interface found with ip : \"${FRONTEND_IP}\"."
+                ""
+                "\t-Check the FRONTEND_IP variable at /etc/kestrel/kestrel.conf"
+                "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
+        else
+            die "Kestrel Daemon is not running"
+                "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
+        fi
+    }
 }
