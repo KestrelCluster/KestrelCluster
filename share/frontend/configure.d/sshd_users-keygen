@@ -67,5 +67,5 @@ for user in $(list_users); do
 
     user_sshkeygen ${user}
 
-done >/dev/null
+done
 
