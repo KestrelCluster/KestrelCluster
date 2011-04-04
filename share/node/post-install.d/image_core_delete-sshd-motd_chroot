@@ -12,8 +12,8 @@ SSH=/etc/ssh/sshd_config
 [ -f $SSH ] || exit 1
 
 # Set printmotd and printlastlog to 'no'
-sed -ri '/^[[:space:]]*PrintMotd[[:space:]]+.*/s/yes/no/' $SSH
-sed -ri '/^[[:space:]]*PrintLastLog[[:space:]]+.*/s/yes/no/' $SSH
+set_variable "PrintMotd" "no" $SSH " "
+set_variable "PrintLastLog" "no" $SSH " "
 
 # Modify ssh server's pam module's config
 

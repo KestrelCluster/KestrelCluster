@@ -50,8 +50,6 @@ fi
 
 
 # nfs4 requires the idmpad daemon
-sed -ri '/^NEED_IDMAPD=[[:space:]]*/s/=.*/=yes/' \
-        ${KESTREL_IMAGE_DIR}/${image_name}/etc/default/nfs-common
-
-
+set_variable "NEED_IDMAPD" "yes" \
+             ${KESTREL_IMAGE_DIR}/${image_name}/etc/default/nfs-common
 
