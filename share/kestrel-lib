@@ -15,7 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel ||
+                           KESTREL_SHARE_BAK=${KESTREL_SHARE}
+
 
 KESTREL_VERSION="2.1"
 
@@ -27,8 +29,11 @@ kestrel_version() {
 # Loads the config from the config file default.conf, from the defaul.d dir
 # and from the user's
 
-. ${KESTREL_SHARE}/defaults-lib
-. ${KESTREL_SHARE}/defaults-chroot-lib
+. ${KESTREL_SHARE}/kestrel-chroot-lib
+. ${KESTREL_SHARE}/defaults-lib 
+
+
+[ -z "$KESTREL_SHARE_BAK" ] && KESTREL_SHARE=${KESTREL_SHARE_BAK}
 
 
 # Image functions
