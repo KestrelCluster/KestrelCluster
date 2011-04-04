@@ -615,7 +615,7 @@ user_sshkeygen() {
     
     #rm ${user_home}/.ssh/id_rsa 2>/dev/null
 
-    ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/id_rsa"
+    ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/id_dsa"
 
     cat < ${user_home}/.ssh/id_dsa.pub \
         > ${user_khome}/.ssh/authorized_keys
