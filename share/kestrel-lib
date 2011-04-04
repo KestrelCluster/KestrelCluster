@@ -28,6 +28,7 @@ kestrel_version() {
 # and from the user's
 
 . ${KESTREL_SHARE}/defaults-lib
+. ${KESTREL_SHARE}/defaults-chroot-lib
 
 
 # Image functions
@@ -587,7 +588,7 @@ user_sshkeygen() {
     local user=$1
     local user_group=$(id -gn ${user})
     local user_home=$(home_dir ${user})
-    local home_khome=/${HOME_MODE}/${user}
+    local user_khome=/${HOME_MODE}/${user}
 
     if [ ! -d ${user_khome} ]; then
         mkdir -p ${user_khome}
@@ -615,8 +616,8 @@ user_sshkeygen() {
 
     ssh-keygen -q -t rsa -N "" -f "${user_home}/.ssh/id_rsa"
 
-    cp ${user_home}/.ssh/id_rsa.pub \
-       ${user_khome}/.ssh/authorized_keys
+    cat < ${user_home}/.ssh/id_rsa.pub \
+        > ${user_khome}/.ssh/authorized_keys
     chmod 600 ${user_khome}/.ssh/authorized_keys
     
     chown -R ${user}:${user_group} ${user_home}/.ssh
@@ -708,6 +709,46 @@ list_scripts() {
 }
 
 
+run_node_scripts() {
+    local scripts=$1
+    local mode=${2}
+    
+    echo
+    echo "Executing ${scripts} scripts"
+    echo
+    
+    LOG=${KESTREL_IMAGE_DIR}/.${image_name}.${scripts}.log
+    { echo; date; echo "======================"; } >> ${LOG}
+    
+    list_scripts "node/${scripts}.d" | \
+    while read hook; do
+        echo "Executing : ${hook##*/} "
+        
+        {
+            echo; echo "Executing : ${hook##*/} "; echo
+            
+            # if the script if postfixed with chroot run it under a chroot
+            if [[ ${hook} =~ chroot ]]; then
+
+                [[ "${mode}" == "remove" ]] && continue
+                
+                # Copy the script under the chroot
+                cat < $KESTREL_SHARE/kestrel-chroot-lib > ${image_dir}/tmp/hook
+                cat < ${hook} >> ${image_dir}/tmp/hook
+                chmod 755 ${image_dir}/tmp/hook
+            
+                # Avoid any locale setting
+                export LANG=C
+                chroot ${image_dir} /tmp/hook ${mode}
+            else
+                . ${hook} ${mode}
+            fi 
+        } >> ${LOG} 2>&1 || 
+              echo "error while executing ${hook##*/}"
+        
+    done | sed -r 's/^/    /' # add some indentation to the output
+}
+
 # install_node <image_name>
 #
 #     Execute install scripts and install software packages on an image 
@@ -716,41 +757,17 @@ list_scripts() {
 
 install_node() {
 
-    [ -n "$1" ] && image_name=$1
+    [ -n "$1" ] && export image_name=$1
     
-    export image_name
-
-    echo
-    echo "Executing install scripts"
-    echo
-    
-    list_scripts "node/install.d" | \
-    while read hook; do
-        echo "Executing : ${hook##*/} "
-        
-        # if the script if postfixed with chroot run it under a chroot
-        if [[ ${hook} =~ chroot ]]; then
-        
-            # Copy the script under the chroot
-            cp ${hook} ${image_dir}/tmp/hook
-            chmod 755 ${image_dir}/tmp/hook
-            
-            (
-                # Avoid any locale setting
-                export LANG=C
-                
-                chroot ${image_dir} /tmp/hook add
-            )
-        else
-            . ${hook} add
-        fi || echo "error while executing ${hook##*/}"
-        
-    done | sed -r 's/^/    /' # add some indentation to the output
+    run_node_scripts "install" "add"
     
     echo
     echo "Installing extra software"
     echo
-    
+
+    LOG=${KESTREL_IMAGE_DIR}/.${image_name}.apt.log
+    { echo; date; echo "======================"; } >> ${LOG}
+
     list_scripts "node/packages.d" | \
     while read package; do
     
@@ -761,43 +778,24 @@ install_node() {
         # Package log file
         echo "install ${packages}" \
              >> ${KESTREL_IMAGE_DIR}/.${image_name}.history
-        (
+        {
+
+            echo
+            echo "Executing : ${package##*/dd} "
+            echo "          : ${packages}"
+            echo
         
             # Avoid any locale setting
             export LANG=C
-            chroot ${image_dir} apt-get -qq install ${packages}
+            export DEBIAN_FRONTEND=noninteractive
+            chroot ${image_dir} apt-get -qq -y install ${packages}
             
-        ) >> ${KESTREL_IMAGE_DIR}/.${image_name}.apt.log 2>&1 || 
+        } >> ${LOG} 2>&1 || 
               echo "error while installing ${package##*/}"
               
     done | sed -r 's/^/    /'
     
-    echo
-    echo "Executing post install scripts"
-    echo
-    
-    list_scripts "node/post-install.d" | \
-    while read hook; do
-        echo "Executing : ${hook##*/} "
-        
-        # if the script if postfixed with chroot run it under a chroot
-        if [[ ${hook} =~ chroot ]]; then
-        
-            # Copy the script under the chroot
-            cp ${hook} ${image_dir}/tmp/hook
-            chmod 755 ${image_dir}/tmp/hook
-            
-            (
-                # Avoid any locale setting
-                export LANG=C
-                
-                chroot ${image_dir} /tmp/hook add
-            )
-        else
-            . ${hook} add
-        fi || echo "error while executing ${hook##*/}"
-        
-    done | sed -r 's/^/    /' # add some indentation to the output
+    run_node_scripts "post-install" "add"
 }
 
 
@@ -808,26 +806,9 @@ install_node() {
 
 uninstall_node() {
 
-    [ -n "$1" ] && image_name=$1
+    [ -n "$1" ] && export image_name=$1
     
-    echo
-    echo "Executing uninstall scripts"
-    echo
-
-    # Execute the uninstall scripts
-    list_scripts "node/install.d" | \
-    while read hook; do
-    
-        # if the script if postfixed with chroot run it under a chroot
-        if [[ ! ${hook} =~ chroot ]]; then
-        
-            echo "Executing : ${hook##*/} "
-            
-            . ${hook} remove
-            
-        fi || echo "error while executing ${hook##*/}"
-        
-    done | sed -r 's/^/    /' # add some indentation to the output
+    run_node_scripts "install" "remove"
 }
 
 
@@ -837,39 +818,10 @@ uninstall_node() {
 #     global variable ${image_name}.
 
 reconfigure_node() {
-
-    [ -n "$1" ] && image_name=$1
     
-    echo
-    echo "Executing configure scripts"
-    echo
-
-    export image_name
-
-    list_scripts "node/configure.d" | \
-    while read hook; do
+    [ -n "$1" ] && export image_name=$1
     
-        echo "Executing : ${hook##*/} "
-        
-        # if the script if postfixed with chroot run it under a chroot
-        if [[ ${hook} =~ chroot ]]; then
-        
-            # Copy the script under the chroot
-            cp ${hook} ${image_dir}/tmp/hook
-            chmod 755 ${image_dir}/tmp/hook
-            
-            (
-                # Avoid any locale setting
-                export LANG=C
-                chroot ${image_dir} /tmp/hook
-            )
-            
-        else
-            . ${hook}
-            
-        fi || echo "error while executing ${hook##*/}"
-        
-    done | sed -r 's/^/    /' # add some indentation to the output
+    run_node_scripts "configure"
 }
 
 # install_frontend  install|uninstall
@@ -884,14 +836,10 @@ install_frontend() {
         # Execute the install scripts
         list_scripts "frontend/install.d" | \
         while read hook; do
-        
-            if [[ ! ${hook} =~ chroot ]]; then
             
-                echo "Executing : ${hook##*/} "
-                
-                . ${hook} ${1}
-                
-            fi || echo "error while executing ${hook##*/}"
+            echo "Executing : ${hook##*/} "
+            . ${hook} ${1} ||    
+                echo "error while executing ${hook##*/}"
             
         done | sed -r 's/^/    /' # add some indentation to the output
 }
@@ -999,21 +947,21 @@ run_from_script(){
 }
 
 check_kestrel_daemon() {
+    for net in /sys/class/net/*; do
+        ifconfig ${net##*/} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]" &&
+        export KESTREL_IFACE=${net##*/}
+    done
+
     /etc/init.d/kestrel_daemon status &> /dev/null || \
-    {
-        for net in /sys/class/net/*; do
-            ifconfig ${net} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]" &&
-            export KESTREL_IFACE=${net}
-        done
         if [ -z ${KESTREL_IFACE} ]; then
-            die "Kestrel Daemon is not running" 
-                "\tNo network interface found with ip : \"${FRONTEND_IP}\"."
-                ""
-                "\t-Check the FRONTEND_IP variable at /etc/kestrel/kestrel.conf"
+            die "Kestrel Daemon is not running" \
+                "\tNo network interface found with ip : \"${FRONTEND_IP}\"." \
+                "" \
+                "\t-Check the FRONTEND_IP variable at /etc/kestrel/kestrel.conf" \
                 "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
         else
-            die "Kestrel Daemon is not running"
+            /etc/init.d/kestrel_daemon restart &>/dev/null ||
+            die "Kestrel Daemon is not running" \
                 "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
         fi
-    }
 }
