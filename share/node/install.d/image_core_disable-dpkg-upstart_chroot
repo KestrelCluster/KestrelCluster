@@ -15,8 +15,13 @@
 echo "dpkg hold" | dpkg --set-selections
 echo "upstart hold" | dpkg --set-selections
 
-cat <<APTCONF > /etc/apt/apt.conf
+cat <<APTCONF > /etc/apt/apt.conf.d/99kestrel
 // Recommends are as of now still abused in many packages
 APT::Install-Recommends "0";
 APT::Install-Suggests "0";
 APTCONF
+
+cat <<DPKG > /etc/dpkg/dpkg.cfg.d/kestrel
+force-confold
+force-confdef
+DPKG
