@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# set_variable <key> <value> <file> [<separator>]
+# 
+#     Helps replacing/setting key-values on files
+
+set_variable() {
+    local key=$1
+    local value=$2
+    local file=$3
+    local sep=${4:-=}
+    
+    if [ ! -e ${file} ] || ! grep -qE "^[#\s]*${key}\s*${sep}" ${file}; then
+        echo "${key}${sep}${value}" >> ${file}
+    else
+        sed -ri "/^[#\s]*${key}\s*${sep}/s|^.*$|${key}${sep}${value}|" ${file}
+    fi
+}

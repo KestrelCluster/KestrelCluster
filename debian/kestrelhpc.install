@@ -1,10 +1,10 @@
-kestrel-apt                         usr/sbin
-kestrel-images                      usr/sbin
-kestrel-users                       usr/sbin
-kestrel-reconfigure                 usr/sbin
-kestrel-daemon                      usr/sbin
-kestrel-nodes                       usr/sbin
+kestrel-apt                         usr/bin
+kestrel-images                      usr/bin
+kestrel-users                       usr/bin
+kestrel-reconfigure                 usr/bin
+kestrel-nodes                       usr/bin
 kestrel-cron                        usr/sbin
+kestrel-daemon                      usr/sbin
 
 debian/kestrel.conf                 etc/kestrel
 
@@ -20,6 +20,7 @@ tftpboot/template                   var/lib/kestrel/tftpboot
 
 share/default.conf                  usr/share/kestrel
 share/kestrel-lib                   usr/share/kestrel
+share/kestrel-chroot-lib            usr/share/kestrel
 share/defaults-lib                  usr/share/kestrel
 
 share/default.d/beep-on-startup     usr/share/kestrel/default.d
