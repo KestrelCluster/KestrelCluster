@@ -596,27 +596,28 @@ user_sshkeygen() {
     fi &> /dev/null
     
     home_link=${user_home}/kestrel
-    [[ ! "/${HOME_MODE#/}" =~ ^/home/?$ ]] &&
+    [[ ! "/${HOME_MODE}/" =~ ^/home/$ ]] &&
     [[ -L ${home_link} || ! -e ${home_link} ]] &&
-        ( cd /; ln -snf ${user_khome} ${home_link})
+        ( cd /; ln -snf ${user_khome} ${home_link} )
 
     mkdir -p ${user_home}/.ssh
     chmod 700 ${user_home}/.ssh
     mkdir -p ${user_khome}/.ssh
     chmod 700 ${user_khome}/.ssh
 
-    if [[   -e ${user_home}.ssh/id_rsa &&
-          ! -e ${user_home}.ssh/id_rsa.bak ]]; then
+    if [[   -e ${user_home}/.ssh/id_dsa &&
+          ! -e ${user_home}/.ssh/id_dsa.bak ]]; then
         echo "Kestrel has created a new ssh key."
-        echo "The old one has been backed up to ~/.ssh/id_rsa.bak"
-        cp ${user_home}/.ssh/id_rsa ${user_home}.ssh/id_rsa.bak
+        echo "The old one has been backed up to ~/.ssh/id_dsa.bak"
+        cat < ${user_home}/.ssh/id_dsa \
+            > ${user_home}/.ssh/id_dsa.bak
     fi
     
-    rm ${user_home}/.ssh/id_rsa 2>/dev/null
+    #rm ${user_home}/.ssh/id_rsa 2>/dev/null
 
-    ssh-keygen -q -t rsa -N "" -f "${user_home}/.ssh/id_rsa"
+    ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/id_rsa"
 
-    cat < ${user_home}/.ssh/id_rsa.pub \
+    cat < ${user_home}/.ssh/id_dsa.pub \
         > ${user_khome}/.ssh/authorized_keys
     chmod 600 ${user_khome}/.ssh/authorized_keys
     
