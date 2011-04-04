@@ -2,11 +2,4 @@
 
 user_auth="/${HOME_MODE#/}/%u/.ssh/authorized_keys"
 
-sed -ri "s|^[#\s]*AuthorizedKeysFile.*|AuthorizedKeysFile     ${user_auth}|" \
-        /etc/ssh/sshd_config
-
-if ! grep -Eq "^AuthorizedKeysFile\s" /etc/ssh/sshd_config; then
-
-    echo "AuthorizedKeysFile     ${user_auth}" >> /etc/ssh/sshd_config
-
-fi
+set_variable "AuthorizedKeysFile" "${user_auth}" /etc/ssh/sshd_config ""

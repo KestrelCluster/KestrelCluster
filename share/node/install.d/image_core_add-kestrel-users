@@ -71,17 +71,11 @@ kestrel ALL=NOPASSWD: ALL
 %kestrel ALL=NOPASSWD: ALL
 SUDOERS
 
-# Ensure the config line enabling the /etc/sudoers.d dir is present
-if [ ! -e ${image_dir}/etc/sudoers ]; then
-   touch ${image_dir}/etc/sudoers
-   chmod 0440 ${image_dir}/etc/sudoers
-fi
-
-if ! grep -Eq "^\s*#includedir\s+/etc/sudoers.d\s*$" \
-    ${image_dir}/etc/sudoers;
-then
-    echo "#includedir /etc/sudoers.d" >> ${image_dir}/etc/sudoers
-fi
-
 chmod 0440 ${image_dir}/etc/sudoers.d/kestrel &> /dev/null
+
+
+# Ensure the config line enabling the /etc/sudoers.d dir is present
+set_variable "#includedir" "/etc/sudoers.d" ${image_dir}/etc/sudoers " "
+
+chmod 0440 ${image_dir}/etc/sudoers
 
