@@ -15,7 +15,7 @@ nvidia_diversion=/usr/lib/nvidia/diversions
 for file in libGL.so.1 libGL.so libglx.so; do
 
    update-alternatives --list ${file} &> /dev/null &&
-   update-alternatives --set ${file} ${nvidia_diversions}/${file}
+   update-alternatives --set ${file} ${nvidia_diversion}/${file}
 
 done
 
