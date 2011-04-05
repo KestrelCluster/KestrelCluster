@@ -1,0 +1,265 @@
+#!/bin/bash
+
+# Copyright (C) 2010 Jon Ander Hernández
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+
+# Load kestrel_lib
+. "$KESTREL_SHARE"/kestrel-lib
+
+export_config
+
+export user=$(whoami)
+export NODE_TIMEOUT=200
+
+export CR_DIR="/usr/share/chromium-gl"
+export LD_LIBRARY_PATH=/usr/lib/chromium-gl:$LD_LIBRARY_PATH
+export XINITRC=/${HOME_MODE}/${user}/.xinitrc
+
+export USER_HOME=$(cd ~; pwd)
+
+export LOCK=${USER_HOME}/.${0##*/}.lock
+export XDMX_CONFIG=${USER_HOME}/.${0##*/}.xdmx
+export DISPLAY_LIST=${USER_HOME}/.${0##*/}.display
+export CLIENT_IDKEY=${USER_HOME}/kestrel/.ssh/id_dsa
+
+export PATH=/usr/lib/chromium-gl:$PATH
+
+create_xinit() {
+    local node=$1
+    local FRONTEND=$(hostname)
+   
+    ssh ${node} cat <<-COMMAND ">" ${XINITRC}
+ssh -o stricthostkeychecking=no -X ${FRONTEND_IP} ${0##*/} --register \$(hostname) $XAUTHORITY
+COMMAND
+    chmod 755 ${XINITRC}
+}
+
+
+create_xdmx_config() {
+    local screen_list=$1
+cat <<EOF > ${XDMX_CONFIG}
+virtual videowall {
+    wall ${screens}x1 ${screen_list};
+    option -input ${DISPLAY} +xinerama;
+}
+EOF
+}
+
+
+start() {
+
+    check_user
+    
+    # Open a lock file which checks if there is a running Xdmx server
+    exec 200> ${LOCK}
+
+    if flock --nonblock --exclusive 200; then 
+        flock --exclusive 200
+        
+        # Disable x server's access control
+        DISPLAY_OLD=$DISPLAY 
+        xhost +
+
+        rm ${CLIENT_IDKEY}
+        ssh-keygen -q -t dsa -N "" -f "${CLIENT_IDKEY}"
+
+        # Allow clients run on the frontend this command
+        [ -e /home/${user}/.ssh/authorized_keys ] &&
+        sed -ri "/${0##*/}/d" ${USER_HOME}/.ssh/authorized_keys
+
+        echo "command=\"${0##*/} --register\" $(cat ${CLIENT_IDKEY}.pub)" \
+             >> ${USER_HOME}/.ssh/authorized_keys
+
+        # Lo que hay que hacer!! Dios!!! :-P
+        KEY=$(awk '{print $2}'     ${USER_HOME}/.ssh/id_dsa.pub)
+        sed -ri "s|^.*${KEY}.*$||" ${USER_HOME}/.ssh/authorized_keys
+        echo "$(cat ${USER_HOME}/.ssh/id_dsa.pub)" \
+             >> ${USER_HOME}/.ssh/authorized_keys
+        ssh -o stricthostkeychecking=no $(hostname) true
+
+        echo '* '${CR_DIR}'/mothership/configs/kestreldmx.conf %m %p' \
+             > ${USER_HOME}/.crconfigs 
+
+        # Delete the display list
+        [ -e "${DISPLAY_LIST}" ] && rm ${DISPLAY_LIST}
+        touch ${DISPLAY_LIST}
+
+        echo "Starting the X server on the nodes..."
+
+        connected_nodes | while read node; do
+            # Close the general lock for this subshell
+            exec 200>&-
+            
+            create_xinit ${node}
+
+            export node
+            ssh ${node} xinit &>/dev/null &
+            
+            i=0
+            while ! grep -E "${node}\s" ${DISPLAY_LIST} && 
+                  (( ${NODE_TIMEOUT} > $i )); do
+                  sleep 0.2
+                  i=$(( i + 2 ))
+            done
+        done
+        
+        # DISPLAY :0.0 should be centered, get the number of screens
+        screens=$(( $(wc -l < ${DISPLAY_LIST}) + 1))
+        # Screens to the left from the center
+        screens2=$(( ${screens} / 2))
+        
+        # Screen list at the left
+        screen_list_1=$(awk "NR > ${screens2} { exit }; 
+                             {print \$2 }" ${DISPLAY_LIST})
+
+        # Screen list at the right
+        screen_list_2=$(tail -n$(( $screens - $screens2 - 1)) \
+                             ${DISPLAY_LIST} | awk "{ print \$2 }" )
+
+        # The whole screen list
+        screen_list="${screen_list_1} $DISPLAY_OLD ${screen_list_2}"
+
+        # Create the configuration file for the Xdmx
+        create_xdmx_config "${screen_list}"
+
+        sleep 1
+
+        # Sometimes the Xdmx does not free its lock
+        [ -e /tmp/.tX20-lock ] && rm /tmp/.tX20-lock
+
+        Xdmx :20 \
+               -configfile ${XDMX_CONFIG} -config videowall \
+               -norender -noglxproxy -ignorebadfontpaths \
+               >> ${DISPLAY_LIST}.log 2>&1 &
+        
+        # Save the Xdmx's PID
+        XDMX_PID=$!
+        
+        export DISPLAY=:20
+
+        # FIXME. Hack
+        xhost +
+
+        # Run the commands
+        ( $@ )
+
+        # Stop the XDMX server
+        kill $XDMX_PID
+
+        # FIXME. Hack, enable xserver's access control
+        export DISPLAY=$DISPLAY_OLD
+        xhost -
+
+        echo
+        echo "Probably you will need to restart the X server since Xdmx corrupts the keyboard."
+        echo
+        echo "Press any key to continue..."
+        read key
+
+        # Delete the capability of running $0
+        sed -ri "/${0##*/}/d" /home/${user}/.ssh/authorized_keys
+
+        rm ${DISPLAY_LIST}
+        rm ${XDMX_CONFIG}
+
+        # Close file descriptor
+        exec 200>&-
+
+        rm ${LOCK}
+    else
+
+        die "Already running"
+
+    fi
+}
+
+
+# register
+# 
+#     Register the nodes on the frontend. This will be called by the Xinit
+#     of the nodes.
+
+register() {
+    [[ ${SSH_ORIGINAL_COMMAND} =~ ${0##*/}\ --register\ (.+)\ (.+)$ ]] &&
+    node=${BASH_REMATCH[1]}
+    Xauthority=${BASH_REMATCH[2]}
+    
+    # Hack
+    xhost +
+
+    echo -e "${node}\t$DISPLAY\t$XAUTHORITY" >> ${DISPLAY_LIST}
+    xauth -f ${Xauthority} add $(xauth list)
+
+    # Wait (maintain the X server open) till the session finnishes
+    exec 200> ${LOCK}
+    flock --exclusive 200
+}
+
+
+remove() {
+    exec 202> ${LOCK}2
+    flock --unlock 202
+    exec 202>&-
+
+    rm ${LOCK} 
+}
+
+
+usage() {
+echo "
+Usage: ${0##*/} options
+
+OPTIONS:
+
+    --start <application>
+
+    --version
+
+    --help
+"
+}
+
+
+case $1 in
+    --start)
+        shift
+        start $@
+        ;;
+
+    --register)
+        register
+        ;;
+
+    --remove)
+        remove
+        ;;
+
+    --version|-v)
+        kestrel_version
+        ;;
+
+    --help|-h)
+        usage
+        ;;
+
+    *)
+        usage-error
+        ;;
+esac
+
+:
