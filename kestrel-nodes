@@ -54,12 +54,7 @@ _ssh() {
     
     check_connected "${host}"
     
-    if ! list_users | grep -Eq "^$(whoami)$"; then
-        die "User \"$(whoami)\" is not member of KestrelHPC's user." \
-            "" \
-            "Add the user to the cluster with : " \
-            "   sudo kestrel-users --add-to-cluster $(whoami)"
-    fi
+    check_user
     
     ssh-add
     

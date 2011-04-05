@@ -258,6 +258,21 @@ check_group() {
         die "The group \"${group} hasn't been found"
 }
 
+
+# check_user
+# 
+#     Check if the user belongs to the kestrel group
+
+check_user() {
+    if ! list_users | grep -Eq "^$(whoami)$"; then
+        die "User \"$(whoami)\" is not member of the KestrelHPC group." \
+            "" \
+            "Add the user to the cluster with : " \
+            "   sudo kestrel-users --add-to-cluster $(whoami)"
+    fi
+}
+
+
 # check_hostname <hostname name>
 # 
 #     Check if the hostname exits
@@ -618,7 +633,7 @@ user_sshkeygen() {
             > ${user_home}/.ssh/id_dsa.bak
     fi
     
-    #rm ${user_home}/.ssh/id_rsa 2>/dev/null
+    rm ${user_home}/.ssh/id_dsa 2>/dev/null
 
     ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/id_dsa"
 
