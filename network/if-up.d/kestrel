@@ -1,24 +1,18 @@
 #! /bin/sh
-# Reload the OpenSSH server when an interface comes up, to allow it to start
-# listening on new addresses.
 
 set -e
 
 # Don't bother to restart sshd when lo is configured.
-if [ "$IFACE" = lo ]; then
-	exit 0
-fi
+[ "$IFACE" = lo ] && exit 0
 
 # Only run from ifup.
-if [ "$MODE" != start ]; then
-	exit 0
-fi
+[ "$MODE" != start ] && exit 0
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -e /usr/share/kestrel/default.conf ] &&
+. /usr/share/kestrel/default.conf
 
-# Load kestrel_lib
-. "$KESTREL_SHARE"/defaults-lib
-
+[ -e /etc/kestrel/kestrel.conf ] &&
+. /etc/kestrel/kestrel.conf
 
 if ifconfig $IFACE | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
 
@@ -30,8 +24,7 @@ if ifconfig $IFACE | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
     [ -x /etc/init.d/dnsmasq ] &&
         invoke-rc.d dnsmasq restart
 
+    [ -x /etc/init.d/kestrel_daemon ] &&
     invoke-rc.d kestrel_daemon restart
 
-fi > /dev/null
-
-exit 0
+fi
