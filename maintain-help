@@ -15,9 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-dir=${0%/*}
+dir=$(cd ${0%/*}; pwd)
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=${dir}/share
+export KESTREL_SHARE=${dir}/share
 
 # load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
@@ -83,6 +83,7 @@ check_install_files(){
     #echo "Total of non installed files : ${non_installed_files}"
     popd &> /dev/null
 }
+
 build(){
     clean
     # create man files
@@ -91,7 +92,7 @@ build(){
         [ ! -f ${i} -o ! -x ${i} ] && continue
         for install in debian/*.install; do
             if grep -q "${i}" "${install}"; then
-                help2man "./${i}" -s 8 -o "${i}.8"
+                help2man "./${i}" --section=8 --no-info --output="${i}.8"
                 echo "${i}.8" >> ${install%%.install}.manpages
             fi
         done
@@ -148,7 +149,7 @@ case ${1} in
         release=${KESTREL_VERSION}.$(date +%Y.%m.%d)
         dch -b -v ${release} &&
         release=$(sed -rn 's/^kestrelhpc \((.*)\).*$/\1/p' $dir/debian/changelog | head -1) &&
-        debuild -S -kA37CCC70 -I.svn '-i^\.svn/' &&
+        debuild -S -I.svn '-i^\.svn/' &&
         dput ppa:kestrel/kestrelhpc ../kestrelhpc_${release}_source.changes &&
         [ "${m_install}" == "true" ] && sudo dpkg -i ../*.deb &&
         exit 0
@@ -160,7 +161,7 @@ case ${1} in
         release=${KESTREL_VERSION}.$(date +%Y.%m.%d)
         dch -b -v ${release} &&
         release=$(sed -rn 's/^kestrelhpc \((.*)\).*$/\1/p' $dir/debian/changelog | head -1) &&
-        debuild -S -kA37CCC70 -I.svn '-i^\.svn/' &&
+        debuild -S -I.svn '-i^\.svn/' &&
         dput ppa:kestrel/unstable ../kestrelhpc_${release}_source.changes &&
         [ "${m_install}" == "true" ] && sudo dpkg -i ../*.deb &&
         exit 0
