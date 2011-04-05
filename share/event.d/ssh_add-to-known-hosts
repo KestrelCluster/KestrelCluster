@@ -18,7 +18,7 @@ case ${action} in
         
         echo "${hostname} ssh-rsa ${key}" >> /etc/ssh/ssh_known_hosts
         
-        su kestrel -c "ssh ${hostname} sudo set_hostname ${hostname}" 
+        su kestrel -c "ssh ${hostname} sudo set_hostname ${hostname} ${FRONTEND_IP} $(hostname)"
         ;;
         
     disconnect)
