@@ -743,6 +743,9 @@ run_node_scripts() {
     
     list_scripts "node/${scripts}.d" | \
     while read hook; do
+
+        [[ ${hook} =~ chroot && "${mode}" == "remove" ]] && continue
+
         echo "Executing : ${hook##*/} "
         
         {
@@ -751,8 +754,6 @@ run_node_scripts() {
             # if the script if postfixed with chroot run it under a chroot
             if [[ ${hook} =~ chroot ]]; then
 
-                [[ "${mode}" == "remove" ]] && continue
-                
                 # Copy the script under the chroot
                 cat < $KESTREL_SHARE/kestrel-chroot-lib > ${image_dir}/tmp/hook
                 cat < ${hook} >> ${image_dir}/tmp/hook
