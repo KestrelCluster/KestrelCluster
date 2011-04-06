@@ -19,6 +19,11 @@ for file in libGL.so.1 libGL.so libglx.so; do
 
 done
 
+# Ensure libGL.so exits
+[[ ! -e /usr/lib/libGL.so && -e /usr/lib/libGL.so.1 ]] &&
+( cd /usr/lib; ln -snf libGL.so.1 libGL.so )
+
+
 # Install an udev rule and a script which reconfigures the drivers and creates
 # a xorg.conf if Nvidia hardware is detected.
 
