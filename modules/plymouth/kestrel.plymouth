@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=kestrel
+Description=KestrelHPC Theme
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/kestrel/plymouth
+ScriptFile=/usr/share/kestrel/plymouth/kestrel.script
