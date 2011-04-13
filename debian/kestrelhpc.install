@@ -16,6 +16,7 @@ rpc/kestrel_rpc.py                  var/lib/kestrel/rpc/
 rpc/daemon.py                       var/lib/kestrel/rpc/
 
 tftpboot/splash.png                 var/lib/kestrel/tftpboot
+tftpboot/pxemenu-background01.jpg   var/lib/kestrel/tftpboot
 tftpboot/template                   var/lib/kestrel/tftpboot
 
 share/default.conf                  usr/share/kestrel
