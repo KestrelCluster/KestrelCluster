@@ -1,11 +1,17 @@
-Window.SetBackgroundTopColor(0.268, 0.327, 0.425);
-Window.SetBackgroundBottomColor(0.725, 0.768, 0.839);
+#Window.SetBackgroundTopColor(0.268, 0.327, 0.425);
+#Window.SetBackgroundBottomColor(0.725, 0.768, 0.839);
+
+background_image = Image("plymouth-background01.png");
+background_sprite = Sprite(background_image);
+resized_background_image = background_image.Scale(Window.GetWidth(), Window.GetHeight());
+background_sprite.SetImage(resized_background_image);
+background_sprite.SetZ(0);
 
 for (i=0; i<10; i++){
   spec[i].image = Image("spec" + (i % 3) + ".png");
   spec[i].sprite = Sprite(spec[i].image);
   spec[i].sprite.SetOpacity (0.0);
-  }
+}
 
 logo.image = Image("logo.png");
 logo.sprite = Sprite(logo.image);
@@ -13,6 +19,15 @@ logo.sprite.SetX (Window.GetWidth() / 2 - logo.image.GetWidth()  / 2);
 logo.sprite.SetY (Window.GetHeight() / 2 - logo.image.GetHeight() / 2);
 logo.sprite.SetOpacity (0.9);
 logo.sprite.SetZ (10000);
+
+message.image = Image("message.png");
+message.sprite = Sprite(message.image);
+message.sprite.SetX (Window.GetWidth() / 2 - message.image.GetWidth()  / 2);
+message.sprite.SetY (logo.sprite.GetY() + 190);
+message.sprite.SetOpacity (0.9);
+message.sprite.SetZ (10000);
+
+
 progress = 0.0;
 
 kestrel_progress = 0.85;
@@ -130,14 +145,16 @@ progress_box.image = Image("progress_box.png");
 progress_box.sprite = Sprite(progress_box.image);
 
 progress_box.x = Window.GetWidth()  / 2 -    progress_box.image.GetWidth()  / 2;
-progress_box.y = Window.GetHeight() * 0.75 - progress_box.image.GetHeight() / 2;
+#progress_box.y = Window.GetHeight() * 0.75 - progress_box.image.GetHeight() / 2;
+progress_box.y = logo.sprite.GetY() + 140 - 2;
 progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 0);
 
 progress_bar.original_image = Image("progress_bar.png");
 progress_bar.sprite = Sprite();
 
 progress_bar.x = Window.GetWidth()  / 2 -        progress_bar.original_image.GetWidth() / 2;
-progress_bar.y = Window.GetHeight() / 2 * 1.5  - progress_box.image.GetHeight() / 2 + (progress_box.image.GetHeight() - progress_bar.original_image.GetHeight()) / 2;
+#progress_bar.y = Window.GetHeight() / 2 * 1.5  - progress_box.image.GetHeight() / 2 + (progress_box.image.GetHeight() - progress_bar.original_image.GetHeight()) / 2;
+progress_bar.y = logo.sprite.GetY() + 140;
 progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 1);
 
 fun progress_callback (duration, progress)
