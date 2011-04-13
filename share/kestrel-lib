@@ -508,10 +508,10 @@ run_event_scripts() {
          fi
     done
     
-    # Get the mac with the ip from dnsmasq's leases database
+    # Get the mac from the ip using the arp cache
     [ -z "${mac}" ] &&
-    mac=$( awk "/[^0-9]${ip//./\\.}[^0-9]/ { print \$2 }" \
-               /var/lib/misc/dnsmasq.leases )
+    mac=$( arp -ni ${KESTREL_IFACE} | \
+           awk "/^${ip//./\\.}[\s\t\ ]/ { print \$3 }" )
     
     # Get the hostname from the registered node file.
     [ -z "${hostname}" ] &&
@@ -968,11 +968,27 @@ run_from_script(){
     )
 }
 
-check_kestrel_daemon() {
+
+# detect_iface
+# 
+#     Detect the network interface associated to the FRONTEND_IP
+
+detect_iface() {
+    # Ensure FRONTEND_IP is a valid ip
+    [ ${FRONTEND_IP} =~ ${ip_re} ] &&
     for net in /sys/class/net/*; do
         ifconfig ${net##*/} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]" &&
         export KESTREL_IFACE=${net##*/}
     done
+}
+
+
+# check_kestrel_daemon
+# 
+#     Checks if the kestrel daemon is running
+
+check_kestrel_daemon() {
+    kestrel_iface
 
     /etc/init.d/kestrel_daemon status &> /dev/null || \
         if [ -z ${KESTREL_IFACE} ]; then
