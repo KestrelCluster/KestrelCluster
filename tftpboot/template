@@ -3,7 +3,7 @@ timeout 100
 prompt 0
 
 menu title Welcome to KestrelHPC 2.0
-menu background splash.png
+menu background pxemenu-background01.jpg
 menu width 77
 menu rows 14
 menu tabmsgrow 25
