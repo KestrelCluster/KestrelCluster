@@ -1,5 +1,0 @@
-#!/bin/bash
-
-# Ensure libGL.so exists
-[[ ! -e /usr/lib/libGL.so && -e /usr/lib/libGL.so.1 ]] &&
-( cd /usr/lib; ln -snf libGL.so.1 libGL.so )
