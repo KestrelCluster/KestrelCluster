@@ -86,7 +86,9 @@ do_stop(){
 }
 
 check_and_start(){
-    if ifconfig | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
+    detect_iface
+
+    if [ -n "${KESTREL_IFACE}" ]; then
         do_start $PIDFILE $DAEMON $DESC $NAME
         do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
     else
