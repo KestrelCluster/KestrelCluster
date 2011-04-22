@@ -57,3 +57,36 @@ export_config() {
         export $variable
     done
 }
+
+
+# detect_iface
+# 
+#     Detect the network interface associated to the FRONTEND_IP and export the
+#     result as variable KESTREL_IFACE
+
+detect_iface() {
+    # Ensure FRONTEND_IP is a valid ip
+    [[ ${FRONTEND_IP} =~ ${ip_re} ]] &&
+    for net in /sys/class/net/*; do
+        ifconfig ${net##*/} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"\
+        && export KESTREL_IFACE=${net##*/}
+    done
+}
+
+
+# Basic Regular expresions
+###########################
+
+group_re="[0-9A-Za-z_]+"
+image_re="[0-9A-Za-z_]+"
+node_re="[0-9]+"
+hostname_re="${KESTREL_HOSTNAME}-${group_re}-${node_re}"
+
+# Note: We could also use a shorter version of these RE using groups, but that
+# add the complexity of taking into accound that group in each sed expression.
+# Another option is to use a Perl RE and use Super sed, but that would require
+# adding Super sed as a dependency.
+ip_re="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
+mac_re="[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}"
+mac_re="${mac_re}\:${mac_re}"
+

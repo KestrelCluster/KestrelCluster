@@ -216,20 +216,7 @@ lock_image() {
 #   <ip>         --> ([0-9]{1,3}\.){3}[0-9]{1,3}
 #   <mac>        --> ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2}
 #
-
-# Variables with regular expressions
-group_re="[0-9A-Za-z_]+"
-image_re="[0-9A-Za-z_]+"
-node_re="[0-9]+"
-hostname_re="${KESTREL_HOSTNAME}-${group_re}-${node_re}"
-
-# Note: We could also use a shorter version of these RE using groups, but that
-# add the complexity of taking into accound that group in each sed expression.
-# Another option is to use a Perl RE and use Super sed, but that would require
-# adding Super sed as a dependency.
-ip_re="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
-mac_re="[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}";
-mac_re="${mac_re}\:${mac_re}"
+#   RE defined on file defaults-lib
 
 
 # list_groups
@@ -590,7 +577,7 @@ run_event_scripts() {
 
 list_users() {
     echo $KESTREL_USER
-    sed < /etc/group -nr "s/^${KESTREL_GROUP}:.*:.*:(.+)$/\1/p" | sed 's/,/\n/'
+    sed -nr "s/^${KESTREL_GROUP}:.*:.*:(.+)$/\1/p" /etc/group | sed 's/,/\n/g'
 }
 
 
@@ -969,26 +956,12 @@ run_from_script(){
 }
 
 
-# detect_iface
-# 
-#     Detect the network interface associated to the FRONTEND_IP
-
-detect_iface() {
-    # Ensure FRONTEND_IP is a valid ip
-    [ ${FRONTEND_IP} =~ ${ip_re} ] &&
-    for net in /sys/class/net/*; do
-        ifconfig ${net##*/} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]" &&
-        export KESTREL_IFACE=${net##*/}
-    done
-}
-
-
 # check_kestrel_daemon
 # 
 #     Checks if the kestrel daemon is running
 
 check_kestrel_daemon() {
-    kestrel_iface
+    detect_iface
 
     /etc/init.d/kestrel_daemon status &> /dev/null || \
         if [ -z ${KESTREL_IFACE} ]; then
