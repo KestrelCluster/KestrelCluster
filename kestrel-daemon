@@ -10,6 +10,7 @@
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
+. "$KESTREL_SHARE"/node-status-lib
 
 # Export loaded configuration
 export_config
@@ -19,6 +20,9 @@ NAME=${0##*/}
 LOGFILE=/var/log/${NAME}.log
 PIDFILE=/var/run/${NAME}.pid
 LOCKFILE=/var/lock/${NAME}.lock
+
+# Set verbose flag
+VERBOSE=yes
 
 
 # Check parameters
@@ -69,10 +73,10 @@ close() {
                     run_event_scripts ${read_line}
                     
                 ) # 200> ${LOCKFILE} &
-            done < ${KESTREL_DATA_DIR}/rpc/fifo
-        done
+            done < ${KESTREL_RPC_FIFO}
+        done >> ${LOGFILE} 2>&1
     
-    ) >> ${LOGFILE} 2>&1 </dev/null &
+    ) >/dev/null </dev/null &
 
     # Write the pid of the innermost subshell to the PIDFILE
     echo $! > ${PIDFILE} 
