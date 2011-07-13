@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2010 Jon Ander Hernández
+# Copyright (C) 2010, 2011 Jon Ander Hernández
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,25 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel ||
-                           KESTREL_SHARE_BAK=${KESTREL_SHARE}
-
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
 KESTREL_VERSION="2.1"
-
-kestrel_version() {
-    echo "KestrelHPC ${KESTREL_VERSION}"
-}
-
 
 # Loads the config from the config file default.conf, from the defaul.d dir
 # and from the user's
 
 . ${KESTREL_SHARE}/kestrel-chroot-lib
 . ${KESTREL_SHARE}/defaults-lib 
-
-
-[ -z "$KESTREL_SHARE_BAK" ] && KESTREL_SHARE=${KESTREL_SHARE_BAK}
 
 
 # Image functions
@@ -87,9 +77,9 @@ mount_chroot_image(){
 umount_chroot_image(){
     local image_dir=$1
 
-    for mount in proc sys tmp \
-                 dev/pts dev/shm \
-                 etc/apt/ \
+    for mount in proc sys tmp       \
+                 dev/{pts,shm}      \
+                 etc/apt/           \
                  var/lib/apt/lists/ \
                  var/cache/apt/
     do
@@ -186,302 +176,29 @@ lock_image() {
 }
 
 
-# Node functions
+# Event script
 #################
-
-# Connected nodes are stored in the host config file.
-#
-#   When a node starts, a register script adds a new entry in the /etc/host file
-#
-# Registered nodes are stored in kestrel dnsmasq's config file.
-#
-#   When a node is registered with the kestrel-control --register command a new 
-#   entry is created in the file : ${KESTREL_REGISTERED_NODES}
-#
-#
-# The hostname of a node has the following general structure :
-#
-#   <kestrel_hostame>-<group_name>-<node_id>
-#
-# Also each node has a hostname available with the image-name appended :
-#
-#   <kestrel_hostame>-<group_name>-<node_id>-<image-name>
-#
-#
-# Regular expresions for each field :
-#
-#   <group_name> --> [0-9A-Za-z_]+
-#   <group_name> --> [0-9A-Za-z_]+
-#   <node_id>    --> [0-9]+
-#   <ip>         --> ([0-9]{1,3}\.){3}[0-9]{1,3}
-#   <mac>        --> ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2}
-#
-#   RE defined on file defaults-lib
-
-
-# list_groups
-# 
-#     List registered groups
-
-list_groups() {
-    
-    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
-    
-    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq 
-}
-
-
-# check_group <group name>
-# 
-#     Check if the group exits
-
-check_group() {
-    local group=$1
-    
-     [[ "${group}" =~ ^${group_re}$ ]] ||
-        die "Invalid group name \"${group}\""
-     
-     list_groups | grep -Eq "^${group}$" ||
-        die "The group \"${group} hasn't been found"
-}
-
-
-# check_user
-# 
-#     Check if the user belongs to the kestrel group
-
-check_user() {
-    if ! list_users | grep -Eq "^$(whoami)$"; then
-        die "User \"$(whoami)\" is not member of the KestrelHPC group." \
-            "" \
-            "Add the user to the cluster with : " \
-            "   sudo kestrel-users --add-to-cluster $(whoami)"
-    fi
-}
-
-
-# check_hostname <hostname name>
-# 
-#     Check if the hostname exits
-
-check_hostname() {
-    local host=$1
-    
-     [[ "${host}" =~ ^${hostname_re}$ ]] ||
-        die "Invalid hostname \"${host}\""
-     
-     registered_nodes | grep -Eq "^${host}\$" ||
-        die "The hostname \"${host} hasn't been found"
-}
-
-# check_mac <mac>
-# 
-#     Check if the mac is valid a registered
-
-check_mac() {
-    local host=$1
-    
-    [[ -n "${mac}" && "${mac}" =~ ^${mac_re}$ ]] ||
-        die "Invalid mac address"
-    
-    host=$(mac_2_hostname ${mac})
-    
-    [ -z "${host}" ] &&
-        die "The mac \"${mac} is not registered on the system"
-}
-
-# connected_nodes [<group>]
-# 
-#     List all connected nodes.
-#     List a group's connected connected nodes if the group is specified.
-
-connected_nodes() {
-    if [ -n "$1" ]; then
-        group="${1}"
-    else
-        group="${group_re}"
-    fi
-    
-    re="^\s*${ip_re}\s+(${KESTREL_HOSTNAME}-${group}-${node_re})([^0-9].*)*$"
-    
-    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort
-}
-
-# connected_images [<group>]
-# 
-#     List all connected nodes.
-#     List a group's connected connected nodes if the group is specified.
-
-connected_images() {
-    if [ -n "$1" ]; then
-        group="${1}"
-    else
-        group="${group_re}"
-    fi
-    
-    re="^\s*${ip_re}\s.*(${hostname_re}-${image_re})([^0-9].*)*$"
-    
-    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES}  | sort
-}
-
-# connected_groups
-# 
-#     List groups of nodes with connected nodes
-
-connected_groups() {
-    
-    re="^\s*${ip_re}\s+${KESTREL_HOSTNAME}-(${group_re})-${node_re}([^0-9].*)*$"
-    
-    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort | uniq
-}
-
-
-# connected_images <hostname>
-# 
-#     Get the image of a connected image.
-
-connected_image() {
-    if [[ $1 =~ ${hostname_re}-(${image_re}) ]]
-    then
-        echo ${BASH_REMATCH[1]}
-    else
-        re="^\s*${ip}\s+${1}\s${hostname_re}-(${image_re})(\s|$)"
-        
-        sed -rn "s/.*${1}-([0-9A-Za-z_]+)([[:space:]].*|$)/\1/p" \
-            ${KESTREL_CON_NODES}
-    fi
-}
-
-# disconnected_nodes [<group>]
-# 
-#     List all the disconnected nodes.
-#     List a group's disconnected nodes if the group is specified.
-
-disconnected_nodes() {
-
-    # All connected nodes, are also registered. We can combine both lists and 
-    # look for those lines which only appear once, which that means that they
-    # are registered, but not connected.
-    echo $(connected_nodes $1) $(registered_nodes $1) | 
-    sed -r 's/[[:space:]]/\n/g' | sort | uniq --unique
-}
-
-
-# disconnected_groups
-# 
-#     List groups with disconnected nodes
-
-disconnected_groups() {
-    
-    re="^${KESTREL_HOSTNAME}-(${group_re})-.*$"
-    
-    disconnected_nodes | sed -rn "s/${re}/\1/p" | sort | uniq
-}
-
-
-# registered_nodes [<group>]
-# 
-#     List all the registered nodes
-#     List a group's registered nodes if the group is specified.
-
-registered_nodes() {
-
-    if [[ -n "$1" && "$1" =~ ${group_re} ]]; then
-        group="${1}"
-    else
-        group="${group_re}"
-    fi
-    
-    re="^[^#]*,\s*(${KESTREL_HOSTNAME}-${group}-${node_re})[^0-9]*$"
-    
-    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort
-}
-
-
-# registered_groups
-# 
-#     List the registered groups of nodes.
-
-registered_groups() {
-    
-    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
-    
-    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq
-}
-
-
-# mac_2_hostname
-# 
-#     Get the mac of a registered node using its hostname.
-
-hostname_2_mac() {
-    
-    re="^[^#]*(${mac_re})(\s*.*,\s*)+${1}(\s.*)*$"
-    
-    [[ "${1}" =~ ${hostname_re} ]] &&
-    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES}
-}
-
-
-# hostname_2_ip
-# 
-#     Get the current ip of a connected node using its hostname.
-
-hostname_2_ip() {
-    
-    re="^\s*(${ip_re})\s.*${1}([^0-9].*)*$"
-    
-    [[ "${1}" =~ ${hostname_re} ]] &&
-    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES}
-}
-
-
-# mac_2_hostname
-# 
-#     Get the hostname of a registered node using its mac.
-
-mac_2_hostname() {
-    
-    re="^[^#]*${1}(\s*.*,\s*)+(${hostname_re})[^0-9]*$"
-    
-    [[ "${1}" =~ ${mac_re} ]] &&
-    sed -rn "s/${re}/\2/p" ${KESTREL_REG_NODES} | tail -n1
-}
-
-
-# mac_2_pxemac
-# 
-#     Convert mac to pxelinux mac.
-
-mac_2_pxemac() {
-    # - Add ethernet header 01
-    # - Convert any ":" to "-"
-    # - Convert to lowercase
-    echo $1 | sed -r 's/^/01-/; s/:/-/g; s/(.*)/\L\1/g;'
-}
-
 
 # run_event_scripts <parameters>*
 
 run_event_scripts() {
-    echo
-    echo "======================"
-    echo
-    
-    date
-    
-    echo
-    echo " Event's parameters : "
-    echo
+
+    msg ""                          \
+        "======================"    \
+        ""                          \
+        $(date)                     \
+        ""                          \
+        " Event's parameters : "    \
+        ""
     
     # Export the variables of the event. For security reasons we check if a
     # variable is trying to replace an existing variable. We only allow to
     # export non existant variables.
     for param in $@; do
-    
+         
          # Check if parameter is a key=value
          if [[ "${param}" =~ [0-9A-Za-z_]+=.+ ]]; then
-         
+             
              key=${param%%=*}
              value=${param#*=}
              
@@ -495,6 +212,10 @@ run_event_scripts() {
          fi
     done
     
+    # Check we don't get an invalid event (an event with an empty action)
+    [ -z "${action}" ] && { echo "Unexpected event."; return 0; }
+    
+    
     # Get the mac from the ip using the arp cache
     [ -z "${mac}" ] &&
     mac=$( arp -ni ${KESTREL_IFACE} | \
@@ -503,72 +224,88 @@ run_event_scripts() {
     # Get the hostname from the registered node file.
     [ -z "${hostname}" ] &&
     hostname=$( mac_2_hostname "${mac}" )
-
+    
     [ -z "${group}" ] && 
     [[ "${hostname}" =~ ^${KESTREL_HOSTNAME}-(${group_re})-${node_re}$ ]] &&
     group=${BASH_REMATCH[1]}
-
-    if [ "${action}" == "register" ]; then
-        # Check if the node is not registered to the same group
-        if ! registered_nodes "${group}" | grep -Eq "^${hostname}$"; then
-
-            # Look for the last registered node number
-            re="^${KESTREL_HOSTNAME}-${group_re}-(${node_re})$"
-            
-            last_node=$( registered_nodes ${group} | sed -rn "s/${re}/\1/p" |\
-                         sort -n | tail -n1 )
-            
-            [ -z "${last_node}" ] && last_node=0
-            
-            hostname=${KESTREL_HOSTNAME}-${group}-$(( ${last_node} + 1 ))
-            echo "Registering node \"${hostname}\"" \
-                 >> ${KESTREL_DATA_DIR}/register_feedback
-            
-        else
-            echo "The node \"${hostname}\" was already registered" \
-                 >> ${KESTREL_DATA_DIR}/register_feedback
-        fi
-        
-        echo -e "\tmac : ${mac}" >> ${KESTREL_DATA_DIR}/register_feedback
-        echo -e "\tip  : ${ip}"  >> ${KESTREL_DATA_DIR}/register_feedback
-        echo                     >> ${KESTREL_DATA_DIR}/register_feedback
-    fi
     
-    echo
-    echo "action   : ${action}"
-    echo "mac      : ${mac}"
-    echo "ip       : ${ip}"
-    echo "hostname : ${hostname}"
-    echo "group    : ${group}"
-    echo
-
-    echo "----------------------"
-    echo
     
-    # Check we don't get an invalid event (an event with an empty action)
-    # Check if the node is registered
-    if [ -n "${action}" ] && \
-       [[ "${action}" != "connect" || -n "$(mac_2_hostname ${mac})" ]]; 
-    then
-    
-        # Run event.d script.
-        list_scripts "event.d" | \
-        while read script; do
-            echo ${script}
-            . ${script}
-        done
-    else
-        echo "Unexpected event. This node is not a registered node."
-    fi
+    case "${action}" in
+        # When registering, asign a hostname for the node
+        register)
+            # Check if the node is not registered to the same group
+            if ! registered_nodes "${group}" | grep -Eq "^${hostname}$"; then
 
-    echo
-    echo "======================"
-    echo
+                # Look for the last registered node number
+                re="^${KESTREL_HOSTNAME}-${group_re}-(${node_re})$"
+                
+                last_node=$( registered_nodes ${group} | sed -rn "s/${re}/\1/p" |\
+                             sort -n | tail -n1 )
+                
+                [ -z "${last_node}" ] && last_node=0
+                
+                hostname=${KESTREL_HOSTNAME}-${group}-$(( ${last_node} + 1 ))
+                msg "Registering node \"${hostname}\""                  \
+                    "\tmac : ${mac}"                                    \
+                    "\tip  : ${ip}"                                     \
+                    ""
+            else
+                msg "The node \"${hostname}\" was already registered"   \
+                    "\tmac : ${mac}"                                    \
+                    "\tip  : ${ip}"                                     \
+                    ""
+            fi >> ${KESTREL_DATA_DIR}/register_feedback
+            ;;
+            
+        # Check if the node is registered
+        connect)
+            [ -z "$(mac_2_hostname ${mac})" ] && { 
+                echo "This node is not a registered node."; return 0;
+            }
+            
+            # Ignore re"connect" events if the node is connected.
+            connected_nodes | grep -Eq "^${hostname}\$" && return 0
+            ;;
+    esac
+    
+    msg ""                          \
+        "action   : ${action}"      \
+        "mac      : ${mac}"         \
+        "ip       : ${ip}"          \
+        "hostname : ${hostname}"    \
+        "group    : ${group}"       \
+        ""                          \
+        "----------------------"    \
+        ""
+    
+    # Run event.d script.
+    list_scripts "event.d" | \
+    while read script; do
+        echo ${script}
+        . ${script}
+    done
+
+    msg ""                          \
+        "======================"    \
+        ""
 }
 
 
 # User and Permission functions
 ################################
+
+# check_user
+# 
+#     Check if the user belongs to the kestrel group
+
+check_user() {
+    if ! list_users | grep -Eq "^$(whoami)$"; then
+        die "User \"$(whoami)\" is not member of the KestrelHPC group." \
+            ""                                                          \
+            "Add the user to the cluster with : "                       \
+            "   sudo kestrel-users --add-to-cluster $(whoami)"
+    fi
+}
 
 
 # list_users
@@ -589,7 +326,7 @@ home_dir() {
 # user_sshkeygen <user>
 # 
 #    Recreate ssh keys for the user, and add them to 'authorized _keys' allowing
-#    password-less authentication into the cluster's nodes.
+#    password-less authentication into the cluster nodes.
 
 user_sshkeygen() {
     local user=$1
@@ -597,38 +334,45 @@ user_sshkeygen() {
     local user_home=$(home_dir ${user})
     local user_khome=/${HOME_MODE}/${user}
 
+    # Ensure the kestrel-home exported directory exists
     if [ ! -d ${user_khome} ]; then
         mkdir -p ${user_khome}
         chown ${user}:${user} ${user_khome} 
     fi &> /dev/null
     
+    # Create a link from $HOME/$user/kestrel to KESTREL-HOME/$user
     home_link=${user_home}/kestrel
     [[ ! "/${HOME_MODE}/" =~ ^/home/$ ]] &&
     [[ -L ${home_link} || ! -e ${home_link} ]] &&
         ( cd /; ln -snf ${user_khome} ${home_link} )
-
-    mkdir -p ${user_home}/.ssh
-    chmod 700 ${user_home}/.ssh
-    mkdir -p ${user_khome}/.ssh
-    chmod 700 ${user_khome}/.ssh
-
+    
+    mkdir -p   ${user_home}/.ssh
+    mkdir -p  ${user_khome}/.ssh
+    
+    # Make a backup of the user's dsa public certificate if found
     if [[   -e ${user_home}/.ssh/id_dsa &&
-          ! -e ${user_home}/.ssh/id_dsa.bak ]]; then
+          ! -e ${user_home}/.ssh/id_dsa.bak ]];
+    then
         echo "Kestrel has created a new ssh key."
         echo "The old one has been backed up to ~/.ssh/id_dsa.bak"
-        cat < ${user_home}/.ssh/id_dsa \
-            > ${user_home}/.ssh/id_dsa.bak
+        cat  < ${user_home}/.ssh/id_dsa \
+             > ${user_home}/.ssh/id_dsa.bak
     fi
     
     rm ${user_home}/.ssh/id_dsa 2>/dev/null
-
+    
     ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/id_dsa"
-
-    cat < ${user_home}/.ssh/id_dsa.pub \
-        > ${user_khome}/.ssh/authorized_keys
+    
+    # Add the created public certiticate to the authorized keys file on the 
+    # exported kestrel-home
+    cat     <  ${user_home}/.ssh/id_dsa.pub \
+            > ${user_khome}/.ssh/authorized_keys
     chmod 600 ${user_khome}/.ssh/authorized_keys
     
-    chown -R ${user}:${user_group} ${user_home}/.ssh
+    # Ensure the .ssh/* files have the correct owner/group and permissions.
+    chmod 700  ${user_home}/.ssh
+    chmod 700 ${user_khome}/.ssh
+    chown -R ${user}:${user_group}  ${user_home}/.ssh
     chown -R ${user}:${user_group} ${user_khome}/.ssh
 }
 
@@ -653,235 +397,127 @@ check_root() {
 #}
 
 
-# Install and configure functions
-##################################
-
-# list_scripts <dir>
-#   List the scripts found at dir <dir>.
-
-# install_node <image_name>
-#   Executes install scripts and installs software packages on <image_name>.
-
-# uninstall_node <image_name>
-#   Executes install scripts with "remove" flag on <image_name>.
-
-# reconfigure_node <image_name>
-#   Executes node configure scripts on <image_name>.
-
-# install_frontend
-#   Executes frontend's install scripts.
-
-# reconfigure_frontend
-#   Executes frontend's configure scripts.
-
-
-# run_register_scripts <parameters>*
-#   Runs register scripts.
-
-
-# list_scripts <dir>
-#
-# Get a list of files under a kestrel dir while taking into account that files 
-# at /etc have bigger priority than the system's ones.
-# 
-# This lets any default script be replaced/customized easily by the user.
-#
-# Example : 
-#    list_scripts "node/packages.d" | more
-#
-# This lists all the scripts under the dir /usr/share/kestrel/node/packages.d
-# and in the dir /etc/kestrel/node/packages.d. If there is a file named the same
-# in /etc/kestrel/node/packages.d if will replace the /usr one.
-
-list_scripts() {
-    local get_files_dir=$1
-    local share_dir=${KESTREL_SHARE}/${get_files_dir}
-    local etc_dir=${KESTREL_ETC}/${get_files_dir}
-
-    # Look for files at kestrel's lib and etc dirs.
-    for files in ${share_dir}/* ${etc_dir}/*; do
-        [ -e ${files} ] && echo ${files##*/}
-    done | \
-    # sort them and remove duplicates
-    sort | uniq | \
-    while read file; do
-    
-        # If the file is present in /etc/ use it instead of the standard one. 
-        if [ -x "${etc_dir}/${file}" ]; then
-            echo ${etc_dir}/${file}
-        elif [ -x "${share_dir}/${file}" ]; then 
-            echo ${share_dir}/${file}
-        fi
-    
-    done
-}
-
-
-run_node_scripts() {
-    local scripts=$1
-    local mode=${2}
-    
-    echo
-    echo "Executing ${scripts} scripts"
-    echo
-    
-    LOG=${KESTREL_IMAGE_DIR}/.${image_name}.${scripts}.log
-    { echo; date; echo "======================"; } >> ${LOG}
-    
-    list_scripts "node/${scripts}.d" | \
-    while read hook; do
-
-        [[ ${hook} =~ chroot && "${mode}" == "remove" ]] && continue
-
-        echo "Executing : ${hook##*/} "
-        
-        {
-            echo; echo "Executing : ${hook##*/} "; echo
-            
-            # if the script if postfixed with chroot run it under a chroot
-            if [[ ${hook} =~ chroot ]]; then
-
-                # Copy the script under the chroot
-                cat < $KESTREL_SHARE/kestrel-chroot-lib > ${image_dir}/tmp/hook
-                cat < ${hook} >> ${image_dir}/tmp/hook
-                chmod 755 ${image_dir}/tmp/hook
-            
-                # Avoid any locale setting
-                export LANG=C
-                chroot ${image_dir} /tmp/hook ${mode}
-            else
-                . ${hook} ${mode}
-            fi 
-        } >> ${LOG} 2>&1 || 
-              echo "error while executing ${hook##*/}"
-        
-    done | sed -r 's/^/    /' # add some indentation to the output
-}
-
-# install_node <image_name>
-#
-#     Execute install scripts and install software packages on an image 
-#     specified by the parameter <image_name> or by the global variable 
-#     ${image_name}
-
-install_node() {
-
-    [ -n "$1" ] && export image_name=$1
-    
-    run_node_scripts "install" "add"
-    
-    echo
-    echo "Installing extra software"
-    echo
-
-    LOG=${KESTREL_IMAGE_DIR}/.${image_name}.apt.log
-    { echo; date; echo "======================"; } >> ${LOG}
-
-    list_scripts "node/packages.d" | \
-    while read package; do
-    
-        packages=$(. ${package} | \
-                   sed -r 's/[[:space:]]/\ /; /^[[:space:]]*$/d')
-        echo "Installing kestrel extra packages : ${package##*/}"
-        
-        # Package log file
-        echo "install ${packages}" \
-             >> ${KESTREL_IMAGE_DIR}/.${image_name}.history
-        {
-
-            echo
-            echo "Executing : ${package##*/dd} "
-            echo "          : ${packages}"
-            echo
-        
-            # Avoid any locale setting
-            export LANG=C
-            export DEBIAN_FRONTEND=noninteractive
-            chroot ${image_dir} apt-get -qq -y install ${packages}
-            
-        } >> ${LOG} 2>&1 || 
-              echo "error while installing ${package##*/}"
-              
-    done | sed -r 's/^/    /'
-    
-    run_node_scripts "post-install" "add"
-}
-
-
-# uninstall_node <image_name>
-#
-#     Execute uninstall scripts on an image specified by the parameter 
-#     <image_name> or by the global variable ${image_name}.
-
-uninstall_node() {
-
-    [ -n "$1" ] && export image_name=$1
-    
-    run_node_scripts "install" "remove"
-}
-
-
-# reconfigure_node <image_name>
-#
-#     Reconfigure an image specified by the parameter <image_name> or by the 
-#     global variable ${image_name}.
-
-reconfigure_node() {
-    
-    [ -n "$1" ] && export image_name=$1
-    
-    run_node_scripts "configure"
-}
-
-# install_frontend  install|uninstall
-# 
-#     Execute install scripts.
-
-install_frontend() {
-        echo
-        echo "Executing ${1} scripts"
-        echo
-
-        # Execute the install scripts
-        list_scripts "frontend/install.d" | \
-        while read hook; do
-            
-            echo "Executing : ${hook##*/} "
-            . ${hook} ${1} ||    
-                echo "error while executing ${hook##*/}"
-            
-        done | sed -r 's/^/    /' # add some indentation to the output
-}
-
-
-# reconfigure_frontend
-# 
-#     Reconfigure the frontend
-
-reconfigure_frontend() {
-    echo
-    echo "Reconfiguring the frontend"
-    echo
-
-    list_scripts "frontend/configure.d" | \
-    while read config; do
-    
-        echo "Executing script : ${config##*/} "
-        
-        . $config || echo "error while executing ${config##*/}"
-        
-    done | sed -r 's/^/    /' # add some indentation to the output
-    echo
-
-    echo "Restarting KestrelHPC Daemon"
-    echo
-    /etc/init.d/kestrel_daemon restart | sed -r 's/^/    /'
-    echo
-}
-
 
 # Util functions
 #################
+
+# kestrel_version
+# 
+#     Show KestrelHPC version
+
+kestrel_version() {
+    echo "KestrelHPC ${KESTREL_VERSION}"
+}
+
+
+# kestrel_dialog <action> <title> text[@] <options>*
+# 
+#     Dialog
+
+#     action  : menu | inputbox | msgbox | yesno | checklist
+#     text[@] : Array containing each line of the text to be displayed
+#     options*: List of options.
+#               Menu      : "tag_name" "text"      Returns the selected tag
+#               Checklist : "tag_name" "text" 0|1  Returns the selected tags
+#     
+#     Examples :
+#         Array containing the text where each line is an element
+#             text=("text line1" "text line2")
+#
+#         menu dialog:
+#             kestrel_dialog menu "title text" text[@] \
+#                            "tag1" "text1" "tag2" "text2"
+#         checklist dialog:
+#             kestrel_dialog checklist "title text" text[@] \
+#                            "tag1" "text1" 0 "tag2" "text2" 1
+#
+
+kestrel_dialog() {
+    local action=$1
+    local  title=$2
+    local text_a=("${!3}")
+          text_a=${text_a:-$3}
+    
+    shift 3
+    local options=("${@}")
+    
+    # Defaults
+    local dialog=whiptail # TODO maybe check for gdialog
+    local height=6
+    local width=60
+    local text
+    
+    # Count the number of lines, compute the max width and add "\n" to each line
+    local i=0
+    for line in "${text_a[@]}"; do
+        (( ${width}  < ${#line} + 3 )) && 
+             width=$(( ${#line} + 3 ))
+        
+        text=${text}${line}$'\n'
+        ((i++))
+    done
+    
+    # Compute the height and the width of each type of dialog
+    local j
+    case "${action}" in
+        menu)
+            # Count the number of entries and compute the max width
+            local k=0
+            j=0
+            local max_col1=0
+            local max_col2=0
+            while (( k < ${#options[@]} )); do
+                (( ${max_col1}  < ${#options[k]}   )) && 
+                     max_col1=$(( ${#options[k]}   ))
+                (( ${max_col2}  < ${#options[k+1]} )) && 
+                     max_col2=$(( ${#options[k+1]} ))
+                (( k+=2 )); (( j++ ))
+            done
+            (( ${width}  < ${max_col1} + ${max_col2} + 3 )) && 
+                 width=$(( ${max_col1} + ${max_col2} + 3 ))
+            
+            (( ${height}  < ${j} + ${i} + 7 )) && 
+                 height=$(( ${j} + ${i} + 7 ))
+            ;;
+        checklist)
+            # Count the number of entries and compute the max width
+            local k=0
+            j=0
+            local max_col1=0
+            local max_col2=0
+            while (( k < ${#options[@]} )); do
+                (( ${max_col1}  < ${#options[k+1]}  )) && 
+                     max_col1=$(( ${#options[k+1]}  ))
+                (( ${max_col2}  < ${#options[k+2]} )) && 
+                     max_col2=$(( ${#options[k+2]} ))
+                (( k+=3 )); (( j++ ))
+            done
+            (( ${width}  < ${max_col1} + ${max_col2} + 3 )) && 
+                 width=$(( ${max_col1} + ${max_col2} + 3 ))
+            
+            (( ${height}  < ${j} + ${i} + 6 )) && 
+                 height=$(( ${j} + ${i} + 6 ))
+            ;;
+        inputbox)
+            (( ${height}  < ${i} + 7 )) && 
+                 height=$(( ${i} + 7 ))
+            ;;
+        msgbox|yesno)
+            (( ${height}  < ${i} + 6 )) && 
+                 height=$(( ${i} + 6 ))
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    # Run the dialog
+    ${dialog} --backtitle "KestrelHPC ${KESTREL_VERSION}"           \
+              --title "${title}"                                    \
+              --${action}  "${text}" "${height}" "${width}" ${j}    \
+              "${options[@]}" 3>&2 2>&1 1>&3-
+}
+
 
 # question_yN <question>
 # 
@@ -894,10 +530,23 @@ reconfigure_frontend() {
 #     Note: Only use it on the tools not in any hook or config script
 
 question_yN() {
-    echo -n "${1} (y/N)? "
+    echo -e "${indent:-"    "}${1} (y/N)? "
     read response
     # Check if the response is 'y' or 'yes' in a case insensitive way
     [[ $response =~ ^[[:space:]]*([yY]|[yY][eE][sS])[[:space:]]*$ ]]
+}
+
+
+# msg <messages>*
+# 
+#     Show messages if verbose mode is on
+
+msg() {
+    [ "$VERBOSE" == "yes" -o "$VERBOSE" == "1" ] &&
+    while (( $# > 0 )); do
+        echo -e "${indent:-"    "}${1}"
+        shift
+    done    
 }
 
 
@@ -908,7 +557,7 @@ question_yN() {
 die() {
     while (( $# > 0 )); do
         if [[ ! "${1}" =~ ^[0-9]+$ ]]; then
-            echo -e "    ${1}"
+            echo -e "${indent:-"    "}${1}"
             shift
         else
             break
@@ -916,6 +565,18 @@ die() {
     done
     
     exit ${1:-1}
+}
+
+
+# warning <messages>*
+# 
+#     Show a warning message
+
+warning() {
+    while (( $# > 0 )); do
+        echo -e "${indent:-"    "}Warning: ${1}"
+        shift
+    done
 }
 
 
@@ -963,16 +624,20 @@ run_from_script(){
 check_kestrel_daemon() {
     detect_iface
 
+    [ ! -f /etc/init.d/kestrel_daemon ] &&
+        die "KestrelHPC is disabled" \
+            "\t-Enable with : sudo kestrel-reconfigure --enable"
+    
     /etc/init.d/kestrel_daemon status &> /dev/null || \
-        if [ -z ${KESTREL_IFACE} ]; then
-            die "Kestrel Daemon is not running" \
-                "\tNo network interface found with ip : \"${FRONTEND_IP}\"." \
-                "" \
-                "\t-Check the FRONTEND_IP variable at /etc/kestrel/kestrel.conf" \
-                "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
-        else
-            /etc/init.d/kestrel_daemon restart &>/dev/null ||
-            die "Kestrel Daemon is not running" \
-                "\t-Start the kestrel_daemon : sudo /etc/init.d/kestrel_daemon restart"
-        fi
+    if [ -z ${KESTREL_IFACE} ]; then
+        die "No network interface was found with ip: \"${FRONTEND_IP}\"." \
+            "" \
+            "\t-Edit the configuration file: /etc/kestrel/kestrel.conf" \
+            "\t-Check the FRONTEND_IP variable" \
+            "\t-Reconfigure the frontend and the images: sudo kestrel-reconfigure --all"
+    else
+        /etc/init.d/kestrel_daemon restart ||
+        die "KestrelHPC Daemon is not running and failed to start." \
+            "\t-Check the log file for more info: /var/log/kestrel.log"
+    fi
 }
