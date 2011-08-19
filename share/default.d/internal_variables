@@ -1,0 +1,71 @@
+# Internal variables. We do not recommend changing any of these variables.
+
+# Basic Regular expresions
+###########################
+
+node_re="[0-9]+"
+group_re="[0-9A-Za-z_]+"
+image_re="[0-9A-Za-z_]+"
+hostname_re="${KESTREL_HOSTNAME}-${group_re}-${node_re}"
+
+ip4_digit="[0-9]{1,3}"
+mac_digit="[0-9A-Fa-f]{2}"
+
+ip4_re="${ip4_digit}\.${ip4_digit}\.${ip4_digit}\.${ip4_digit}"
+mac_re="${mac_digit}\:${mac_digit}\:${mac_digit}\:${mac_digit}\:${mac_digit}\:${mac_digit}"
+
+# TODO IPv6
+ip_re="${ip4_re}"
+
+# NOTE: Adding new subexpressions using parenthesis in regular expresions may 
+# change the index used to refer to other subexpressions breaking the behavior 
+# of some sed scripts, as the ones used in the node status functions.
+
+
+# KestrelHPC's directories
+###########################
+
+# Directory containing kestrel's defaults, scripts and hooks.
+[ -z "${KESTREL_SHARE}" ] &&
+KESTREL_SHARE=/usr/share/kestrel
+
+# Directory containing kestrel's data : node images, and tftpboot info
+[ -z "${KESTREL_DATA_DIR}" ] &&
+KESTREL_DATA_DIR=/var/lib/kestrel
+
+# Directory containing kestrel's user defaults, scripts and hooks.
+[ -z "${KESTREL_ETC}" ] &&
+KESTREL_ETC=/etc/kestrel
+
+# Directory containing tftpboot data : linux kernel, initramfs and pxe bootloader
+TFTPBOOT_DIR=${KESTREL_DATA_DIR}/tftpboot
+
+# Directory containing KestrelHPC's node images
+KESTREL_IMAGE_DIR=${KESTREL_DATA_DIR}/images
+
+# Directory containing the backup files to the files modified by KestrelHPC 
+KESTREL_BACKUP_DIR=${KESTREL_DATA_DIR}/backup
+
+# Directory containing the chroot jail where the RPC will be run
+KESTREL_RPC_DIR=${KESTREL_DATA_DIR}/rpc
+
+# FIFO used to pass events from the RPC to the KestrelHPC daemon
+KESTREL_RPC_FIFO=${KESTREL_RPC_DIR}/fifo
+
+# Directory containing RPC plugins
+KESTREL_RPC_PLUGINS=${KESTREL_SHARE}/rpc-plugins.d
+
+
+# System info
+##############
+
+HOSTNAME=$(hostname)
+
+
+# Other
+########
+
+# Kestrel node's hostname prefix. For example : kestrel-image1-35
+[ -z ${KESTREL_HOSTNAME} ]] &&
+KESTREL_HOSTNAME="kestrel"
+
