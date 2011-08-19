@@ -8,7 +8,7 @@
 # 
 # - Add new nodes to a group
 #
-# Copyright (C) 2010 Jon Ander Hernández
+# Copyright (C) 2010, 2011 Jon Ander Hernández
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,12 @@
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
+. "$KESTREL_SHARE"/kestrel-status-lib
+
+
+# _check
+# 
+#     
 
 _check() {
     
@@ -36,7 +42,7 @@ _check() {
             ip=$(hostname_2_ip ${node})
             mac=$(hostname_2_mac ${node})
             echo " action=disconnect ip=${ip} mac=${mac} hostname=${node} " \
-                 > ${KESTREL_DATA_DIR}/rpc/fifo
+                 > ${KESTREL_RPC_FIFO}
         } &
         wait $!
     done
