@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# Create backup of ssh_config
-[ ! -e /etc/ssh/ssh_config.bak ] &&
-cp /etc/ssh/ssh_config /etc/ssh/ssh_config.bak
-
-set_variable "orte_default_hostfile" "${OPENMPI_HOSTFILE}" \
-             /etc/openmpi/openmpi-mca-params.conf

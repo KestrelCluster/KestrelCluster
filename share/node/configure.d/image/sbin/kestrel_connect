@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+
+# This script is responsible for notifying the frontend via a rpc call that the 
+# node is being start up.
+#
+# The node notifies the frontend :
+#
+#    - the num of real cpus (using the command "num-of-cpus")
+#    - the node image (reading the file /etc/kestrel_image_name)
+#    - the node group while being registered (reading the cmdline)
+#
+#
+# Note : Do NOT modify this file! 
+#
+# This file depends on the frontend's ip and port, and it is recreated each time
+# the image is reconfigured.
+
+import re
+import xmlrpclib
+import subprocess
+
+# Create the xmlrpc client
+s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
+
+# Execute command num-of-cpus, and read the result
+num_cpus=subprocess.Popen( "num_of_cpus", 
+                           shell=True, 
+                           stdout=subprocess.PIPE, 
+                           close_fds=True ).stdout.read()
+
+# Read the kernel cmdline
+f = open('/proc/cmdline', 'r')
+cmdline=f.readline()
+f.close()
+
+# Read the name of the image
+f = open('/etc/kestrel_image_name', 'r')
+image=f.readline()
+f.close()
+
+
+# Check if the client is in register mode, and save also the group
+m = re.search("\sregister=([^\s]*)(?:\s|$)",cmdline)
+if m:
+    group=m.group(1)
+    s.register(num_cpus, image, group)
+    
+else:    
+    s.connect(num_cpus, image)
+

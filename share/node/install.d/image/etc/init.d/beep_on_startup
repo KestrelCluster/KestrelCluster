@@ -1,0 +1,24 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          beep_on_startup
+# Required-Start:    
+# Required-Stop:     
+# Default-Start:     S 2 3 4 5
+# Default-Stop:      0 1 6
+# Run-Level-Start:   50
+# Run-Level-Stop:    
+# Short-Description: Beep on start up
+# Description:       
+### END INIT INFO
+
+# update-rc.d beep_on_startup start 10 S . stop 50 0 1 6 .
+
+case "\$1" in
+  start)
+      modprobe -i pcspkr &> /dev/null
+      kestrel_beep
+      ;;
+  stop)
+      beep
+      ;;
+esac

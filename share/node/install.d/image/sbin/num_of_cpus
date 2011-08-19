@@ -1,0 +1,19 @@
+#!/bin/bash
+
+[ "$#" != "1" ] && 
+echo "This script outputs the number of real cpus on the system"
+
+num=$(sed -nr '
+:readline;
+N;
+# If this is not the last line, or we"ve just read an empty line, goto readline
+$!{/\n$/!breadline;}
+
+# print only the physical id and the core id
+s/.*\n(physical id[^\n]*)\n.*(core id[^\n]*)\n.*/\1 \2/gp' /proc/cpuinfo |
+sort | uniq | wc -l)
+# Discard duplicates (hyperthreading capable processors appear twice)
+
+# if we have only one cpu, the kernel will not show neither physical id nor the
+# core id entries, making
+[[ "\${num}" == "0" ]] && echo -n "1" || echo -n "\${num}"

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [[ ${DHCP_SERVER} != "true" ]]; then
+    rm /etc/dnsmasq.d/kestrel &>/dev/null
+    continue
+fi
+
+
+# Check if there is a dnsmasq.conf file, and ensure "dnsmasq.d" dir is enabled
+[ -e /etc/dnsmasq.conf ] || continue
+
+# Uncomment ubuntu's default config for enabling dnsmasq.d dir
+sed -ri '/conf-dir[[:space:]]*=[[:space:]]*\/etc\/dnsmasq.d/s/^#[[:space:]]*//' \
+        /etc/dnsmasq.conf
+
+# Ensure the config dir dnsmasq.d is enabled
+if ! grep -qE "[[:space:]]*conf-dir[[:space:]]*=[[:space:]]*\/etc\/dnsmasq.d" \
+              /etc/dnsmasq.conf; then
+    cat <<-CONFIG >> /etc/dnsmasq.conf
+    conf-dir=/etc/dnsmasq.d
+CONFIG
+fi
+
+run_from_script /etc/init.d/dnsmasq restart &>/dev/null
+

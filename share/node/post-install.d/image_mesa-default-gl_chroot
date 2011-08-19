@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set_variable "allowed_users" "anybody" /etc/X11/Xwrapper.config
-
 # Since the Nvidia propietary OpenGL drivers are installed which replace the
 # free ones, reconfigure them so that the free ones are back as the default 
 # ones.
@@ -19,67 +17,3 @@ for file in libGL.so.1 libGL.so libglx.so; do
 
 done
 
-# Ensure libGL.so exits
-[[ ! -e /usr/lib/libGL.so && -e /usr/lib/libGL.so.1 ]] &&
-( cd /usr/lib; ln -snf libGL.so.1 libGL.so )
-
-
-# Install an udev rule and a script which reconfigures the drivers and creates
-# a xorg.conf if Nvidia hardware is detected.
-
-cat <<SCRIPT > /lib/udev/xorg-nvidia
-#!/bin/bash
-
-# Ubuntu selects the OpenGL stack setting the loader
-update-alternatives --list gl_conf &> /dev/null &&
-update-alternatives --set gl_conf /usr/lib/nvidia-current/ld.so.conf 
-
-# Debian 
-nvidia_diversion=/usr/lib/nvidia
-for file in libGL.so.1 libGL.so libglx.so; do
-
-   update-alternatives --list \${file} &> /dev/null &&
-   update-alternatives --set \${file} \${nvidia_diversions}/\${file}
-
-done
-
-cat <<EOF > /etc/X11/xorg.conf
-Section "Monitor"
-   Identifier     "Monitor0"
-   VendorName     "Unknown"
-   ModelName      "Unknown"
-   HorizSync       28.0 - 33.0
-   VertRefresh     43.0 - 72.0
-   Option         "DPMS"
-EndSection
-
-Section "Device"
-   Identifier     "Device0"
-   Driver         "nvidia"
-   Option         "NoLogo" "True"
-   VendorName     "NVIDIA Corporation"
-EndSection
-
-Section "Screen"
-   Identifier     "Screen0"
-   Device         "Device0"
-   Monitor        "Monitor0"
-   DefaultDepth    24
-   SubSection     "Display"
-       Depth       24
-   EndSubSection
-EndSection
-EOF
-
-SCRIPT
-
-chown 755 /lib/udev/xorg-nvidia
-
-cat <<UDEV > /lib/udev/rules.d/65-xorg-nvidia.rules
-ACTION!="add|change", GOTO="xorg_nvidia_end"
-KERNEL!="nvidia", GOTO="xorg_nvidia_end"
-
-ENV{xorg_driver}="nvidia", RUN+="/lib/udev/xorg-nvidia"
-
-LABEL="xorg_nvidia_end"
-UDEV

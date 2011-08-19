@@ -1,0 +1,20 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          kestrel_connect
+# Required-Start:    \$remote_fs sshd
+# Required-Stop:     
+# Default-Start:     S 2 3 4 5
+# Default-Stop:      
+# Run-Level-Start:   50
+# Run-Level-Stop:    
+# Short-Description: Kestrel Connect
+# Description:       
+### END INIT INFO
+
+case "\$1" in
+  start)
+      /sbin/kestrel_connect
+      ;;
+  stop)
+      ;;
+esac

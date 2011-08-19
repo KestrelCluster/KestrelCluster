@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+
+# This script is responsible for notifying the frontend via a rpc call that the 
+# node is being rebooted or shut down.
+#
+# The node notifies the frontend :
+#
+#    - if it is being shutdown or being rebooted
+#
+# Note : Do NOT modify this file! 
+#
+# This file depends on the frontend's ip and port, and it is recreated each time
+# the image is reconfigured.
+
+import re, sys, xmlrpclib
+
+s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
+
+# Check if the client is being shut down or being rebooted
+if re.search("/etc/rc6\.d/",sys.argv[1]):
+    s.disconnect(True)
+else:
+    s.disconnect(False)
+

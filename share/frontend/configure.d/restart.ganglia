@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Restart Ganglia services
+
+run_from_script /etc/init.d/ganglia-monitor restart &>/dev/null
+run_from_script /etc/init.d/gmetad restart &>/dev/null

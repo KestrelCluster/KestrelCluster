@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Since the root is shared with nfs, prevent dhclient-script from calling to
+# ifconfig
+
+sed -ri "
+# Look for lines containing 'ifconfig'
+/^[[:space:]]*ifconfig/{
+
+   # Disable them by adding a '#' at the begining of that line
+   s/^/#/g;
+
+:readline
+
+   # if we find a '\' at the end of the line, we will need to disable also the 
+   # next one
+   /\\\[[:space:]]*$/{
+      # Read next line
+      N;
+      # Comment the line
+      s/\n/\n#/g;
+      
+      # Goto readline
+      b readline 
+   }
+   
+   # Add a true statment to avoid breaking any if construct which only contains
+   # the disabled ifconfig statement
+   a\ true
+}" ${FILE}

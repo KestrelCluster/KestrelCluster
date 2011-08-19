@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "plymouth kestrelhpc-plymouth"
+
+case ${OS_DISTRIBUTION}-${OS_RELEASE} in
+    Debian-*)
+        echo "plymouth-themes-script"
+        ;;
+    Ubuntu-*)
+        echo "plymouth-theme-script"
+        ;;
+esac
+

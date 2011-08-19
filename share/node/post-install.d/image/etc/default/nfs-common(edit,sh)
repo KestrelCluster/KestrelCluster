@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Ensure idmapd and stad daemon are enabled and running
+########################################################
+
+set_variable "NEED_STATD"  "yes" ${FILE}
+set_variable "NEED_IDMAPD" "yes" ${FILE}

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+run_from_script /etc/init.d/dnsmasq restart &>/dev/null
+

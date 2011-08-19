@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# Change the starting up beep melody
-
-cat <<BEEP > /etc/beep_melody
-$BEEP
-BEEP

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+case $1 in
+    install)
+        # dnsmasq's config file will be created during the configuration stage
+        continue
+        ;;
+
+    uninstall)
+        [ -f /etc/dnsmasq.d/kestrel ] &&
+        rm /etc/dnsmasq.d/kestrel
+        ;;
+esac

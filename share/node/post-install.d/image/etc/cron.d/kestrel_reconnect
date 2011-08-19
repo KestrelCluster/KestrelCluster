@@ -1,0 +1,11 @@
+#
+# Every 5 minutes send a "connect" signal to the frontend.
+# 
+# The frontend checks frecuently the availability of the connected nodes. If an
+# ssh connection fails to be established to that node, the node is set as
+# disconnected.
+# This cron job remembers the frontend that the node is still connected avoiding
+# any disconnection caused by a temporal network problem.
+
+*/5 * * * *	root	[ -x /sbin/kestrel_connect ] && /sbin/kestrel_connect --reconnect
+

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Recreate ssh keys for each user in the cluster, and add them to 'authorized
+# keys' allowing password-less authentication into the cluster's nodes.
+for user in $(list_users); do
+
+    user_sshkeygen ${user}
+
+done
+

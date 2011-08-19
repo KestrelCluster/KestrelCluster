@@ -1,0 +1,30 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          kestrel_network
+# Required-Start:    
+# Required-Stop:     
+# Default-Start:     S
+# Default-Stop:      0 1 6
+# Short-Description: Kestrel Network
+# Description:       Kestrel Network
+### END INIT INFO
+
+# update-rc.d kestrel_network start 10 S . stop 50 0 1 6
+
+case "\$1" in
+  start)
+      dhclient
+      
+      [ -x /etc/network/if-up.d/mountnfs ] && \
+          /etc/network/if-up.d/mountnfs
+
+      for net in /sys/class/net/*; do 
+          [ "$net" == "lo" ] && continue
+          iface="\${net##*/}"
+          ethtool -s "\${iface}" wol g
+      done
+      ;;
+  stop)
+      ;;
+esac
+:

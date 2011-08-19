@@ -1,5 +1,0 @@
-#!/bin/bash
-
-user_auth="/${HOME_MODE#/}/%u/.ssh/authorized_keys"
-
-set_variable "AuthorizedKeysFile" "${user_auth}" /etc/ssh/sshd_config ""

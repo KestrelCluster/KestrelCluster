@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Set printmotd and printlastlog to 'no'
+set_variable "PrintMotd" "no" $FILE " "
+set_variable "PrintLastLog" "no" $FILE " "

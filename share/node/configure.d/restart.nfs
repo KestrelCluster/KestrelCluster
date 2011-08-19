@@ -1,0 +1,43 @@
+#!/bin/bash
+
+if [ -e /etc/init/idmapd.conf ]; then
+    run_from_script initctl stop idmapd
+    run_from_script initctl start idmapd
+
+elif [ -x /etc/init.d/idmapd ]; then
+    run_from_script /etc/init.d/idmapd restart
+
+elif [ -x /etc/init.d/nfs-common ]; then
+    run_from_script /etc/init.d/nfs-common restart
+
+fi &> /dev/null
+
+
+if [ -e /etc/init/statd.conf ]; then
+    run_from_script initctl stop statd
+    run_from_script initctl start statd
+
+elif [ -x /etc/init.d/statd ]; then
+    run_from_script /etc/init.d/statd restart
+
+fi &> /dev/null
+
+
+# Check if the image is already mounted somewhere else
+mount_dir=$(mount | \
+            sed -rn "s/.*[[:space:]](.*\/kestrel\/home)[[:space:]]+.*/\1/p")
+
+# Check if the new mount dir is different from the old one
+if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
+
+    install -d /${HOME_MODE}
+    
+    mount --bind /${HOME_MODE} ${new_mount_dir}
+
+    run_from_script /etc/init.d/nfs-kernel-server restart &>/dev/null
+
+    if [ -n "${mount_dir}" ]; then
+        umount ${mount_dir}
+    fi
+fi
+

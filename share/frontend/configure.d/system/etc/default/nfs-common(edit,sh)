@@ -1,0 +1,6 @@
+
+# Ensure idmapd and stad daemon are enabled and running
+########################################################
+
+set_variable "NEED_STATD"  "yes" /etc/default/nfs-common
+set_variable "NEED_IDMAPD" "yes" /etc/default/nfs-common

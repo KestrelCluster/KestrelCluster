@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [[ "${SSH_PUBLICKEY}" == "false" || 
+      "${SSH_PUBLICKEY}" != "true" && "$HOME_MODE" == "home" ]]; then
+
+    set_variable "PubkeyAuthentication" "no" ${FILE} " "
+
+else
+
+    set_variable "PubkeyAuthentication" "yes" ${FILE} " "
+
+fi

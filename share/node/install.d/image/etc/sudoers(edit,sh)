@@ -1,0 +1,5 @@
+
+# Ensure the config line enabling the /etc/sudoers.d dir is present
+set_variable "#includedir" "/etc/sudoers.d" ${FILE} " "
+
+chmod 0440 ${FILE}

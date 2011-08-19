@@ -1,0 +1,21 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          kestrel_disconnect
+# Required-Start:    \$umountfs
+# Required-Stop:     
+# Default-Start:     0 6
+# Default-Stop:      
+# Run-Level-Start:   38
+# Run-Level-Stop:    
+# Short-Description: Kestrel Disconnect
+# Description:       
+### END INIT INFO
+
+case "\$1" in
+  start)
+      /sbin/kestrel_disconnect $0
+      ;;
+  stop)
+      /sbin/kestrel_disconnect $0
+      ;;
+esac

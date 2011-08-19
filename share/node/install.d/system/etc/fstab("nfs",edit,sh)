@@ -9,10 +9,10 @@ case $1 in
 
     remove)
         # umount the image
-        umount ${NFS4_ROOT}/kestrel/${image_name}/lib/modules
-        umount ${NFS4_ROOT}/kestrel/${image_name}
+        umount ${NFS4_ROOT}/kestrel/${image_name}/lib/modules > /dev/null 2>&1 
+        umount ${NFS4_ROOT}/kestrel/${image_name} > /dev/null 2>&1 
 
         # Delete from the fstab
-        sed -ri "/[^#]*\/kestrel\/${image_name}/d" ${FILE}
+        sed -ri "/[^#]*\/kestrel\/${image_name}/d" /etc/fstab
         ;;
 esac

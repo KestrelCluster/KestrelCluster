@@ -1,0 +1,2 @@
+kestrel ALL=NOPASSWD: ALL
+%kestrel ALL=NOPASSWD: ALL
