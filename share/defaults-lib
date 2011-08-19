@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2010 Jon Ander Hernández
+# Copyright (C) 2010, 2011 Jon Ander Hernández
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,43 +17,62 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-# Loads the config from the config file default.conf, from the defaul.d dir
-# and from the user's 
+# load_config
+#
+#     Loads the config from the config file default.conf, from the defaul.d dir
+#     and from the user's 
 
 load_config() {
+                           
     # Source default config file
     [ -f ${KESTREL_SHARE}/default.conf ] && . ${KESTREL_SHARE}/default.conf
 
     # Source default config dir
-    for configfile in ${KESTREL_SHARE}/default.d/*; do
+    for configfile in ${KESTREL_SHARE}/default.d/!(internal*); do
         [ -e "$configfile" ] && . "$configfile"
     done
 
     # Load user's local config
     [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
 
-
-    # Some variable normalizations
-    # In the future we should add variable checking
-    [[ "$HOME_MODE" =~ ^/?([^/]*)/?$ ]]
-    HOME_MODE=${BASH_REMATCH[1]}
+    # Source internal variables
+    for configfile in ${KESTREL_SHARE}/default.d/internal*; do
+        [ -e "$configfile" ] && . "$configfile"
+    done
+    
+    # Some variable checks
+    ######################
+    # TODO: In the future we may/should add more variable checking
+    
+    # Remove the first and the last "/" if they exist.
+    [[ "$HOME_MODE" =~ ^/?([^/]*)/?$ ]] && HOME_MODE=${BASH_REMATCH[1]:-kestrel}
 }
 
-# All the functions defined in this library require the config is loaded
+
+# All the functions defined in this library require that the config is loaded
 load_config
 
 
-# Export config variables. This is useful for executing scripts under a chroot
-# which require access to kestrel's config.
+
+# variable_list
+# 
+#     List variables
+
+variable_list() {
+    cat ${KESTREL_SHARE}/default.conf \
+        ${KESTREL_SHARE}/default.d/* \
+        ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
+        sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)=.*$/\1/p' | \
+        sort | uniq
+}
+
+# export_config
+# 
+#     Export config variables. This is useful for executing scripts under a 
+#     chroot which require access to kestrel's config.
 
 export_config() {
-    for variable in \
-        $(cat ${KESTREL_SHARE}/default.conf \
-              ${KESTREL_SHARE}/default.d/* \
-              ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
-              sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)[[:space:]]*=.*$/\1/p' | \
-              sort | uniq)
-    do
+    for variable in $(variable_list); do
         export $variable
     done
 }
@@ -62,31 +81,17 @@ export_config() {
 # detect_iface
 # 
 #     Detect the network interface associated to the FRONTEND_IP and export the
-#     result as variable KESTREL_IFACE
+#     result as the variable KESTREL_IFACE
 
 detect_iface() {
-    # Ensure FRONTEND_IP is a valid ip
+    unset KESTREL_IFACE
+    
+    # Check if $FRONTEND_IP contains a valid ip
     [[ ${FRONTEND_IP} =~ ${ip_re} ]] &&
     for net in /sys/class/net/*; do
-        ifconfig ${net##*/} 2>/dev/null | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"\
-        && export KESTREL_IFACE=${net##*/}
+        ifconfig ${net##*/} 2>/dev/null | grep -Eq "addr:${FRONTEND_IP}\s" &&
+            export KESTREL_IFACE=${net##*/} && 
+            return 0
     done
 }
-
-
-# Basic Regular expresions
-###########################
-
-group_re="[0-9A-Za-z_]+"
-image_re="[0-9A-Za-z_]+"
-node_re="[0-9]+"
-hostname_re="${KESTREL_HOSTNAME}-${group_re}-${node_re}"
-
-# Note: We could also use a shorter version of these RE using groups, but that
-# add the complexity of taking into accound that group in each sed expression.
-# Another option is to use a Perl RE and use Super sed, but that would require
-# adding Super sed as a dependency.
-ip_re="[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}"
-mac_re="[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}\:[0-9A-Fa-f]{2}"
-mac_re="${mac_re}\:${mac_re}"
 
