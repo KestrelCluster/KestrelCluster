@@ -1,0 +1,286 @@
+#!/bin/bash
+
+# Copyright (C) 2010, 2011 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+# Node status functions
+########################
+
+# Connected nodes are stored in the host config file.
+#
+#   When a node starts, a register script adds a new entry in the /etc/host file
+#
+# Registered nodes are stored in kestrel dnsmasq's config file.
+#
+#   When a node is registered with the kestrel-control --register command a new 
+#   entry is created in the file : ${KESTREL_REGISTERED_NODES}
+#
+#
+# The hostname of a node has the following general structure :
+#
+#   <kestrel_hostame>-<group_name>-<node_id>
+#
+# Also each node has a hostname available with the image-name appended :
+#
+#   <kestrel_hostame>-<group_name>-<node_id>-<image-name>
+#
+#
+# Regular expresions for each field :
+#
+#   <group_name> --> [0-9A-Za-z_]+
+#   <group_name> --> [0-9A-Za-z_]+
+#   <node_id>    --> [0-9]+
+#   <ip>         --> ([0-9]{1,3}\.){3}[0-9]{1,3}
+#   <mac>        --> ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2}
+#
+#   RE are defined on file /usr/share/kestrel/default.d/internal_variables
+
+
+# connected_nodes [<group>]
+# 
+#     List all connected nodes.
+#     List a group's connected connected nodes if the group is specified.
+
+connected_nodes() {
+    if [ -n "$1" ]; then
+        group="${1}"
+    else
+        group="${group_re}"
+    fi
+    
+    re="^\s*${ip_re}\s+(${KESTREL_HOSTNAME}-${group}-${node_re})([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort
+}
+
+# connected_images [<group>]
+# 
+#     List all connected nodes.
+#     List a group's connected connected nodes if the group is specified.
+
+connected_images() {
+    if [ -n "$1" ]; then
+        group="${1}"
+    else
+        group="${group_re}"
+    fi
+    
+    re="^\s*${ip_re}\s.*(${hostname_re}-${image_re})([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES}  | sort
+}
+
+# connected_groups
+# 
+#     List groups of nodes with connected nodes
+
+connected_groups() {
+    
+    re="^\s*${ip_re}\s+${KESTREL_HOSTNAME}-(${group_re})-${node_re}([^0-9].*)*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort | uniq
+}
+
+
+# connected_images <hostname>
+# 
+#     Get the image of a connected image.
+
+connected_image() {
+    if [[ $1 =~ ${hostname_re}-(${image_re}) ]]
+    then
+        echo ${BASH_REMATCH[1]}
+    else
+        re="^\s*${ip}\s+${1}\s${hostname_re}-(${image_re})(\s|$)"
+        
+        sed -rn "s/.*${1}-([0-9A-Za-z_]+)([[:space:]].*|$)/\1/p" \
+            ${KESTREL_CON_NODES}
+    fi
+}
+
+# disconnected_nodes [<group>]
+# 
+#     List all the disconnected nodes.
+#     List a group's disconnected nodes if the group is specified.
+
+disconnected_nodes() {
+
+    # All connected nodes, are also registered. We can combine both lists and 
+    # look for those lines which only appear once, which that means that they
+    # are registered, but not connected.
+    echo $(connected_nodes $1) $(registered_nodes $1) | 
+    sed -r 's/[[:space:]]/\n/g' | sort | uniq --unique
+}
+
+
+# disconnected_groups
+# 
+#     List groups with disconnected nodes
+
+disconnected_groups() {
+    
+    re="^${KESTREL_HOSTNAME}-(${group_re})-.*$"
+    
+    disconnected_nodes | sed -rn "s/${re}/\1/p" | sort | uniq
+}
+
+
+# registered_nodes [<group>]
+# 
+#     List all the registered nodes
+#     List a group's registered nodes if the group is specified.
+
+registered_nodes() {
+
+    if [[ -n "$1" && "$1" =~ ${group_re} ]]; then
+        group="${1}"
+    else
+        group="${group_re}"
+    fi
+    
+    re="^[^#]*,\s*(${KESTREL_HOSTNAME}-${group}-${node_re})[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort
+}
+
+
+# registered_groups
+# 
+#     List the registered groups of nodes.
+
+registered_groups() {
+    
+    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq
+}
+
+
+
+# 
+
+# list_groups
+# 
+#     List registered groups
+
+list_groups() {
+    
+    re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
+    
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq 
+}
+
+
+# mac_2_hostname
+# 
+#     Get the mac of a registered node using its hostname.
+
+hostname_2_mac() {
+    
+    re="^[^#]*(${mac_re})(\s*.*,\s*)+${1}(\s.*)*$"
+    
+    [[ "${1}" =~ ${hostname_re} ]] &&
+    sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES}
+}
+
+
+# hostname_2_ip
+# 
+#     Get the current ip of a connected node using its hostname.
+
+hostname_2_ip() {
+    
+    re="^\s*(${ip_re})\s.*${1}([^0-9].*)*$"
+    
+    [[ "${1}" =~ ${hostname_re} ]] &&
+    sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES}
+}
+
+
+# mac_2_hostname
+# 
+#     Get the hostname of a registered node using its mac.
+
+mac_2_hostname() {
+    
+    re="^[^#]*${1}(\s*.*,\s*)+(${hostname_re})[^0-9]*$"
+    
+    [[ "${1}" =~ ${mac_re} ]] &&
+    sed -rn "s/${re}/\2/p" ${KESTREL_REG_NODES} | tail -n1
+}
+
+
+
+# Utils
+########
+
+# check_group <group name>
+# 
+#     Check if the group exits
+
+check_group() {
+    local group=$1
+    
+     [[ "${group}" =~ ^${group_re}$ ]] ||
+        die "Invalid group name \"${group}\""
+     
+     list_groups | grep -Eq "^${group}$" ||
+        die "The group \"${group} hasn't been found"
+}
+
+
+# check_hostname <hostname name>
+# 
+#     Check if the hostname exits
+
+check_hostname() {
+    local host=$1
+    
+     [[ "${host}" =~ ^${hostname_re}$ ]] ||
+        die "Invalid hostname \"${host}\""
+     
+     registered_nodes | grep -Eq "^${host}\$" ||
+        die "The hostname \"${host} hasn't been found"
+}
+
+# check_mac <mac>
+# 
+#     Check if the mac is valid a registered
+
+check_mac() {
+    local host=$1
+    
+    [[ -n "${mac}" && "${mac}" =~ ^${mac_re}$ ]] ||
+        die "Invalid mac address"
+    
+    host=$(mac_2_hostname ${mac})
+    
+    [ -z "${host}" ] &&
+        die "The mac \"${mac} is not registered on the system"
+}
+
+
+# mac_2_pxemac
+# 
+#     Convert mac to pxelinux mac.
+
+mac_2_pxemac() {
+    # - Add ethernet header 01
+    # - Convert any ":" to "-"
+    # - Convert to lowercase
+    echo $1 | sed -r 's/^/01-/; s/:/-/g; s/(.*)/\L\1/g;'
+}
+
