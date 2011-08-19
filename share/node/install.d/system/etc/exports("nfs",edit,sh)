@@ -1,0 +1,14 @@
+#!/bin/bash
+
+case $1 in
+    add)
+        # The fstab and the export entries will be created during the 
+        # configuration stage
+        continue
+        ;;
+
+    remove)
+        # Delete from the exports
+        sed -ri "/[^#]*\/kestrel\/${image_name}/d" ${FILE}
+        ;;
+esac
