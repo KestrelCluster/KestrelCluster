@@ -1,9 +1,0 @@
-# Initramfs
-############
-
-# FIXME We currently don't support kestrel-casper, since neither Ubuntu's casper
-# nor Debian's live-initramfs support nfs4.
-# 
-# Use dracut for creating the initial ramdisk instead of initramfs-tools.
-# Values : "dracut" | "kestrel-casper"
-INITRAMFS="dracut"
