@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2010 Jon Ander Hernández
+# Copyright (C) 2010, 2011 Jon Ander Hernández
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,37 +46,6 @@ _new() {
     # Ensure this script is executed as root
     check_root
 
-    # Check installed distribution
-    # First check if the installed distribution is LSB compatible
-    if [ -n $(which lsb_release) ]; then
-
-        echo
-        echo "Detecting host :"
-        echo
-        
-        export OS_ARCHITECTURE=$(uname -m)
-        export OS_DISTRIBUTION=$(lsb_release -is)
-        export OS_CODENAME=$(lsb_release -cs)
-        export OS_RELEASE=$(lsb_release -rs)
-        
-        echo "    Architecture: ${OS_ARCHITECTURE}"
-        echo "    Distribution: ${OS_DISTRIBUTION}"
-        echo "    Codename:     ${OS_CODENAME}"
-        echo "    Release:      ${OS_RELEASE}"
-
-        # FIX: Debian/Ubuntu's x86_64 port is called amd64
-        [ ${OS_ARCHITECTURE} = x86_64 ] && OS_ARCHITECTURE=amd64
-
-    else
-        # Currently Kestrel only works for Debian/Ubuntu based distros
-        die "Unkown Distribution. Please install lsb_release package"
-    fi
-
-    if [[ $OS_DISTRIBUTION != "Ubuntu" && $OS_DISTRIBUTION != "Debian" ]]; then
-        die "Unsupported Distribution." \
-            "We currently only support Debian/Ubuntu based distributions"
-    fi
-
     # Lock the image, so nobody can start any node while the image is being
     # modified
     (
@@ -89,22 +58,18 @@ _new() {
         if [ ${CACHED_IMAGE} == "true" ] && 
            [ -d "${image_cache}" ]; then
 
-            echo
-            echo "Creating image from image cache"
-            echo
+            msg "\nCreating image from image cache\n"
 
-            
-            cp -Rav ${KESTREL_IMAGE_DIR}/cached-image ${image_dir} |
-                # Only show as progress : usr, lib, etc...
-                sed -rn "s#.*${image_cache}/([[:alnum:]]*).*#    Copying \1#p" |
-                uniq ${quiet}
+            # Show the progress : usr, lib, etc...
+            for file in ${KESTREL_IMAGE_DIR}/cached-image/*; do
+                msg "    Copying ${file}"
+                cp -Ra ${file} ${image_dir}
+            done ${quiet}
 
         # Create a new image using debootstrap
         else
 
-            echo
-            echo "Creating image"
-            echo
+            msg "\nCreating image\n"
 
             # Share packages, binding to the directory of the host's package 
             # cache  
@@ -133,21 +98,12 @@ _new() {
              if [ ${CACHED_IMAGE} == "true" ] && 
                 [ ! -d "${KESTREL_IMAGE_DIR}/cached-image" ]; then
 
-                echo
-                echo "Creating image cache, please wait"
+                msg "\nCreating image cache, please wait"
                 cp -Ra ${image_dir} ${KESTREL_IMAGE_DIR}/cached-image
              fi
         fi
-
+        
         mount_chroot_image ${image_dir}
-
-        # Save the image's name
-        echo "${image_name}" > ${image_dir}/etc/kestrel_image_name
-        
-        # Save the Distribution's info
-        OS="${OS_ARCHITECTURE}-${OS_DISTRIBUTION}-${OS_CODENAME}-${OS_RELEASE}"
-        echo "${OS}" > ${image_dir}/etc/kestrel_image_os
-        
         
         # Run the install scripts, install the required packages and run 
         # post-install scripts
@@ -157,7 +113,6 @@ _new() {
         # Run the configuration scripts
         
         reconfigure_node
-        
         
         sync
 
@@ -170,6 +125,15 @@ _new() {
    )
 }
 
+
+
+# _remove <image_name>
+# 
+#     Remove the image <image_name>
+# 
+#         - Check the image is not locked
+#         - Run install script (in uninstall mode)
+#         - Set another image as default if the default one is being removed.        
 
 _remove() {
     local image_name=$1
@@ -216,20 +180,36 @@ _remove() {
 }
 
 
+# _delete <image_name>
+# 
+#     Remove the image <image_name>
+
 _delete() {
     _remove $1
 }
 
+
+# _list
+# 
+#    List available node images
 
 _list() {
     list_images
 }
 
 
+# _default-image
+# 
+#     Show which is the default node image
+
 _default-image() {
     default-image
 }
 
+
+# _set-default <image_node>
+# 
+#     Set <image_node> as the default node image
 
 _set-default() {
     local image_name=$1
@@ -248,6 +228,10 @@ _set-default() {
     ln -snf ${image_dir} ${KESTREL_IMAGE_DIR}/default
 }
 
+
+# _chroot <image_name>
+# 
+#     Chroot into image <image_name>
 
 _chroot() {
     local image_name=$1
@@ -278,6 +262,10 @@ _chroot() {
 }
 
 
+# _unlock <image_name>
+# 
+#     Force unlocking image <image_name>
+
 _unlock() {
     local image_name=$1
     local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
@@ -290,6 +278,10 @@ _unlock() {
     rm ${KESTREL_IMAGE_DIR}/.${image_name}.lock
 }
 
+
+# _umount <image_name>
+# 
+#     Force unmounting image <image_name>
 
 _umount() {
     local image_name=$1
@@ -344,7 +336,7 @@ OPTIONS:
 for param in $@; do
    [ ${param} == "--use-cache"    ] && CACHED_IMAGE="true"
    [ ${param} == "--use-no-cache" ] && CACHED_IMAGE="false"
-   [ ${param} == "--quiet" ] && quiet=">/dev/null"
+   [ ${param} == "--quiet"        ] && quiet=">/dev/null"
 done
 
 
@@ -361,6 +353,8 @@ while (( $# > 0 )); do
             ;;
         --remove|--delete|--chroot|--unlock|--umount)
             op=${1#--}
+            
+            # Check for the optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
@@ -375,6 +369,10 @@ while (( $# > 0 )); do
             _${1#--}
             ;;
 
+        --show-log)
+            #cat ${KESTREL_IMAGE_DIR}/.${image_name}.${scripts}.log
+            ;;
+        
         --quiet)
             ;;
 
