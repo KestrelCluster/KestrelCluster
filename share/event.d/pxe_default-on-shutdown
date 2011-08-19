@@ -9,6 +9,17 @@ case ${action} in
        [[ -n "${pxemac}" && "$reboot" = "False" ]] &&
        rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} 2>/dev/null
        ;;
+
+    wake|reboot)
+        cp -f ${TFTPBOOT_DIR}/${image_name} \
+              ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+        #chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+        ;;
+
+    shutdow)
+        rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} 2>/dev/null
+        ;;
+
 esac
 
 fi
