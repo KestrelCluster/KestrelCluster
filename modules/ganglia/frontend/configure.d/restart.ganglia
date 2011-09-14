@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Restart Ganglia services
+
+if [ -x /etc/init.d/ganglia-monitor ]; then
+    
+    /etc/init.d/ganglia-monitor restart
+    
+else
+
+    warn_config "Ganglia could not be restarted because /etc/init.d/ganglia-monitor was not found"
+    
+fi
+
+if [ -x /etc/init.d/gmetad ]; then
+    
+    /etc/init.d/gmetad restart
+    
+else
+    
+    warn_config "Ganglia could not be restarted because /etc/init.d/gmetad was not found"
+    
+fi
