@@ -1,12 +1,13 @@
 #!/bin/bash
 
-if [[ "${SSH_PUBLICKEY}" == "false" || 
-      "${SSH_PUBLICKEY}" != "true" && "$HOME_MODE" == "home" ]]; then
+# Disables key based access to the frontend if /home/ dir is exported
 
+if [[ "$HOME_MODE" == "home" ]]; then
+    
     set_variable "PubkeyAuthentication" "no" ${FILE} " "
-
+    
 else
-
-    set_variable "PubkeyAuthentication" "yes" ${FILE} " "
-
+    
+    restore ${FILE}
+    
 fi
