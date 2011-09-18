@@ -1,6 +1,10 @@
 
-# Ensure idmapd and stad daemon are enabled and running
-########################################################
+# Ensure idmapd and stad daemon are enabled
+#############################################
 
-set_variable "NEED_STATD"  "yes" /etc/default/nfs-common
-set_variable "NEED_IDMAPD" "yes" /etc/default/nfs-common
+set_variable "NEED_STATD"  "yes" ${FILE}
+set_variable "NEED_IDMAPD" "yes" ${FILE}
+
+# SecuringNFS. http://wiki.debian.org/SecuringNFS
+[[ "${secure_nfs}" == "yes" ]] &&
+set_variable "STATDOPTS" "\"--port 32765 --outgoing-port 32766\"" ${FILE}
