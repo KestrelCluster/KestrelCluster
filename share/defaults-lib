@@ -17,13 +17,16 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
+# Enable extended pattern matching
+shopt -s extglob
+
 # load_config
 #
 #     Loads the config from the config file default.conf, from the defaul.d dir
 #     and from the user's 
 
 load_config() {
-                           
+    
     # Source default config file
     [ -f ${KESTREL_SHARE}/default.conf ] && . ${KESTREL_SHARE}/default.conf
 
