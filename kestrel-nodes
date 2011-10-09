@@ -8,7 +8,7 @@
 # 
 # - Add new nodes to a group
 #
-# Copyright (C) 2010 Jon Ander Hernández
+# Copyright (C) 2010, 2011 Jon Ander Hernández
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
+. "$KESTREL_SHARE"/node-status-lib
 
 
 # check_connected <hostname>
@@ -50,13 +51,15 @@ _ssh() {
     
     shift
     
+    # Check if it is a valid hostname and if it is registered
     check_hostname "${host}"
     
+    # Check if it is connected
     check_connected "${host}"
     
     check_user
     
-    ssh-add
+    #ssh-add
     
     ssh "${host}" "$@"
 }
@@ -106,7 +109,7 @@ _disconnected() {
     [ -n "${1}" ] && check_group ${1}
     
     registered_nodes "$1" | while read node; do
-        ip=$(hostname_2_ip ${node})
+        ip=$( hostname_2_ip  ${node})
         mac=$(hostname_2_mac ${node})
         echo -e "\t${node}, mac:${mac}"
     done
@@ -120,7 +123,7 @@ _registered(){
     [ -n "${1}" ] && check_group ${1}
     
     registered_nodes "$1" | while read node; do
-        ip=$(hostname_2_ip ${node})
+        ip=$( hostname_2_ip  ${node})
         mac=$(hostname_2_mac ${node})
         echo -e "\t${node}, mac:${mac}, ip:${ip}"
     done
@@ -132,11 +135,12 @@ _registered(){
 
 wake_node() {
     local mac=${1}
-    local pxemac=$(mac_2_pxemac ${1})
+    local host=${2}
     
-    cp -f ${TFTPBOOT_DIR}/${image_name} \
-          ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
-    chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+    echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
+    
+    echo " action=wake mac=${mac} hostname=${host} " \
+         > ${KESTREL_RPC_FIFO}
     
     # $KESTREL_IFACE is exported by check_kestrel_daemon function
     [ -n ${KESTREL_IFACE} ] &&
@@ -151,19 +155,21 @@ shutdown_node() {
     local op=${1}
     local host=${2}
     local image_name=${3}
-    
-    local ip=$(hostname_2_ip ${host})
+    #local title=$(sed -r '/^(.)/s//\U\1\E/' <<<${op})
+        
+    local ip=$( hostname_2_ip  ${host})
     local mac=$(hostname_2_mac ${host})
-    local pxemac=$(mac_2_pxemac ${mac})
     
-    if [ "${op}" == "reboot" ]; then
-        cp -f ${TFTPBOOT_DIR}/${image_name} \
-              ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
-        chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+    if [ "${op}" == "halt" ]; then
+        echo -e "\n\tHalting the \"${host}\", ip:${ip}"
     else
-        rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} 2>/dev/null
+        echo -e "\n\tRebooting the \"${host}\", ip:${ip}"
     fi
     
+    echo " action=${op} mac=${mac} hostname=${host}" \
+         " image_name=${image_name}" \
+         > ${KESTREL_RPC_FIFO}
+         
     su kestrel -c "ssh ${host} sudo ${op}" 2> /dev/null ||
     echo -e "\tUnable to ${op} ${host} (ip:${ip})" &
     
@@ -178,9 +184,7 @@ shutdown_node() {
 op_mac() {
     local op=$1
     local mac=$2
-    image_name=$3
-    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
-    local title=$(echo ${1} | sed -r '/^(.)/s//\U\1\E/')
+    local image_name=$3
     
     check_mac "${mac}"
     
@@ -191,20 +195,16 @@ op_mac() {
     
     case ${op} in
         wake)
-            echo
             check_image ${image_name}
-            echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
-            wake_node "${mac}" "${image_name}"
+            wake_node "${mac}" "${host}" "${image_name}"
             ;;
         reboot)
             check_connected "${host}"
             check_image ${image_name}
-            echo -e "\n\tRebooting the \"${host}\", ip:$(hostname_2_ip ${host})"
             shutdown_node "reboot" "${host}" "${image_name}"
             ;;
         halt)
             check_connected "${host}"
-            echo -e "\n\tHalting the \"${host}\", ip:$(hostname_2_ip ${host})"
             shutdown_node "halt" "${host}" 
             ;;
      esac
@@ -219,8 +219,7 @@ op_mac() {
 op_node() {
     local op=$1
     local host=$2
-    image_name=$3
-    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name=$3
     
     check_hostname "${host}"
     
@@ -229,21 +228,17 @@ op_node() {
     
     case ${op} in
         wake)
-            echo
             check_image ${image_name}
             mac=$(hostname_2_mac ${host})
-            echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
-            wake_node "${mac}" "${image_name}"
+            wake_node "${mac}" "${host}" "${image_name}"
             ;;
         reboot)
             check_connected "${host}"
             check_image ${image_name}
-            echo -e "\n\tRebooting the \"${host}\", ip:$(hostname_2_ip ${host})"
             shutdown_node "reboot" "${host}" "${image_name}"
             ;;
         halt)
             check_connected "${host}"
-            echo -e "\n\tHalting the \"${host}\", ip:$(hostname_2_ip ${host})"
             shutdown_node "halt" "${host}" 
             ;;
      esac
@@ -258,8 +253,7 @@ op_node() {
 op_group() {
     local op=$1
     local group=$2
-    image_name=$3
-    image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name=$3
     
     check_group "${group}"
     
@@ -271,28 +265,32 @@ op_group() {
         wake)
             check_image ${image_name}
             disconnected_nodes "${group}" | while read node; do
+            
                 mac=$(hostname_2_mac ${node})
-                wake_node "${mac}"
-                echo -e "\tStarting up \"${node}\", mac:\"${mac}\""
+                wake_node "${mac}" "${node}" "${image_name}"
+                
                 sleep ${WAKEUP_SLEEP}
             done;
             ;;
         reboot)
             check_image ${image}
             connected_nodes "${group}" | while read node; do
-                echo -e "\tRebooting the \"${node}\", ip:$(hostname_2_ip ${node})"
+            
                 shutdown_node "reboot" "${node}" "${image_name}"
+            
             done;
             ;;
         halt)
             connected_nodes "${group}" | while read node; do
-                echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
+            
                 shutdown_node "halt" "${node}"
+            
             done;
             ;;
     esac
     echo
 }
+
 
 # _remove_mac <mac>
 # 
@@ -308,7 +306,7 @@ _remove_mac() {
     host=$(mac_2_hostname ${mac})
     
     echo " action=desregister mac=${mac} hostname=${host} " \
-         > ${KESTREL_DATA_DIR}/rpc/fifo
+         > ${KESTREL_RPC_FIFO}
     
     echo -e "\t${host}, mac:${mac} removed"
 }
@@ -328,7 +326,7 @@ _remove_node() {
     mac=$(hostname_2_mac ${host})
     
     echo " action=desregister mac=${mac} hostname=${host} " \
-         > ${KESTREL_DATA_DIR}/rpc/fifo
+         > ${KESTREL_RPC_FIFO}
     
     echo -e "\t${host}, mac:${mac} removed"
 }
@@ -350,12 +348,13 @@ _remove_group() {
         mac=$(hostname_2_mac ${node})
         
         echo " action=desregister mac=${mac} hostname=${node} " \
-             > ${KESTREL_DATA_DIR}/rpc/fifo
+             > ${KESTREL_RPC_FIFO}
         
         echo -e "\t${node}, mac:${mac} removed"
         
     done
 }
+
 
 _halt-cluster() {
     
@@ -364,12 +363,13 @@ _halt-cluster() {
     if (( $(connected_nodes | wc -l) > 0 )); then
         connected_nodes | while read node; do
             echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
-            shutdown_node "halt" "${node}"
+            shutdown_node "halt" "${node}" || fail="^${node}$|${fail:-^$}"
         done
         echo
         echo -e "\tWaiting till the nodes shutdown"
-        TIMEOUT=10 # Waits 5 seconds. (sleeps 0.5s)
-        while (( $(connected_nodes | wc -l) > 0 && ${TIMEOUT} > 0)); do
+        TIMEOUT=40 # Waits 20 seconds. (sleeps 0.5s)
+        while (( $(connected_nodes | grep -Ev "${fail:-^$}" | wc -l) > 0 && 
+                 ${TIMEOUT} > 0)); do
             TIMEOUT=$(( ${TIMEOUT} - 1 ))
             sleep .5
         done
@@ -426,7 +426,7 @@ _register() {
     
     # Clean the feedback file
     [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
-    rm ${KESTREL_DATA_DIR}/register_feedback &> /dev/null
+    rm   ${KESTREL_DATA_DIR}/register_feedback &> /dev/null
     
     # Set the trap
     trap control_c SIGINT SIGTERM
@@ -441,8 +441,8 @@ _register() {
     while :; do
        sleep 1;
        [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
-       cat ${KESTREL_DATA_DIR}/register_feedback &&
-       rm ${KESTREL_DATA_DIR}/register_feedback
+       cat  ${KESTREL_DATA_DIR}/register_feedback &&
+       rm   ${KESTREL_DATA_DIR}/register_feedback
     done
 }
 
@@ -529,6 +529,7 @@ while (( $# > 0 )); do
         --connected|--disconnected|--registered)
             op=${1#--}
             
+            # Check for the optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 group=$2
                 shift
@@ -547,6 +548,7 @@ while (( $# > 0 )); do
 #       --register      [<group-name>]  [<image>]
         --register)
 
+            # Check for the optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 group=$2
                 shift
@@ -554,6 +556,7 @@ while (( $# > 0 )); do
                 group="group1"
             fi
             
+            # Check for the optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
@@ -578,6 +581,7 @@ while (( $# > 0 )); do
             data=${2}
             shift
             
+            # Check for the optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
@@ -594,6 +598,7 @@ while (( $# > 0 )); do
             data=${2}
             shift
             
+            # Check for the optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
