@@ -210,53 +210,50 @@ home_dir() {
 
 # user_sshkeygen <user>
 # 
-#    Recreate ssh keys for the user, and add them to 'authorized _keys' allowing
+#    Recreate ssh keys for the user, and add them to 'authorized_keys' allowing
 #    password-less authentication into the cluster nodes.
 
 user_sshkeygen() {
     local user=$1
     local user_group=$(id -gn ${user})
     local user_home=$(home_dir ${user})
-    local user_khome=/${HOME_MODE}/${user}
+    local user_khome=/${KESTREL_HOME}/${user}
 
-    # Ensure the kestrel-home exported directory exists
-    if [ ! -d ${user_khome} ]; then
-        mkdir -p ${user_khome}
-        chown ${user}:${user} ${user_khome} 
-    fi &> /dev/null
+    [[ "${user_home}" == "${user_khome}" ]] &&
+        warn_config \
+            "KESTREL_HOME=\"${KESTREL_HOME}\"" \
+            "For security reasons we recommend not exporting the /home/ dir"
     
-    # Create a link from $HOME/$user/kestrel to KESTREL-HOME/$user
+    # Ensure ~/.ssh and $KESTREL_HOME/.ssh directories exist
+    mkdir -p   ${user_home}/.ssh
+    mkdir -p  ${user_khome}/.ssh
+    chown ${user}:${user} ${user_khome}
+    chmod 700  ${user_home}/.ssh
+    chmod 700 ${user_khome}/.ssh
+    
+    # Create a link from $HOME/$user/kestrel to $KESTREL_HOME/$user
     home_link=${user_home}/kestrel
-    [[ ! "/${HOME_MODE}/" =~ ^/home/$ ]] &&
+    [[ ! "/${KESTREL_HOME}/" == "/home/" ]] &&
     [[ -L ${home_link} || ! -e ${home_link} ]] &&
         ( cd /; ln -snf ${user_khome} ${home_link} )
     
-    mkdir -p   ${user_home}/.ssh
-    mkdir -p  ${user_khome}/.ssh
+    rm  ${user_home}/.ssh/kestrel_id_dsa{,.pub} 2>/dev/null
     
-    # Make a backup of the user's dsa public certificate if found
-    if [[   -e ${user_home}/.ssh/id_dsa &&
-          ! -e ${user_home}/.ssh/id_dsa.bak ]];
-    then
-        echo "Kestrel has created a new ssh key."
-        echo "The old one has been backed up to ~/.ssh/id_dsa.bak"
-        cat  < ${user_home}/.ssh/id_dsa \
-             > ${user_home}/.ssh/id_dsa.bak
+    if [[ "/${KESTREL_HOME}/" != "/home/" ]]; then
+        rm ${user_khome}/.ssh/authorized_keys 2>/dev/null
+    else
+        test_backup ${user_khome}/.ssh/authorized_keys
     fi
     
-    rm ${user_home}/.ssh/id_dsa 2>/dev/null
-    
-    ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/id_dsa"
+    ssh-keygen -q -t dsa -N "" -f "${user_home}/.ssh/kestrel_id_dsa"
     
     # Add the created public certiticate to the authorized keys file on the 
     # exported kestrel-home
-    cat     <  ${user_home}/.ssh/id_dsa.pub \
-            > ${user_khome}/.ssh/authorized_keys
+    cat     <  ${user_home}/.ssh/kestrel_id_dsa.pub \
+           >> ${user_khome}/.ssh/authorized_keys
     chmod 600 ${user_khome}/.ssh/authorized_keys
     
     # Ensure the .ssh/* files have the correct owner/group and permissions.
-    chmod 700  ${user_home}/.ssh
-    chmod 700 ${user_khome}/.ssh
     chown -R ${user}:${user_group}  ${user_home}/.ssh
     chown -R ${user}:${user_group} ${user_khome}/.ssh
 }
