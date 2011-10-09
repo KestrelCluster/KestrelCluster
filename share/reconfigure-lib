@@ -1,0 +1,312 @@
+#!/bin/bash
+
+
+
+# list_scripts <dir> <pattern>
+#
+# Get a list of files under a kestrel dir while taking into account that files 
+# at /etc have bigger priority than the system's ones.
+# 
+# This lets any default script be replaced/customized easily by the user.
+#
+# Example : 
+#    list_scripts "node/packages.d" | more
+#
+# This lists all the scripts under the dir /usr/share/kestrel/node/packages.d
+# and in the dir /etc/kestrel/node/packages.d. If there is a file named the same
+# in /etc/kestrel/node/packages.d if will replace the /usr one.
+
+
+# create_evaluation_script
+# 
+#     Creates a sed script for replacing the variables found on templates with
+#     their values.
+
+create_evaluation_script() {
+    # Apply variable sustitution rules when a non escaped "$" character is found
+    evaluation_script='/(^|[^\\])\$/{'
+    
+        # Create a sustitution rule for each variable
+        for var in $(variable_list); do
+            re='s#\$\{?'"${var}"'\}?#'"${!var}"'#g;'
+            evaluation_script="${evaluation_script}${re}"
+        done
+    
+    export evaluation_script="${evaluation_script}"'}'
+}
+
+
+# find_templates <subdir> [<find options>]
+# 
+#     Returns a list of templates found on <subdir>.
+# 
+#     Each line contains the following data:
+#         </path/to/the/template> <template_name> <flags> <label>
+#     
+#     Example:
+#         /home/jonan/test/usr/image/etc/ssh(mode=0400)/kestrel image/etc/ssh(mode=0400)/kestrel
+
+find_templates() {
+    local  subdir=$1
+    local pattern=$2
+    
+    local file
+    local label
+    local path
+    local flags_re
+    local find_re
+    
+    # Absolute path to KESTREL_SHARE and to KESTREL_ETC
+    local share_dir=$( cd ${KESTREL_SHARE}/${subdir}; pwd)
+    local etc_dir=$(   cd   ${KESTREL_ETC}/${subdir}; pwd)
+    
+    # Obtain only the path ignoring the flags (contained between parenthesis)
+    local path_re="(([^\/]*\/)*[^\(\/]+)"
+    # Obtain: 1.- the string with the parenthesis
+    #         2.- the string between the parenthesis (the flags)
+    #         3.- the string between "" (the label)
+    local flags_re="(\(([^\"]*(\"[^\"]*\")?.*)\))?"
+    
+    exec 3>&2-
+    exec 2>/dev/null
+    
+    # List scripts on ${share_dir} and on ${etc_dir}
+    ( 
+      cd ${share_dir} &&
+      find . -type f ${pattern}
+      
+      cd ${etc_dir} &&
+      find . -type f ${pattern}
+      
+    ) | \
+    
+    # - Delete the starting "./". 
+    # - Output the filename without any flag.
+    # - Output the label. A script only gets overriden by one on ${etc_dir} if
+    #   the the script has the same filename and the same label.
+    sed -r 's#^\./'"${path_re}${flags_re}"'$#\1 \5#' | \
+    
+    # sort them and remove duplicates
+    sort | uniq | \
+    
+    while read file label; do
+        
+        [ -n "${label}" ] &&
+        flags_re="([^\"]*${label}[^\"]*)" ||
+        flags_re="\(([^\"]*)\)?"
+        
+        #[[ ${file} =~ ^(.*/)[^/]*$ ]] &&
+        #path=${BASH_REMATCH[1]} ||
+        #path=
+        
+        find_re="^\(${etc_dir}\|${share_dir}\)/${file}${flags_re}$"
+        
+        find ${etc_dir}/${path} ${share_dir}/${path} \
+             -regex "${find_re}" -type f -print -quit #-maxdepth 1
+        
+    done | \
+    
+    sed -r "s#^(${share_dir}|${etc_dir})/${path_re}${flags_re}"'$#\0 \2 \5 \6#'
+    
+    exec 2>&-
+    exec 2>&3-
+}
+
+
+# create_dest_dir <file> [<dest_dir>]
+# 
+#     Ensures that exist all subdirectories of the path
+#     
+#     Notes:
+#       - Directories can contain variables that should be expanded.
+#         Only kestrel configuration variables are allowed.
+#
+#       - Directories can contain "user", "group" and "mode" flags.
+#
+#       - Each directory created is added to the file (for uninstall purposes)
+#         ${KESTREL_BACKUP_DIR}/created_dirs
+#     
+#     Returns the final file path once the flags are removed and the variables 
+#     are expanded.
+
+create_dest_dir() {
+    local template=$1
+    local dest_dir=$2
+    
+    # Paths can contain kestrel variables, evaluate variables on the file path
+    local evaluated_path=$(evaluate_variables ${template})
+    
+    local dir
+    local flag
+    local flags
+    local rel_path, abs_path, bak_path
+    local IFS="/"
+    
+    for dir in ${evaluated_path}; do
+        
+        [ -z "${dir}" ] && continue
+        
+        # Get and remove the flags from the subdirectory
+        if [[ ${dir} =~ ^([^\(]+)(\(([^\)]*)\))?$ ]]; then
+              dir=${BASH_REMATCH[1]}
+            flags=${BASH_REMATCH[3]}
+        else
+            die_config "Invalid directory name: \"${dir}\""
+        fi
+        
+        rel_path="${rel_path}/${dir}"
+        abs_path="${dest_dir}/${rel_path}"
+        bak_path="${dest_dir}/${KESTREL_BACKUP_DIR}/${rel_path}"
+        
+        # Ensure the dir exits
+        if [ ! -d "${abs_path}" ]; then
+        
+           echo "Created directory: \"${abs_path}\""
+           mkdir -p "${abs_path}"
+           
+           echo "Created directory (backup): \"${bak_path}\""
+           mkdir -p "${bak_path}"
+           
+           # Remember this dir was created by kestrel
+           echo "${rel_path}" > "${dest_dir}/${KESTREL_BACKUP_DIR}/created_dirs"
+           
+        fi
+        
+        IFS=","
+        
+        # Check flags. Apply modes
+        for flag in ${flags}; do
+            case ${flag} in
+                user=*)
+                    chown -v ${flag#user=}     "${abs_path}" "${bak_path}"
+                    ;;
+                group=*)
+                    chown -v :${flag#group=}   "${abs_path}" "${bak_path}"
+                    ;;
+                mode=*)
+                    chmod -v ${flag#mode=}     "${abs_path}" "${abs_path}"
+                    ;;
+                *)
+                    warning "unsupported flag: ${flag} on dir: ${dir}"
+                    ;;
+             esac
+         done
+    done
+    
+    dest_file="${abs_path}/${evaluated_path##*/}"
+}
+
+
+
+# apply_template <template_path> <template> <flags> <label> 
+#                <os_dir> <flags2> <args>+
+# 
+#     Template information (obtained from a "find_templates" call)
+#
+#       <template_path>   = Path to the template/script
+#       <template>        = Name of the template/script
+#       <flags>           = Flags
+#       <label>           = Label
+#     
+#     Context parameters
+#       
+#       <os_dir>          = "" or an image directory.
+#       <flags2>          = "" or an indirect reference to an array of 
+#                           additional flags. Useful for overriding the default 
+#                           flags.
+#       <args>            = @("install" | "uninstall" | "enable" | "disable") +
+#                           more_options*
+#
+
+apply_template() {
+    local   path=$1
+    local   name=$2
+    local  flags=$3
+    local  label=$4
+    local os_dir=$5
+    local flags2=(${!6})
+    
+    shift 6
+    
+    local action=$1
+    local   args=$@
+    
+    # default values
+    local chroot
+    local run
+    local user
+    local group
+    local mode
+    local flag
+    
+    local FILE
+    local dest_file
+    local dest_stat
+    
+    local IFS=","
+    
+    # Check flags
+    for flag in ${flags} ${flags2}; do
+        
+        echo "_\"${flag}\"_"
+        case ${flag} in
+            
+            # chroot mode or nochroot mode (by default)
+            chroot)
+                chroot="yes"
+                ;;
+            nochroot)
+                unset chroot
+                ;;
+            
+            #  edit mode or template mode (by default)
+            edit|run)
+                run="${flag}"
+                ;;
+            template)
+                unset run
+                ;;
+            
+            # OS flags
+            os=*-*)
+                [ "${flag#os=}"   == "${OS_DISTRIBUTION}-${OS_CODENAME}" ] ||
+                [ "${flag#os=}"   == "${OS_DISTRIBUTION}-${OS_RELEASE}"  ] ||
+                return 0
+                ;;
+            os=*)
+                [ "${flag#os=}"   == "${OS_DISTRIBUTION}" ] ||
+                return 0
+                ;;
+            arch=*)
+                [ "${flag#arch=}" == "${OS_ARCHITECTURE}" ] ||
+                return 0
+                ;;
+            
+            # Mode flags
+            user=*)
+                user=${flag#user=}
+                ;;
+            group=*)
+                group=${flag#group=}
+                ;;
+            mode=*)
+                mode=${flag#mode=}
+                ;;
+            
+            # Check a variable flag
+            \$[a-zA-Z\-\_]*$|\$\{[a-zA-Z\-\_]*\})
+                [ "$(eval_variables ${flag})" == "yes" ] ||
+                return 0
+                ;;
+            
+            # Label
+            "*")
+                ;;
+            
+            *)
+                warn_config "unsupported flag: ${flag} on dir: ${dir}"
+                ;;
+        esac
+    done
+}
+
