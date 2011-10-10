@@ -16,7 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z   "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ ! -d "$KESTREL_SHARE" ] && KESTREL_SHARE="${0%/*}/share"
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
@@ -24,13 +25,12 @@
 export_config
 
 _new() {
-    local image_name=$1
-    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name="$1"
+    local image_dir="${KESTREL_IMAGE_DIR}/${image_name}"
 
     # Verify the name only includes [0-9A-Za-z_] characters
-    if ! echo ${image_name} | grep -Eqx "[0-9A-Za-z_]+"; then
+    [[ ! "${image_name}" =~ ^${image_re}$ ]] &&
         die "Invalid image name"
-    fi
 
     # Verify the image name
     [ "${image_name}" = "default" ] &&
@@ -40,7 +40,7 @@ _new() {
         die "Invalid image name, \"cached-image\" is reserved"
 
     # Verify the image exists
-    [ -d $image_dir/usr ] &&
+    [ -d "$image_dir/usr" ] &&
         die "Invalid image name, already exists an image named ${image_name}"
 
     # Ensure this script is executed as root
@@ -49,22 +49,24 @@ _new() {
     # Lock the image, so nobody can start any node while the image is being
     # modified
     (
-        lock_image ${image_name}
+        lock_image "${image_name}"
 
-        local image_cache=${KESTREL_IMAGE_DIR}/cached-image
+        local image_cache="${KESTREL_IMAGE_DIR}/cached-image"
 
         # Check if we support cached images, and if there is already a cached
         # image
-        if [ ${CACHED_IMAGE} == "true" ] && 
+        if [ "${CACHED_IMAGE}" == "true" ] && 
            [ -d "${image_cache}" ]; then
 
             msg "\nCreating image from image cache\n"
 
+            trap _trap_copy_cached_image SIGINT SIGTERM
+
             # Show the progress : usr, lib, etc...
             for file in ${KESTREL_IMAGE_DIR}/cached-image/*; do
                 msg "    Copying ${file}"
-                cp -Ra ${file} ${image_dir}
-            done ${quiet}
+                cp -Ra "${file}" "${image_dir}"
+            done # TODO ${quiet}
 
         # Create a new image using debootstrap
         else
@@ -73,37 +75,45 @@ _new() {
 
             # Share packages, binding to the directory of the host's package 
             # cache  
-            mkdir -p ${image_dir}/var/cache/apt/archives
+            mkdir -p "${image_dir}/var/cache/apt/archives" &&
             mount --bind /var/cache/apt/archives \
-                         ${image_dir}/var/cache/apt/archives
-
-            echo "   debootstrap will take some time, please wait"
-            echo
+                         "${image_dir}/var/cache/apt/archives" || die
+            
+            msg "\ndebootstrap will take some time, please wait\n"
+            
+            trap _trap_debootstrap SIGINT SIGTERM
 
             # Create the image using debootstrap
-            debootstrap ${OS_CODENAME} ${image_dir} |
-                # remove the 'I: ' and show a tab instead.
-                sed 's/^I: /   /' ${quiet} || \
-                {   # if an error occurred
-                    sync
-                    umount ${image_dir}/var/cache/apt/archives
-                    rm -R ${image_dir}; 
-                    die "deboostrap failed to create an image, exiting!"
-                }
+            debootstrap "${OS_CODENAME}" "${image_dir}" \
+                > "${image_dir}.debootstrap.log" ||     \
+            # Finish correctly if debootstrap fails
+            _trap_debootstrap \\
+                "Debian boostraping tool failed to create an image" \\
+                "- Check the internet conection" \\
+                "- Check the log : ${image_dir}.debootstrap.log"
+            
+            # remove the 'I: ' and show a tab instead.
+            sed 's/^I: /   /' ${quiet} < "${image_dir}.debootstrap.log"
+             
+            sync
 
-             sync
+            umount "${image_dir}/var/cache/apt/archives"
 
-             umount ${image_dir}/var/cache/apt/archives
-
-             if [ ${CACHED_IMAGE} == "true" ] && 
-                [ ! -d "${KESTREL_IMAGE_DIR}/cached-image" ]; then
-
+            if [ "${CACHED_IMAGE}" == "true" ] && 
+               [ ! -d "${KESTREL_IMAGE_DIR}/cached-image" ]; then
+                
+                trap _trap_cache_creation SIGINT SIGTERM
+                
                 msg "\nCreating image cache, please wait"
-                cp -Ra ${image_dir} ${KESTREL_IMAGE_DIR}/cached-image
-             fi
+                # Show the progress : usr, lib, etc...
+                for file in ${KESTREL_IMAGE_DIR}/cached-image/*; do
+                    msg "    Copying ${file}"
+                    cp -Ra "${file}" "${image_dir}"
+                done # TODO ${quiet}
+            fi
         fi
         
-        mount_chroot_image ${image_dir}
+        mount_chroot_image "${image_dir}"
         
         # Run the install scripts, install the required packages and run 
         # post-install scripts
@@ -116,7 +126,7 @@ _new() {
         
         sync
 
-        umount_chroot_image ${image_dir}
+        umount_chroot_image "${image_dir}"
 
         # If there is no other image, make it the default
         [ ! -e ${KESTREL_IMAGE_DIR}/default ] &&
@@ -126,6 +136,28 @@ _new() {
 }
 
 
+_trap_copy_cached_image() {
+    # Delete partial image
+    [ -d "${image_dir}" ] && rm -R "${image_dir}"
+}
+
+
+_trap_debootstrap() {
+    sync
+    
+    # Unmount archives
+    umount "${image_dir}/var/cache/apt/archives"
+    
+    # Delete partial image or partial cache-image
+    [ -d "${image_dir}" ] && rm -R "${image_dir}"
+
+    [ -n "{1}" ] && die "@"
+}
+
+_trap_cache_creation() {
+    [ -d  "${KESTREL_IMAGE_DIR}/cached-image" ] && 
+        rm -R "${KESTREL_IMAGE_DIR}/cached-image"
+}
 
 # _remove <image_name>
 # 
@@ -136,7 +168,7 @@ _new() {
 #         - Set another image as default if the default one is being removed.        
 
 _remove() {
-    local image_name=$1
+    local image_name="${1}"
     local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
 
     check_image
@@ -153,7 +185,7 @@ _remove() {
     # Lock the image, so nobody can start any node while the image is being
     # modified
     (
-        lock_image ${image_name}
+        lock_image "${image_name}"
 
         uninstall_node
 
@@ -166,12 +198,12 @@ _remove() {
                 ln -snf "${KESTREL_IMAGE_DIR}/${new_default}" \
                         "${KESTREL_IMAGE_DIR}/default"
             else
-                rm ${KESTREL_IMAGE_DIR}/default
+                rm "${KESTREL_IMAGE_DIR}/default"
             fi
         fi
 
-        rm -R ${image_dir}
-        rm ${KESTREL_IMAGE_DIR}/.${image_name}.*
+        rm -R "${image_dir}"
+        rm "${KESTREL_IMAGE_DIR}/.${image_name}."*
     )
 
     echo
@@ -185,7 +217,7 @@ _remove() {
 #     Remove the image <image_name>
 
 _delete() {
-    _remove $1
+    _remove "${1}"
 }
 
 
@@ -212,8 +244,8 @@ _default-image() {
 #     Set <image_node> as the default node image
 
 _set-default() {
-    local image_name=$1
-    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name="${1}"
+    local image_dir="${KESTREL_IMAGE_DIR}/${image_name}"
 
     check_image no_running_check
 
@@ -225,7 +257,7 @@ _set-default() {
         die "default is already the default"
     fi
 
-    ln -snf ${image_dir} ${KESTREL_IMAGE_DIR}/default
+    ln -snf "${image_dir}" "${KESTREL_IMAGE_DIR}/default"
 }
 
 
@@ -234,8 +266,8 @@ _set-default() {
 #     Chroot into image <image_name>
 
 _chroot() {
-    local image_name=$1
-    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name="${1}"
+    local image_dir="${KESTREL_IMAGE_DIR}/${image_name}"
 
     check_image
 
@@ -245,18 +277,18 @@ _chroot() {
     # Lock the image, so nobody can start any node while the image is being
     # modified
     (
-        lock_image ${image_name}
+        lock_image "${image_name}"
 
-        mount_chroot_image ${image_dir}
+        mount_chroot_image "${image_dir}"
 
         (
             export LANG=C
-            chroot ${image_dir} /bin/bash
+            chroot "${image_dir}" /bin/bash
         )
 
         sync 
 
-        umount_chroot_image ${image_dir}
+        umount_chroot_image "${image_dir}"
 
     )
 }
@@ -267,15 +299,15 @@ _chroot() {
 #     Force unlocking image <image_name>
 
 _unlock() {
-    local image_name=$1
-    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name="${1}"
+    local image_dir="${KESTREL_IMAGE_DIR}/${image_name}"
 
     check_image
 
     # Ensure this script is executed as root
     check_root
 
-    rm ${KESTREL_IMAGE_DIR}/.${image_name}.lock
+    rm "${KESTREL_IMAGE_DIR}/.${image_name}.lock"
 }
 
 
@@ -284,15 +316,15 @@ _unlock() {
 #     Force unmounting image <image_name>
 
 _umount() {
-    local image_name=$1
-    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    local image_name="${1}"
+    local image_dir="${KESTREL_IMAGE_DIR}/${image_name}"
 
     check_image
 
     # Ensure this script is executed as root
     check_root
 
-    umount_chroot_image ${image_dir}
+    umount_chroot_image "${image_dir}"
 }
 
 
