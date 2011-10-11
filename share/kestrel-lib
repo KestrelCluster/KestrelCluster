@@ -58,6 +58,7 @@ mount_chroot_image(){
 
     # Create a fake initctl and a fake start-stop-daemon to prevent dpkg from
     # starting services when installing or upgrading those services
+    [ -x "${image_dir}/sbin/start-stop-daemon" ] &&
     mv ${image_dir}/sbin/start-stop-daemon \
        ${image_dir}/sbin/start-stop-daemon.real
 
@@ -86,6 +87,7 @@ umount_chroot_image(){
          umount ${image_dir}/${mount}
     done
 
+    [ -x "${image_dir}/sbin/start-stop-daemon.real" ] &&
     mv -f ${image_dir}/sbin/start-stop-daemon.real \
           ${image_dir}/sbin/start-stop-daemon
 
