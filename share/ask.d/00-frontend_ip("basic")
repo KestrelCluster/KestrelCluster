@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# select_net_device
+# 
+#     Shows a menu dialog with a list of the network devices available on the 
+#     system and some information about them (ip, type and driver).
+
+select_net_device() {
+    local list
+    local i=0
+    local net
+    local IFS=$'\n'
+    
+    # Use network manager's command line interface to get the information of the
+    # network interfaces
+    if which nmcli &>/dev/null; then
+        
+        local properties
+        
+        for net in $(nmcli -t -f device dev status); do
+            
+            properties=$(nmcli -t -f IP4-SETTINGS,GENERAL dev list iface ${net})
+            
+            ip=$(   awk -F':' '/ADDRESS/ { print $2}' <<< "${properties}" )
+            
+            desc=$( awk -F':' '/DEVICE/  { dev   =$2 }
+                               /TYPE/    { type  =$2 }
+                               /DRIVER/  { driver=$2 }
+                               
+                               END { print "device:" dev  ", " \
+                                           "type:"   type ", " \
+                                           "driver:" driver }
+                               ' <<<"${properties}" )
+            
+            list[i]="${ip}"
+            list[i+1]="${net}: ${desc}"
+            
+            ((i+=2))
+        done
+    
+    # If the network manager's command line is not installed try to get the data
+    # from ifconfig and from /sys
+    else
+    
+        local ifconfig
+        local ip
+        local type
+        local driver
+        
+        for net in /sys/class/net/!(lo); do
+            
+            net=${net##*/}
+            ifconfig=$(ifconfig ${net##*/})
+            
+            ip=$(   sed -rn "s/^.*addr:(${ip_re}).*$/\1/p" <<< "${ifconfig}" )
+            
+            [ -x /sys/class/net/${net}/wireless ] && type="wireless" ||
+            type=$( sed -rn "s/^.*encap:([^\ \t]([\ \t]?[^\ \t]+)*).*$/\1/p" \
+                    <<< ${ifconfig} )
+            
+            driver=$(grep -i driver /sys/class/net/eth0/device/uevent)
+            driver=${driver%%*=}
+            
+            list[i]="${ip}"
+            list[i+1]="device:${net}, type=${type}, driver=${driver}"
+            
+            ((i+=2))
+        done
+        
+    fi
+    
+    list[i]=" "
+    list[i+1]="Set an ip manually"
+    
+    kestrel_dialog menu "${title}" msg[@] "${list[@]}"
+}
+
+
+configure_frontend_ip() {
+    local result
+    local title="Configure the Frontend's ip"
+    local msg=( "Select the ip to be used to connect to the cluster LAN"
+                "List of network devices:" )
+    
+    result=$( select_net_device )
+    
+    if [ "${result}" == " " ]; then
+
+        msg=( "Insert the ip to be used to connect to the cluster LAN" )
+        result=$( kestrel_dialog inputbox "${title}" msg[@] "${FRONTEND_IP}")
+    fi
+    
+    msg=( "Insert the ip to be used to connect to the cluster LAN" 
+          ""
+          "Invalid ip: \"${result}\"")
+    
+    while [[ "$?" == "0" ]] &&
+          [[ ! "${result}" =~ ^${ip_re}$ ]]; do
+        result=$( kestrel_dialog inputbox "${title}" msg[@] "${FRONTEND_IP}" )
+    done
+    
+    export FRONTEND_IP="${result}"
+    
+    echo "FRONTEND_IP=\"${FRONTEND_IP}\""
+    
+#    set_variable "FRONTEND_IP" "${FRONTEND_IP}" "${FILE}"
+}
+
+
+configure_frontend_ip
+
