@@ -41,7 +41,7 @@
 # Regular expresions for each field :
 #
 #   <group_name> --> [0-9A-Za-z_]+
-#   <group_name> --> [0-9A-Za-z_]+
+#   <image_name> --> [0-9A-Za-z_]+
 #   <node_id>    --> [0-9]+
 #   <ip>         --> ([0-9]{1,3}\.){3}[0-9]{1,3}
 #   <mac>        --> ([0-9A-Fa-f]{2}\:){5}[0-9A-Fa-f]{2}
