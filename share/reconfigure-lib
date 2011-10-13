@@ -1,22 +1,6 @@
 #!/bin/bash
 
 
-
-# list_scripts <dir> <pattern>
-#
-# Get a list of files under a kestrel dir while taking into account that files 
-# at /etc have bigger priority than the system's ones.
-# 
-# This lets any default script be replaced/customized easily by the user.
-#
-# Example : 
-#    list_scripts "node/packages.d" | more
-#
-# This lists all the scripts under the dir /usr/share/kestrel/node/packages.d
-# and in the dir /etc/kestrel/node/packages.d. If there is a file named the same
-# in /etc/kestrel/node/packages.d if will replace the /usr one.
-
-
 # create_evaluation_script
 # 
 #     Creates a sed script for replacing the variables found on templates with
@@ -40,11 +24,18 @@ create_evaluation_script() {
 # 
 #     Returns a list of templates found on <subdir>.
 # 
+#     Notes:
+#       - Any template can be replaced by the user including a template with the 
+#         same name on /etc/kestrel/ directory.
+#       - Labels allow to have multiple templates/scripts for a single file.
+#       - When a template is replaced, only the replaced file's flags will be
+#     
 #     Each line contains the following data:
 #         </path/to/the/template> <template_name> <flags> <label>
 #     
 #     Example:
 #         /home/jonan/test/usr/image/etc/ssh(mode=0400)/kestrel image/etc/ssh(mode=0400)/kestrel
+#     
 
 find_templates() {
     local  subdir=$1
@@ -56,25 +47,31 @@ find_templates() {
     local flags_re
     local find_re
     
+    exec 3>&2-
+    exec 2>/dev/null
+    
     # Absolute path to KESTREL_SHARE and to KESTREL_ETC
-    local share_dir=$( cd ${KESTREL_SHARE}/${subdir}; pwd)
-    local etc_dir=$(   cd   ${KESTREL_ETC}/${subdir}; pwd)
+    local share_dir
+    local   etc_dir
+    
+    [ -d "${KESTREL_ETC}" ] &&
+      etc_dir=$( cd   ${KESTREL_ETC}/${subdir}; pwd)
+    share_dir=$( cd ${KESTREL_SHARE}/${subdir}; pwd)
     
     # Obtain only the path ignoring the flags (contained between parenthesis)
-    local path_re="(([^\/]*\/)*[^\(\/]+)"
+    #local path_re="(([^\/]*\/)*[^\(\/]+)"
+    local path_re="(([^\(]+))"
     # Obtain: 1.- the string with the parenthesis
     #         2.- the string between the parenthesis (the flags)
     #         3.- the string between "" (the label)
     local flags_re="(\(([^\"]*(\"[^\"]*\")?.*)\))?"
-    
-    exec 3>&2-
-    exec 2>/dev/null
     
     # List scripts on ${share_dir} and on ${etc_dir}
     ( 
       cd ${share_dir} &&
       find . -type f ${pattern}
       
+      [ -n "${etc_dir}" ] &&
       cd ${etc_dir} &&
       find . -type f ${pattern}
       
@@ -95,14 +92,10 @@ find_templates() {
         flags_re="([^\"]*${label}[^\"]*)" ||
         flags_re="\(([^\"]*)\)?"
         
-        #[[ ${file} =~ ^(.*/)[^/]*$ ]] &&
-        #path=${BASH_REMATCH[1]} ||
-        #path=
+        find_re="^\(${etc_dir}\|${share_dir}\)/+${file}${flags_re}$"
         
-        find_re="^\(${etc_dir}\|${share_dir}\)/${file}${flags_re}$"
-        
-        find ${etc_dir}/${path} ${share_dir}/${path} \
-             -regex "${find_re}" -type f -print -quit #-maxdepth 1
+        find ${etc_dir:+${etc_dir}/} ${share_dir}/ \
+             -regex "${find_re}" -type f -print -quit
         
     done | \
     
@@ -113,92 +106,7 @@ find_templates() {
 }
 
 
-# create_dest_dir <file> [<dest_dir>]
-# 
-#     Ensures that exist all subdirectories of the path
-#     
-#     Notes:
-#       - Directories can contain variables that should be expanded.
-#         Only kestrel configuration variables are allowed.
-#
-#       - Directories can contain "user", "group" and "mode" flags.
-#
-#       - Each directory created is added to the file (for uninstall purposes)
-#         ${KESTREL_BACKUP_DIR}/created_dirs
-#     
-#     Returns the final file path once the flags are removed and the variables 
-#     are expanded.
-
-create_dest_dir() {
-    local template=$1
-    local dest_dir=$2
-    
-    # Paths can contain kestrel variables, evaluate variables on the file path
-    local evaluated_path=$(evaluate_variables ${template})
-    
-    local dir
-    local flag
-    local flags
-    local rel_path, abs_path, bak_path
-    local IFS="/"
-    
-    for dir in ${evaluated_path}; do
-        
-        [ -z "${dir}" ] && continue
-        
-        # Get and remove the flags from the subdirectory
-        if [[ ${dir} =~ ^([^\(]+)(\(([^\)]*)\))?$ ]]; then
-              dir=${BASH_REMATCH[1]}
-            flags=${BASH_REMATCH[3]}
-        else
-            die_config "Invalid directory name: \"${dir}\""
-        fi
-        
-        rel_path="${rel_path}/${dir}"
-        abs_path="${dest_dir}/${rel_path}"
-        bak_path="${dest_dir}/${KESTREL_BACKUP_DIR}/${rel_path}"
-        
-        # Ensure the dir exits
-        if [ ! -d "${abs_path}" ]; then
-        
-           echo "Created directory: \"${abs_path}\""
-           mkdir -p "${abs_path}"
-           
-           echo "Created directory (backup): \"${bak_path}\""
-           mkdir -p "${bak_path}"
-           
-           # Remember this dir was created by kestrel
-           echo "${rel_path}" > "${dest_dir}/${KESTREL_BACKUP_DIR}/created_dirs"
-           
-        fi
-        
-        IFS=","
-        
-        # Check flags. Apply modes
-        for flag in ${flags}; do
-            case ${flag} in
-                user=*)
-                    chown -v ${flag#user=}     "${abs_path}" "${bak_path}"
-                    ;;
-                group=*)
-                    chown -v :${flag#group=}   "${abs_path}" "${bak_path}"
-                    ;;
-                mode=*)
-                    chmod -v ${flag#mode=}     "${abs_path}" "${abs_path}"
-                    ;;
-                *)
-                    warning "unsupported flag: ${flag} on dir: ${dir}"
-                    ;;
-             esac
-         done
-    done
-    
-    dest_file="${abs_path}/${evaluated_path##*/}"
-}
-
-
-
-# apply_template <template_path> <template> <flags> <label> 
+# run_template <template_path> <template> <flags> <label> 
 #                <os_dir> <flags2> <args>+
 # 
 #     Template information (obtained from a "find_templates" call)
@@ -218,9 +126,10 @@ create_dest_dir() {
 #                           more_options*
 #
 
-apply_template() {
+run_template() {
     local   path=$1
-    local   name=$2
+    local   file=$2
+    local   FILE=$2
     local  flags=$3
     local  label=$4
     local os_dir=$5
@@ -237,19 +146,19 @@ apply_template() {
     local user
     local group
     local mode
-    local flag
+    local link
+    local label
     
-    local FILE
+    local flag
     local dest_file
     local dest_stat
     
-    local IFS=","
+    local IFS="\,"
     
     # Check flags
-    for flag in ${flags} ${flags2}; do
+    for flag in ${flags} "${flags2[@]}"; do
         
-        echo "_\"${flag}\"_"
-        case ${flag} in
+        case "${flag}" in
             
             # chroot mode or nochroot mode (by default)
             chroot)
@@ -291,22 +200,232 @@ apply_template() {
                 ;;
             mode=*)
                 mode=${flag#mode=}
+                ;;            
+            link=*)
+                link=${flag#link=}
                 ;;
             
             # Check a variable flag
             \$[a-zA-Z\-\_]*$|\$\{[a-zA-Z\-\_]*\})
-                [ "$(eval_variables ${flag})" == "yes" ] ||
-                return 0
+                if [[ "${flag}" =~ ^\$\{?([^}]*)\}?$ ]] &&
+                   [[ "${!BASH_REMATCH[1]}" != "yes" ]]; then
+                    restore_file
+                    return 0
+                fi
                 ;;
             
             # Label
-            "*")
+            \"*\")
+                label=${flag}
+                ;;
+            
+            sh|python)
                 ;;
             
             *)
-                warn_config "unsupported flag: ${flag} on dir: ${dir}"
+                echo "unsupported flag: \"${flag}\" on dir: \"${dir}\""
                 ;;
         esac
     done
+    
+    export file FILE action user group mode link
+    
+    echo "path:     $path"
+    echo "name:     $file"
+    echo
+    echo "run:      ${run:-no}"
+    [ -n "${run}" ] &&
+    echo "template: no" ||
+    echo "template: yes"
+    echo "chroot:   ${chroot:-no}"
+    echo 
+    echo "user:     $user"
+    echo "group:    $group"
+    echo "mode:     $mode"
+    echo "link:     $link"
+    echo "label:    $label"
+    echo
+    
+    #return 0
+    
+    if [ -n "${run}" ]; then
+        
+        # Ensure an editted file exits
+        [[ "${run}" == "edit" ]] &&
+            if [ -f  "${os_dir}/${file}" ]]; then
+                test_backup "${os_dir}/${file}" 
+            else
+                touch "${os_dir}/${file}"
+            fi
+        
+        # Under a chroot?
+        if [[ ! -n "${chroot}" ]]; then
+            
+            . "${path}" ${args}
+            
+        else      
+            # Copy the basic chroot kestrel-lib
+            cat < ${KESTREL_SHARE}/kestrel-chroot-lib > ${os_dir}/tmp/hook
+            
+            # Copy the script to the chroot
+            cat < ${path} >> ${os_dir}/tmp/hook
+            chmod 755 ${os_dir}/tmp/hook
+            
+            # Avoid any locale setting
+            export LANG=C
+            echo chroot ${os_dir} /tmp/hook ${args}
+            
+            rm /tmp/hook
+        fi
+    
+    else
+        
+        template_file "${path}" "${FILE}"
+        
+        [ "${file%/*}" == "/etc/init.d" ] && install_service
+    fi
 }
+
+# install_service
+# 
+#     Create the links of init scripts
+
+install_service() {
+    
+    [ -n "chroot" ] && chroot="chroot ${os_image}"
+    
+    if [[ ! "${args}" == @(install|enable) ]]; then
+        
+        ${chroot} update-rc.d -f ${file} remove
+
+    else
+        # Remove the init script links
+        ${chroot} update-rc.d -f ${file} remove >/dev/null
+        
+        local start
+        local  stop
+        
+        start=$(sed -rn 's/\s*#\s*Run-Level-Start:\s*([0-9]+)$/\1/p' ${path})
+         stop=$(sed -rn 's/\s*#\s*Run-Level-Stop:\s*([0-9]+)$/\1/p'  ${path})
+        
+        [ -z "${start}" ] && start=20
+        [ -z "${stop}"  ] &&  stop=20
+        
+        # Add the start and stop links
+        ${chroot} update-rc.d ${file} start ${start} .
+        ${chroot} update-rc.d ${file} stop  ${stop} .
+    fi
+}
+
+
+# search_backup_files
+# 
+#     Searches a backup file
+
+search_backup_file() {
+    local file=${file:-$1}
+    local result
+    
+    #   ${file}  =~ [optional/path/]filename[.version]
+    if [[ "${file}" =~ ^${backup_re}$ ]]; then
+         dirname=${BASH_REMATCH[1]}
+         version=${BASH_REMATCH[3]%.actual}
+         version=${version:-.last}
+        filename=${BASH_REMATCH[2]%${version}}
+    else
+        die "Invalid filename: \"${file}\""
+    fi
+    
+    # Look for the file
+    if [[ ! -e "${os_dir}/${KESTREL_BACKUP_DIR}/${file}" ]]; then
+        # Escape the dots for using it as a the regular expression
+        local file_re="${dirname}${filename}${version}"
+              file_re="${file_re//./\\.}"
+        [[ "${version}" =~ ^${version_link_re}$ ]] &&
+        result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
+                       -iregex "^.*/${file_re}$" -print -quit ) ||
+        result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
+                       -iregex "^.*/${file_re}$" -print -quit )
+    else
+        result="${os_dir}/${KESTREL_BACKUP_DIR%/}/${file}"
+    fi
+    
+    if [ -z "${result}" ]; then
+        die "File not found: \"${file}\""
+    
+    elif [ -L "${result}" ]; then
+        version=$(readlink -n "${result%/*}/${filename}${version}")
+        file="${result#${os_dir}/${KESTREL_BACKUP_DIR%/}/}"
+        result="${file%/*}/${version}"
+    
+    else
+        result="${result#${os_dir}/${KESTREL_BACKUP_DIR%/}/}"
+    fi
+    
+    [[ "${result}" =~ ^${backup_re}$ ]]
+     dirname=${BASH_REMATCH[1]}
+     version=${BASH_REMATCH[3]}
+    filename=${BASH_REMATCH[2]%${version}}
+}
+
+
+# list_backup_versions <os_dir> file[.(version|last|actual)]
+# 
+#     
+
+list_backup_versions() {
+    local os_dir="${1}"
+    local   file="${2}"
+    local dirname
+    local version
+    local filename
+    
+    search_backup_file "${file}"
+    
+    ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/${dirname}"
+      
+      # List backup files which match the regular expression
+      find . -regextype posix-egrep \
+             \( -type l -iregex ".*/${filename}${version_link_re}$" \) \
+             -o         -iregex ".*/${filename}${version_back_re}$" |
+      
+      # Remove "./". Add a new entry ".actual" for each ".last" entry
+      sed -r 's#.*'"${version_re}"'$#\1#; s#last#last\nactual#' )
+}
+
+
+# list_backup_files <os_dir> [file[.(version|last|actual)]]
+# 
+#     
+
+list_backup_files() {
+    local os_dir="${1}"
+    local   file="${2}"
+    local dirname
+    local version
+    local filename
+    
+    if [ -n "${file}" ]; then
+        search_backup_file "${file}"
+        
+        ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/"
+          
+          find . -regextype posix-egrep \
+             \( -type l -iregex ".*/${dirname}${filename}${version_link_re}$" \) \
+             -o         -iregex ".*/${dirname}${filename}${version_back_re}$" |
+          
+          # Remove "./". Add a new entry ".actual" for each ".last" entry
+          sed -r 's#\.\/##; s#^((.*)\.last)$#\1\n\2.actual#' )
+     
+     else
+        ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/";
+        
+          # List backup files which match the regular expression
+          find . ! -type d -regextype posix-egrep -iregex "${backup_re}$" | 
+          
+          # Remove "./". Add a new entry ".actual" for each ".last" entry
+          sed -r 's#\.\/##; s#^((.*)\.last)$#\1\n\2.actual#' )
+     fi
+}
+
 
