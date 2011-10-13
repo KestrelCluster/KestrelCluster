@@ -12,10 +12,16 @@ ip4_digit="[0-9]{1,3}"
 mac_digit="[0-9A-Fa-f]{2}"
 
 ip4_re="${ip4_digit}\.${ip4_digit}\.${ip4_digit}\.${ip4_digit}"
-mac_re="${mac_digit}\:${mac_digit}\:${mac_digit}\:${mac_digit}\:${mac_digit}\:${mac_digit}"
+mac_re="${mac_digit}\:${mac_digit}\:${mac_digit}"
+mac_re="${mac_re}\:${mac_re}"
 
 # TODO IPv6
 ip_re="${ip4_re}"
+
+version_re="\.([0-9]+|orig(\.[0-9]+)?|last|actual)"
+version_back_re="\.([0-9]+)"
+version_link_re="\.(orig(\.[0-9]+)?|last)"
+backup_re="(.*\/)*([^\/\.]+)(.*${version_re})?"
 
 # NOTE: Adding new subexpressions using parenthesis in regular expresions may 
 # change the index used to refer to other subexpressions breaking the behavior 
@@ -66,6 +72,6 @@ HOSTNAME=$(hostname)
 ########
 
 # Kestrel node's hostname prefix. For example : kestrel-image1-35
-[ -z ${KESTREL_HOSTNAME} ]] &&
+[ -z "${KESTREL_HOSTNAME}" ] && 
 KESTREL_HOSTNAME="kestrel"
 
