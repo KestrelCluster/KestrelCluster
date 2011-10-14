@@ -2,8 +2,6 @@ kestrel-videowall                                       usr/bin
 
 share/node/packages.d/videowall				usr/share/kestrel/node/packages.d
 
-share/frontend/install.d/chromium-gl                    usr/share/kestrel/node/install.d
-
 share/node/post-install.d/image_mesa-default-gl_chroot	usr/share/kestrel/node/post-install.d
 
 modules/videowall/kestreldmx.conf                       usr/share/chromium-gl/mothership/configs

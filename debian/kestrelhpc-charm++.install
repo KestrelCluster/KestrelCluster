@@ -1,0 +1,3 @@
+share/event.d/charm++_hostfile                      usr/share/kestrel/event.d/
+share/default.d/charm++                             usr/share/kestrel/default.d/
+share/node/install.d/host_charm++_add-to-hostfile   usr/share/kestrel/node/install.d/

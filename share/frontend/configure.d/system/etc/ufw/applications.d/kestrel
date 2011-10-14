@@ -1,4 +1,0 @@
-[KestrelHPC]
-title=KestrelHPC's RPC
-description=KestrelHPC is a set of utilities for setting up a cluster with live nodes.
-ports=${KESTREL_RPC_PORT}/tcp

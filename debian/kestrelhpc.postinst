@@ -50,7 +50,9 @@ case "$1" in
         ln -f /etc/hostname                       ${KESTREL_DATA_DIR}/rpc/etc/
         ln -f /etc/nsswitch.conf                  ${KESTREL_DATA_DIR}/rpc/etc/
         
-        LIBNSS=$(readlink -f /lib/libnss_files.so.2)
+        # TODO check /lib/libnss_files.so.2 exists
+        #LIBNSS=$(ls -1 /lib/libnss_files.so.2* | head -n1)
+        LIBNSS_LINK=$(readlink -f /lib/libnss_files.so.2)
         ln -f /${LIBNSS}                          ${KESTREL_DATA_DIR}/rpc/lib/
         ( cd ${KESTREL_DATA_DIR}/rpc/lib/; ln -sf $LIBNSS libnss_files.so.2 )
 

@@ -1,0 +1,4 @@
+modules/plymouth			usr/share/kestrel
+dracut/modules.d/50plymouth-kestrel	usr/share/dracut/modules.d
+share/node/packages.d/plymouth		usr/share/kestrel/node/packages.d
+share/default.d/plymouth                usr/share/kestrel/default.d

@@ -1,3 +1,0 @@
-
-[ ${DHCP_SERVER} != "true" ] &&
-    rm ${FILE}
