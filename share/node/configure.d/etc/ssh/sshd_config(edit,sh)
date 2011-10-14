@@ -6,4 +6,4 @@
 
 user_auth="/${KESTREL_HOME#/}/%u/.ssh/authorized_keys"
 
-set_variable "AuthorizedKeysFile" "${user_auth}" ${FILE} ""
+set_key_value "AuthorizedKeysFile" "${user_auth}" ${FILE} ""

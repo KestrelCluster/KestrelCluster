@@ -4,10 +4,10 @@
 
 if [[ "$HOME_MODE" == "home" ]]; then
     
-    set_variable "PubkeyAuthentication" "no" ${FILE} " "
+    set_key_value "PubkeyAuthentication" "no" ${FILE} " "
     
 else
     
-    restore ${FILE}
+    restore_file ${FILE}
     
 fi

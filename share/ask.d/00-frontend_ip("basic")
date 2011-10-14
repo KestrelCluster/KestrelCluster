@@ -103,7 +103,7 @@ configure_frontend_ip() {
     
     echo "FRONTEND_IP=\"${FRONTEND_IP}\""
     
-#    set_variable "FRONTEND_IP" "${FRONTEND_IP}" "${FILE}"
+#    set_key_value "FRONTEND_IP" "${FRONTEND_IP}" "${FILE}"
 }
 
 

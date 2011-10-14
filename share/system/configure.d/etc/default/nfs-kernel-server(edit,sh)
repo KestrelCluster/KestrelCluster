@@ -1,5 +1,5 @@
 
 # SecuringNFS. http://wiki.debian.org/SecuringNFS
 [[ "${secure_nfs}" == "yes" ]] &&
-set_variable "RPCMOUNTDOPTS" "\"-p 32767\"" ${FILE}
+set_key_value "RPCMOUNTDOPTS" "\"-p 32767\"" ${FILE}
 

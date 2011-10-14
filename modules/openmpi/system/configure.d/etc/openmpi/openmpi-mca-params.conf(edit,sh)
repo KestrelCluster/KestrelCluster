@@ -1,4 +1,4 @@
 #!/bin/bash
 
-set_variable "orte_default_hostfile" "${OPENMPI_HOSTFILE}" \
+set_key_value "orte_default_hostfile" "${OPENMPI_HOSTFILE}" \
              ${FILE}
