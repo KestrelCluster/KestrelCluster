@@ -129,10 +129,9 @@ find_templates() {
 run_template() {
     local   path=$1
     local   file=$2
-    local   FILE=$2
     local  flags=$3
     local  label=$4
-    local os_dir=$5
+    local os_dir=${5%/}
     local flags2=(${!6})
     
     shift 6
@@ -228,7 +227,7 @@ run_template() {
         esac
     done
     
-    export file FILE action user group mode link
+    export file action user group mode link
     
     echo "path:     $path"
     echo "name:     $file"
@@ -246,24 +245,31 @@ run_template() {
     echo "label:    $label"
     echo
     
-    #return 0
     
     if [ -n "${run}" ]; then
         
-        # Ensure an editted file exits
+        local tofile=${file}
+        
+        # Ensure an editted file exits or create a backup
         [[ "${run}" == "edit" ]] &&
-            if [ -f  "${os_dir}/${file}" ]]; then
+            if [ -f "${os_dir}/${file}" ]; then     
                 test_backup "${os_dir}/${file}" 
+                
             else
+                mkdir -p "${os_dir}/${file%/*}"
                 touch "${os_dir}/${file}"
             fi
         
         # Under a chroot?
         if [[ ! -n "${chroot}" ]]; then
             
+            local FILE="${os_dir}/${file}"
+            
             . "${path}" ${args}
             
-        else      
+        else
+            export FILE=${file}
+            
             # Copy the basic chroot kestrel-lib
             cat < ${KESTREL_SHARE}/kestrel-chroot-lib > ${os_dir}/tmp/hook
             
@@ -277,7 +283,10 @@ run_template() {
             
             rm /tmp/hook
         fi
-    
+        
+        [[ "${run}" == "edit" ]] &&
+            perms_and_backup
+        
     else
         
         template_file "${path}" "${FILE}"
@@ -329,8 +338,8 @@ search_backup_file() {
     #   ${file}  =~ [optional/path/]filename[.version]
     if [[ "${file}" =~ ^${backup_re}$ ]]; then
          dirname=${BASH_REMATCH[1]}
-         version=${BASH_REMATCH[3]%.actual}
-         version=${version:-.last}
+         version=${BASH_REMATCH[3]%\:actual}
+         version=${version:-\:last}
         filename=${BASH_REMATCH[2]%${version}}
     else
         die "Invalid filename: \"${file}\""
@@ -394,6 +403,23 @@ list_backup_versions() {
 }
 
 
+# list_original_files <os_dir>
+# 
+#     
+
+list_original_files() {
+    local os_dir="${1}"
+    
+    ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/";
+    
+      # List backup files which match the regular expression
+      find . -type l -regextype posix-egrep -iregex "${backup_link_re}$" | 
+      
+      # Remove "./". Show only last files
+      sed -rn 's#\.\/##; s#^(.*)\:orig$#\1#p' ) | sort
+}
+
+
 # list_backup_files <os_dir> [file[.(version|last|actual)]]
 # 
 #     
@@ -415,17 +441,17 @@ list_backup_files() {
              -o         -iregex ".*/${dirname}${filename}${version_back_re}$" |
           
           # Remove "./". Add a new entry ".actual" for each ".last" entry
-          sed -r 's#\.\/##; s#^((.*)\.last)$#\1\n\2.actual#' )
+          sed -r 's#\.\/##; s#^((.*)\:last)$#\1\n\2:actual#' )
      
      else
         ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/";
         
           # List backup files which match the regular expression
-          find . ! -type d -regextype posix-egrep -iregex "${backup_re}$" | 
+          find . -regextype posix-egrep \
+             \( -type l -iregex "${backup_link_re}$" \) \
+             -o         -iregex "${backup_back_re}$" | 
           
           # Remove "./". Add a new entry ".actual" for each ".last" entry
-          sed -r 's#\.\/##; s#^((.*)\.last)$#\1\n\2.actual#' )
-     fi
+          sed -r 's#\.\/##; s#^((.*)\:last)$#\1\n\2:actual#' )
+     fi | sort
 }
-
-
