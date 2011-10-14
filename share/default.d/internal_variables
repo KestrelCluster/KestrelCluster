@@ -18,10 +18,12 @@ mac_re="${mac_re}\:${mac_re}"
 # TODO IPv6
 ip_re="${ip4_re}"
 
-version_re="\.([0-9]+|orig(\.[0-9]+)?|last|actual)"
-version_back_re="\.([0-9]+)"
-version_link_re="\.(orig(\.[0-9]+)?|last)"
-backup_re="(.*\/)*([^\/\.]+)(.*${version_re})?"
+version_re="\:([0-9]+|orig(\.[0-9]+)?|last|actual)"
+version_back_re="\:([0-9]+)"
+version_link_re="\:(orig(\.[0-9]+)?|last)"
+backup_re="(.*\/)*([^\/\:]+)(.*${version_re})?"
+backup_back_re="(.*\/)*([^\/\:]+).*${version_back_re}"
+backup_link_re="(.*\/)*([^\/\:]+).*${version_link_re}"
 
 # NOTE: Adding new subexpressions using parenthesis in regular expresions may 
 # change the index used to refer to other subexpressions breaking the behavior 
