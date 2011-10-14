@@ -136,7 +136,7 @@ restore_file() {
         local last_stat="${last_file##*:}"
         
         # Compare the actual stat, and the stat (on the name) of the last backup
-        if [ ! "${dest_stat}" ==  "${last_stat}" ]; then
+        if [ "${dest_stat}" ==  "${last_stat}" ]; then
             rm "${back_file%/*}/${last_file}"
         else
             cp -a "${dest_file}" "${back_file}:${dest_stat}"
