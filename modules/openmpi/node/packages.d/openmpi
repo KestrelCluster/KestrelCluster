@@ -1,4 +1,3 @@
 #!/bin/bash
 
-[ "${OPENMPI}" == "true" ] &&
 echo openmpi-bin

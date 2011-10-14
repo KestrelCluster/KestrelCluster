@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# Set the authorized_keys file on the nodes. For security reasons we try to
+# export a different home dir, and use a different authorized_keys than the one
+# used on the frontend.
+
+user_auth="/${KESTREL_HOME#/}/%u/.ssh/authorized_keys"
+
+set_variable "AuthorizedKeysFile" "${user_auth}" ${FILE} ""

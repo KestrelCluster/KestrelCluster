@@ -1,9 +1,0 @@
-#!/bin/sh
-
-[ -e /dev/input/by-path/platform-pcspkr-event-spkr ] &&
-    PCSPKR="-e /dev/input/by-path/platform-pcspkr-event-spkr"
-
-. /etc/beep_melody
-
-beep \$PCSPKR \$BEEP
-

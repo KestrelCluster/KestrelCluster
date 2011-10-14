@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Disables key based access to the frontend if /home/ dir is exported
+
+if [[ "$HOME_MODE" == "home" ]]; then
+    
+    set_variable "PubkeyAuthentication" "no" ${FILE} " "
+    
+else
+    
+    restore ${FILE}
+    
+fi

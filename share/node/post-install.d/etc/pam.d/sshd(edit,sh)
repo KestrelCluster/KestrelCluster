@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Disable the Message of the day
+sed -ri '/^[[:space:]]*session.*pam_motd\.so/s/^/#/' ${FILE}

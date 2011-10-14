@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# This script creates the pxelinux config file for booting into the configured
-# image.
-
-[ -n "${PLYMOUTH_THEME}" ] && PLYMOUTH_THEME=plymouth:splash=${PLYMOUTH_THEME}
-

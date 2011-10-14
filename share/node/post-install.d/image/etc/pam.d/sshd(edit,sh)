@@ -1,3 +1,0 @@
-#!/bin/bash
-
-sed -ri '/^[[:space:]]*session.*pam_motd\.so/s/^/#/' $FILE

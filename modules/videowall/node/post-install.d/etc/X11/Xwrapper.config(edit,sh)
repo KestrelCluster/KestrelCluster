@@ -1,0 +1,3 @@
+#!/bin/bash
+
+set_variable "allowed_users" "anybody" ${FILE}

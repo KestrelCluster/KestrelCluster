@@ -1,0 +1,30 @@
+# SecuringNFS. http://wiki.debian.org/SecuringNFS
+
+[rpc.nfsd]
+title=RPC nfsd
+description=
+ports=2049
+
+[rpc.nfs-cb]
+title=RPC nfs callback
+ports=32764
+
+[rpc.statd-bc]
+title=RPC statd broadcast
+ports=32765
+
+[rpc.statd]
+title=RPC statd listen
+ports=32766
+
+[rpc.mountd]
+title=RPC mountd
+ports=32767
+
+[rpc.lockd]
+title=RPC lockd/nlockmgr
+ports=32768
+
+[rpc.quotad]
+title=RPC quotad
+ports=32769

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [ -e /etc/init/ufw.conf ] && [ "$(initctl status ufw)" == "ufw start/running" ]; then
+    
+    initctl restart ufw
+    
+elif [ -x /etc/init.d/ufw ] && /etc/init.d/ufw status &> /dev/null; then
+    
+    /etc/init.d/ufw restart
+
+fi
