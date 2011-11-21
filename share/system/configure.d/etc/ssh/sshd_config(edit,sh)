@@ -8,6 +8,6 @@ if [[ "$HOME_MODE" == "home" ]]; then
     
 else
     
-    restore_file ${FILE}
+    restore_file
     
 fi
