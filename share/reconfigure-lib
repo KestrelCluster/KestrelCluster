@@ -151,6 +151,7 @@ run_template() {
     local flag
     local dest_file
     local dest_stat
+    local FILE
     
     local IFS="\,"
     
@@ -253,7 +254,7 @@ run_template() {
         # Ensure an editted file exits or create a backup
         [[ "${run}" == "edit" ]] &&
             if [ -f "${os_dir}/${file}" ]; then     
-                test_backup "${os_dir}/${file}" 
+                test_backup
                 
             else
                 mkdir -p "${os_dir}/${file%/*}"
@@ -263,7 +264,7 @@ run_template() {
         # Under a chroot?
         if [[ ! -n "${chroot}" ]]; then
             
-            local FILE="${os_dir}/${file}"
+            FILE="${os_dir}/${file}"
             
             . "${path}" ${args}
             
@@ -288,8 +289,7 @@ run_template() {
             perms_and_backup
         
     else
-        
-        template_file "${path}" "${FILE}"
+        template_file "${path}" "${os_dir}/${file}"
         
         [ "${file%/*}" == "/etc/init.d" ] && install_service
     fi
@@ -420,7 +420,7 @@ list_original_files() {
 }
 
 
-# list_backup_files <os_dir> [file[.(version|last|actual)]]
+# list_backup_files <os_dir> [file[:(version|last|actual)]]
 # 
 #     
 
@@ -435,12 +435,14 @@ list_backup_files() {
         search_backup_file "${file}"
         
         ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/"
-          
+
+          filename="${dirname}${filename}"
+
           find . -regextype posix-egrep \
-             \( -type l -iregex ".*/${dirname}${filename}${version_link_re}$" \) \
-             -o         -iregex ".*/${dirname}${filename}${version_back_re}$" |
+             \( -type l -iregex ".*/${filename}${version_link_re}$" \) \
+             -o         -iregex ".*/${filename}${version_back_re}$" |
           
-          # Remove "./". Add a new entry ".actual" for each ".last" entry
+          # Remove "./". Add a new entry ":actual" for each ":last" entry
           sed -r 's#\.\/##; s#^((.*)\:last)$#\1\n\2:actual#' )
      
      else
