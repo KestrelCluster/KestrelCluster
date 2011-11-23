@@ -168,7 +168,7 @@ run_template() {
                 ;;
             
             #  edit mode or template mode (by default)
-            edit|run)
+            edit|run|package)
                 run="${flag}"
                 ;;
             template)
@@ -231,62 +231,97 @@ run_template() {
     
     if [ -n "${run}" ]; then
         
-        echo "script: ${path}"
-        echo "tofile: ${file}"
-        [ -n "${label}" ] && echo "label:  ${label}"
-        [ -n "${user}"  ] && echo "user:   ${user}"
-        [ -n "${group}" ] && echo "group:  ${group}"
-        [ -n "${mode}"  ] && echo "mode:   ${mode}"
-        [ -n "${link}"  ] && echo "link:   ${link}"
-        
-        local tofile=${file}
-        
-        # Ensure an editted file exits or create a backup
-        [[ "${run}" == "edit" ]] &&
-            if [ -f "${os_dir}/${file}" ]; then     
-                test_backup
+        if [[ "${args}" == @(install|enable) ]]; then
+            
+            echo "script: ${path}"
+            echo "tofile: ${file}"
+            [ -n "${label}" ] && echo "label:  ${label}"
+            [ -n "${user}"  ] && echo "user:   ${user}"
+            [ -n "${group}" ] && echo "group:  ${group}"
+            [ -n "${mode}"  ] && echo "mode:   ${mode}"
+            [ -n "${link}"  ] && echo "link:   ${link}"
+            
+            local tofile=${file}
+            
+            # If a file is being edited, first create a backup or create the file
+            [[ "${run}" == "edit" ]] &&
+                if [ -f "${os_dir}/${file}" ]; then     
+                    test_backup
+                    
+                else
+                    mkdir -p "${os_dir}/${file%/*}"
+                    touch -d "@0" "${os_dir}/${file}"
+                fi
+            
+            # Run the package script
+            if [[ "${run}" == "package" ]]; then
+                local packages=$(. ${path} )
                 
+                export LANG=C
+                export DEBIAN_FRONTEND=noninteractive
+                chroot ${os_dir} apt-get -qq -y install ${packages}
+            
+            # Run the edit or run script under a chroot
+            elif [[ ! -n "${chroot}" ]]; then
+                
+                FILE="${os_dir}/${file}"
+                
+                . "${path}" ${args}
+                
+            # Run the edit or run script
             else
-                mkdir -p "${os_dir}/${file%/*}"
-                touch -d "@0" "${os_dir}/${file}"
+                export FILE=${file}
+                
+                # Copy the basic chroot kestrel-lib
+                cat < ${KESTREL_SHARE}/kestrel-chroot-lib > ${os_dir}/tmp/hook
+                
+                # Copy the script to the chroot
+                cat < ${path} >> ${os_dir}/tmp/hook
+                chmod 755 ${os_dir}/tmp/hook
+                
+                # Avoid any locale setting
+                export LANG=C
+                chroot ${os_dir} /tmp/hook ${args}
+                
+                rm /tmp/hook
             fi
-        
-        # Under a chroot?
-        if [[ ! -n "${chroot}" ]]; then
             
-            FILE="${os_dir}/${file}"
-            
-            . "${path}" ${args}
+            [[ "${run}" == "edit" ]] &&
+                perms_and_backup
             
         else
-            export FILE=${file}
+            echo "file: ${file}"
             
-            # Copy the basic chroot kestrel-lib
-            cat < ${KESTREL_SHARE}/kestrel-chroot-lib > ${os_dir}/tmp/hook
+            if [[ "${run}" == "edit" ]]; then
+                restore_file
             
-            # Copy the script to the chroot
-            cat < ${path} >> ${os_dir}/tmp/hook
-            chmod 755 ${os_dir}/tmp/hook
-            
-            # Avoid any locale setting
-            export LANG=C
-            echo chroot ${os_dir} /tmp/hook ${args}
-            
-            rm /tmp/hook
+            # Run the package script
+            elif [[ "${run}" == "package" ]]; then
+                local packages=$(. ${path} )
+                
+                export LANG=C
+                export DEBIAN_FRONTEND=noninteractive
+                chroot ${os_dir} apt-get -qq -y remove ${packages}
+            fi
         fi
         
-        [[ "${run}" == "edit" ]] &&
-            perms_and_backup
-        
     else
-        echo "template: ${path}"
-        echo "tofile:   ${file}"
-        [ -n "${user}"  ] && echo "user:     ${user}"
-        [ -n "${group}" ] && echo "group:    ${group}"
-        [ -n "${mode}"  ] && echo "mode:     ${mode}"
-        [ -n "${link}"  ] && echo "link:     ${link}"
         
-        template_file "${path}" "${file}"
+        if [[ ! "${args}" == @(install|enable) ]]; then
+            restore_file
+        else
+            echo "template: ${path}"
+            echo "tofile:   ${file}"
+            [ -n "${user}"  ] && 
+                echo "user:     ${user}"  ||  user=$(stat -c %u "${path}")
+            [ -n "${group}" ] && 
+                echo "group:    ${group}" || group=$(stat -c %g "${path}")
+            [ -n "${mode}"  ] && 
+                echo "mode:     ${mode}"  ||  mode=$(stat -c %a "${path}")
+            [ -n "${link}"  ] && echo "link:     ${link}"
+            
+            template_file "${path}" "${file}"
+        fi
         
         [ "${file%/*}" == "/etc/init.d" ] && install_service
     fi
@@ -303,7 +338,7 @@ install_service() {
     if [[ ! "${args}" == @(install|enable) ]]; then
         
         ${chroot} update-rc.d -f ${file} remove
-
+        
     else
         # Remove the init script links
         ${chroot} update-rc.d -f ${file} remove >/dev/null
