@@ -222,7 +222,7 @@ run_template() {
             sh|python)
                 ;;
             
-            *)
+            ?*)
                 echo "unsupported flag: \"${flag}\" on dir: \"${dir}\""
                 ;;
         esac
