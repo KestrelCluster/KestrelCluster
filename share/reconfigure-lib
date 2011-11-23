@@ -229,24 +229,15 @@ run_template() {
     
     export file action user group mode link
     
-    echo "path:     $path"
-    echo "name:     $file"
-    echo
-    echo "run:      ${run:-no}"
-    [ -n "${run}" ] &&
-    echo "template: no" ||
-    echo "template: yes"
-    echo "chroot:   ${chroot:-no}"
-    echo 
-    echo "user:     $user"
-    echo "group:    $group"
-    echo "mode:     $mode"
-    echo "link:     $link"
-    echo "label:    $label"
-    echo
-    
-    
     if [ -n "${run}" ]; then
+        
+        echo "script: ${path}"
+        echo "tofile: ${file}"
+        [ -n "${label}" ] && echo "label:  ${label}"
+        [ -n "${user}"  ] && echo "user:   ${user}"
+        [ -n "${group}" ] && echo "group:  ${group}"
+        [ -n "${mode}"  ] && echo "mode:   ${mode}"
+        [ -n "${link}"  ] && echo "link:   ${link}"
         
         local tofile=${file}
         
@@ -288,6 +279,13 @@ run_template() {
             perms_and_backup
         
     else
+        echo "template: ${path}"
+        echo "tofile:   ${file}"
+        [ -n "${user}"  ] && echo "user:     ${user}"
+        [ -n "${group}" ] && echo "group:    ${group}"
+        [ -n "${mode}"  ] && echo "mode:     ${mode}"
+        [ -n "${link}"  ] && echo "link:     ${link}"
+        
         template_file "${path}" "${file}"
         
         [ "${file%/*}" == "/etc/init.d" ] && install_service
