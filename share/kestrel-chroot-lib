@@ -78,6 +78,7 @@ test_backup() {
             last_file=$(readlink -n "${back_file}:last")
             
             [ "${dest_stat}" ==  "${last_file##*:}" ] &&
+              [ -e "${back_file%/*}/${last_file}" ] &&
                 rm "${back_file%/*}/${last_file}"
         
         # When installing the first time save the original file
