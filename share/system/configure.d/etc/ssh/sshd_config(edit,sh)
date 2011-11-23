@@ -2,7 +2,7 @@
 
 # Disables key based access to the frontend if /home/ dir is exported
 
-if [[ "$HOME_MODE" == "home" ]]; then
+if [[ "$KESTREL_HOME" == "home" ]]; then
     
     set_key_value "PubkeyAuthentication" "no" ${FILE} " "
     

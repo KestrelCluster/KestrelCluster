@@ -48,7 +48,7 @@ load_config() {
     # TODO: In the future we may/should add more variable checking
     
     # Remove the first and the last "/" if they exist.
-    [[ "$HOME_MODE" =~ ^/?([^/]*)/?$ ]] && HOME_MODE=${BASH_REMATCH[1]:-kestrel}
+    [[ "$KESTREL_HOME" =~ ^/?([^/]*)/?$ ]] && KESTREL_HOME=${BASH_REMATCH[1]}
 }
 
 

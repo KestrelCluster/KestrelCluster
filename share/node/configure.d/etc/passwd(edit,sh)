@@ -2,9 +2,8 @@
 
 list_users | while read user; do
 
-   home=/${HOME_MODE}/${user}
+   home=/${KESTREL_HOME}/${user}
 
-   sed -ri "/^${user}:/s#^(.*:.*:.*:.*:.*:).*(:.*)#\1/${home}\2#" \
-           ${FILE}
+   sed -ri "/^${user}:/s#^(.*:.*:.*:.*:.*:).*(:.*)#\1/${home}\2#" ${FILE}
 
 done

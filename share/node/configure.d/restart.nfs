@@ -31,9 +31,9 @@ mount_dir=$(mount | sed -rn "s/^.*\s(.*\/kestrel\/home)\s+.*$/\1/p")
 # Check if the new mount dir is different from the old one
 if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
 
-    install -d /${HOME_MODE}
+    install -d /${KESTREL_HOME}
     
-    mount --bind /${HOME_MODE} ${new_mount_dir}
+    mount --bind /${KESTREL_HOME} ${new_mount_dir}
     
     if [ -x /etc/init.d/nfs-kernel-server ]; then
         /etc/init.d/nfs-kernel-server restart
