@@ -14,7 +14,7 @@
 
 copy_file() {
     local   file="${1}"
-    local tofile="${2:-$1}"
+    local tofile="${2#${os_dir}}"
     
     test_backup
     
@@ -29,7 +29,7 @@ copy_file() {
 
 link_file() {
     local   file="${1%\(*\)}"
-    local tofile="${2:-$1}"
+    local tofile="${2#${os_dir}}"
     
     test_backup
     
@@ -45,7 +45,7 @@ link_file() {
 
 template_file() {
     local   file="${1}"
-    local tofile="${2}"
+    local tofile="${2#${os_dir}}"
     
     test_backup
     
@@ -102,9 +102,10 @@ perms_and_backup() {
     local back_file="${os_dir}/${KESTREL_BACKUP_DIR}/${tofile}"
     local dest_stat
     
-    [ -n "${user}"  ] && chown -v "${user}"   "${dest_file}"
-    [ -n "${group}" ] && chown -v ":${group}" "${dest_file}"
-    [ -n "${mode}"  ] && chmod -v "${mode}"   "${dest_file}"
+    [ -n "${user}"  ] && chown "${user}"   "${dest_file}"
+    [ -n "${group}" ] && chown ":${group}" "${dest_file}"
+    [ -n "${mode}"  ] && chmod "${mode}"   "${dest_file}"
+    [ -n "${link}"  ] && link_file "${dest_file}" "${link}"
     
     mkdir -p "${back_file%/*}"
     
