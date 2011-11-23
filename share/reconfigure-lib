@@ -39,7 +39,7 @@ create_evaluation_script() {
 
 find_templates() {
     local  subdir=$1
-    local pattern=$2
+    shift
     
     local file
     local label
@@ -69,11 +69,11 @@ find_templates() {
     # List scripts on ${share_dir} and on ${etc_dir}
     ( 
       cd ${share_dir} &&
-      find . -type f ${pattern}
+      find . -type f $@
       
       [ -n "${etc_dir}" ] &&
       cd ${etc_dir} &&
-      find . -type f ${pattern}
+      find . -type f $@
       
     ) | \
     
