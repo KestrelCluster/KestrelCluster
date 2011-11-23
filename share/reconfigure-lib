@@ -119,8 +119,7 @@ find_templates() {
 #     Context parameters
 #       
 #       <os_dir>          = "" or an image directory.
-#       <flags2>          = "" or an indirect reference to an array of 
-#                           additional flags. Useful for overriding the default 
+#       <flags2>          = Additional flags. Useful for overriding the default 
 #                           flags.
 #       <args>            = @("install" | "uninstall" | "enable" | "disable") +
 #                           more_options*
@@ -132,7 +131,7 @@ run_template() {
     local  flags=$3
     local  label=$4
     local os_dir=${5%/}
-    local flags2=(${!6})
+    local flags2=$6
     
     shift 6
     
@@ -156,7 +155,7 @@ run_template() {
     local IFS="\,"
     
     # Check flags
-    for flag in ${flags} "${flags2[@]}"; do
+    for flag in ${flags} ${flags2}; do
         
         case "${flag}" in
             
