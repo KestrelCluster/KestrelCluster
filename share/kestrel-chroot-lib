@@ -82,8 +82,8 @@ test_backup() {
                 rm "${back_file%/*}/${last_file}"
         
         # When installing the first time save the original file
-        elif [[ "${action}" == @(install|enable) && 
-           ! -L "${back_file}:orig" && ! -d "${dest_file}" ]]; then
+        elif [[ "${action}" == @(install|enable) && ! -d "${dest_file}" &&
+           ! -L "${back_file}:orig" && "${dest_stat}" == "0" ]]; then
             
             cp -a "${dest_file}" "${back_file}:${dest_stat}"
             

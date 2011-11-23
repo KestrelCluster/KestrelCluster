@@ -258,7 +258,7 @@ run_template() {
                 
             else
                 mkdir -p "${os_dir}/${file%/*}"
-                touch "${os_dir}/${file}"
+                touch -d "@0" "${os_dir}/${file}"
             fi
         
         # Under a chroot?
