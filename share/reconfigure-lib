@@ -106,55 +106,10 @@ find_templates() {
 }
 
 
-# run_template <template_path> <template> <flags> <label> 
-#                <os_dir> <flags2> <args>+
+# check_flags
 # 
-#     Template information (obtained from a "find_templates" call)
-#
-#       <template_path>   = Path to the template/script
-#       <template>        = Name of the template/script
-#       <flags>           = Flags
-#       <label>           = Label
 #     
-#     Context parameters
-#       
-#       <os_dir>          = "" or an image directory.
-#       <flags2>          = Additional flags. Useful for overriding the default 
-#                           flags.
-#       <args>            = @("install" | "uninstall" | "enable" | "disable") +
-#                           more_options*
-#
-
-run_template() {
-    local   path=$1
-    local   file=$(evaluate_template <<<$2)
-    local  flags=$3
-    local  label=$4
-    local os_dir=${5%/}
-    local flags2=$6
-    
-    shift 6
-    
-    local action=$1
-    local   args=$@
-    
-    # default values
-    local chroot
-    local run
-    local user
-    local group
-    local mode
-    local link
-    local label
-    
-    local flag
-    local dest_file
-    local dest_stat
-    local FILE
-    
-    local IFS="\,"
-    
-    # Check flags
+check_flags() {
     for flag in ${flags} ${flags2}; do
         
         case "${flag}" in
@@ -208,7 +163,9 @@ run_template() {
             \$[a-zA-Z\-\_]*$|\$\{[a-zA-Z\-\_]*\})
                 if [[ "${flag}" =~ ^\$\{?([^}]*)\}?$ ]] &&
                    [[ "${!BASH_REMATCH[1]}" != "yes" ]]; then
-                    restore_file
+                    
+                    # Only restore if we are really running the template
+                    [ -n "${action}" ] && restore_file
                     return 0
                 fi
                 ;;
@@ -216,6 +173,13 @@ run_template() {
             # Label
             \"*\")
                 label=${flag}
+                
+                # Check if the label is disabled
+                variable=${label}_disabled
+                [ "${!variable}" == "true" ] && return 0
+                
+                variable=${label}_${image_name}_disabled
+                [ "${!variable}" == "true" ] && return 0
                 ;;
             
             sh|python)
@@ -226,6 +190,58 @@ run_template() {
                 ;;
         esac
     done
+}
+
+
+# run_template <template_path> <template> <flags> <label> 
+#                <os_dir> <flags2> <args>+
+# 
+#     Template information (obtained from a "find_templates" call)
+#
+#       <template_path>   = Path to the template/script
+#       <template>        = Name of the template/script
+#       <flags>           = Flags
+#       <label>           = Label
+#     
+#     Context parameters
+#       
+#       <os_dir>          = "" or an image directory.
+#       <flags2>          = Additional flags. Useful for overriding the default 
+#                           flags.
+#       <args>            = @("install" | "uninstall" | "enable" | "disable") +
+#                           more_options*
+#
+
+run_template() {
+    local   path=$1
+    local   file=$(evaluate_template <<<$2)
+    local  flags=$3
+    local  label=$4
+    local os_dir=${5%/}
+    local flags2=$6
+    
+    shift 6
+    
+    local action=$1
+    local   args=$@
+    
+    # default values
+    local chroot
+    local run
+    local user
+    local group
+    local mode
+    local link
+    local label
+    
+    local flag
+    local dest_file
+    local dest_stat
+    local FILE
+    
+    local IFS="\,"
+    
+    check_flags
     
     export file action user group mode link
     
