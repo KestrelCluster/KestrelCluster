@@ -505,3 +505,103 @@ list_backup_files() {
           sed -r 's#\.\/##; s#^((.*)\:last)$#\1\n\2:actual#' )
      fi | sort
 }
+
+
+
+diff_files() {
+    local os_dir="${1}"
+    local  file1="${2}"
+    local  file1="${3}"
+    local dirname
+    local version
+    local filename
+    
+    if [ ! -e "${file1}" ]; then
+        search_backup_file "${file1}"
+        file1="${dirname}/${filename}/${version}"
+    fi
+    
+    if [ ! -e "${file2}" ]; then
+        search_backup_file "${file2}"
+        file2="${dirname}/${filename}/${version}"
+    fi
+    
+    diff -urN ${file1} ${file2}
+}
+
+
+# log functions
+################
+
+list_log_times() {
+    local stage="${1}"
+    local   log="${image_dir}/${KESTREL_BACKUP_DIR}/log/${stage}"
+    
+    [ -e "${log}" ] && grep -E "${log_time_re}" "${log}"
+}
+
+
+show_log_file() {
+    local stage="${1}"
+    local  time="${2}"
+    local   log="${image_dir}/${KESTREL_BACKUP_DIR}/log/${stage}"
+    
+    if [ -z "${time}" ]; then
+        time=$(list_log_times ${1} | tail -n1)
+    elif ! [[ ${time} =~ ${log_time_re} ]]; then
+        die "Invalid time: ${time}"
+    fi
+    
+    [ -e "${log}" ] && sed -rn "/^${time}$/,/^${log_time_re}$/ {
+        /^${log_time_re}$/!p; /^${time}$/p; }" "${log}"
+}
+
+
+# stage configuration functions
+################################
+
+# run_configuration_stage <node|system> <stage> [<optional flags>]
+# 
+#     Runs the configuration stage
+
+run_configuration_stage() {
+    local scope="${1}"
+    local stage="${2}"
+    local oflag="${3}"
+    local   dir="${scope}/${stage}.d"
+    local   log="${image_dir}/${KESTREL_BACKUP_DIR}/log/${stage}"
+    
+    mkdir -p "${log%/*}"
+    
+    {
+        echo ${config_date:-$(date "+%F %T")}
+        echo "===================" 
+    } >> "${log}" 2>&1
+    
+    find_templates "${dir}" -iregex '.*/check\..*' |
+    while read path FILE flags label; do
+        echo "${FILE}"
+        run_template "${path}" "${FILE}" "${flags}" "${label}" \
+                     "${image_dir}" "run,${oflag}" "${event}"  \
+                     >> "${log}" 2>&1
+        
+    done
+    
+    find_templates "${dir}" ! -iregex '.*/\(check\|run\|restart\)\..*' |
+    while read path FILE flags label; do
+        echo "${FILE}"
+        run_template "${path}" "${FILE}" "${flags}" "${label}" \
+                     "${image_dir}" "${oflag}"     "${event}"  \
+                     >> "${log}" 2>&1
+        
+    done
+    
+    find_templates "${dir}" -iregex '.*/\(run\|restart\)\..*' |
+    while read path FILE flags label; do
+        echo "${FILE}"
+        run_template "${path}" "${FILE}" "${flags}" "${label}" \
+                     "${image_dir}" "run,${oflag}" "${event}"  \
+                     >> "${log}" 2>&1
+        
+    done
+}
