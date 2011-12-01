@@ -538,7 +538,7 @@ diff_files() {
 
 list_log_times() {
     local stage="${1}"
-    local   log="${image_dir}/${KESTREL_BACKUP_DIR}/log/${stage}"
+    local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     
     [ -e "${log}" ] && grep -E "${log_time_re}" "${log}"
 }
@@ -547,7 +547,7 @@ list_log_times() {
 show_log_file() {
     local stage="${1}"
     local  time="${2}"
-    local   log="${image_dir}/${KESTREL_BACKUP_DIR}/log/${stage}"
+    local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     
     if [ -z "${time}" ]; then
         time=$(list_log_times ${1} | tail -n1)
@@ -557,6 +557,11 @@ show_log_file() {
     
     [ -e "${log}" ] && sed -rn "/^${time}$/,/^${log_time_re}$/ {
         /^${log_time_re}$/!p; /^${time}$/p; }" "${log}"
+}
+
+
+list_log_files() {
+    ls -1 ${image_dir}/${KESTREL_LOG_DIR}
 }
 
 
@@ -572,7 +577,7 @@ run_configuration_stage() {
     local stage="${2}"
     local oflag="${3}"
     local   dir="${scope}/${stage}.d"
-    local   log="${image_dir}/${KESTREL_BACKUP_DIR}/log/${stage}"
+    local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     
     mkdir -p "${log%/*}"
     
