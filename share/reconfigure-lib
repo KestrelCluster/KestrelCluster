@@ -312,7 +312,7 @@ run_template() {
                 restore_file
             
             # Run the package script
-            elif [[ "${run}" == "package" ]]; then
+            elif [[ "${run}" == "package" && -z "${os_dir}" ]]; then
                 local packages=$(. ${path} )
                 
                 export LANG=C
