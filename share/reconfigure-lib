@@ -256,6 +256,7 @@ run_template() {
             [ -n "${group}" ] && echo "group:  ${group}"
             [ -n "${mode}"  ] && echo "mode:   ${mode}"
             [ -n "${link}"  ] && echo "link:   ${link}"
+            echo
             
             local tofile=${file}
             
@@ -307,6 +308,7 @@ run_template() {
             
         else
             echo "file: ${file}"
+            echo
             
             if [[ "${run}" == "edit" ]]; then
                 restore_file
@@ -335,6 +337,7 @@ run_template() {
             [ -n "${mode}"  ] && 
                 echo "mode:     ${mode}"  ||  mode=$(stat -c %a "${path}")
             [ -n "${link}"  ] && echo "link:     ${link}"
+            echo
             
             template_file "${path}" "${file}"
         fi
