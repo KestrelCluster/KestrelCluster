@@ -3,6 +3,9 @@
 # Check if the hostname is defined
 if [ -n "${hostname}" ]; then
 
+[ ! -e  /etc/ssh/ssh_known_hosts ] &&
+  touch /etc/ssh/ssh_known_hosts
+
 case ${action} in
     connect|register)
         sed -ri "/^${hostname}[[:space:]]/d" /etc/ssh/ssh_known_hosts
