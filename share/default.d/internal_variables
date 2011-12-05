@@ -59,6 +59,9 @@ KESTREL_BACKUP_DIR=${KESTREL_DATA_DIR}/backup
 # Directory containing the log files
 KESTREL_LOG_DIR=${KESTREL_DATA_DIR}/backup
 
+# Directory containing the lock files
+KESTREL_LOCK_DIR=${KESTREL_DATA_DIR}/lock
+
 # Directory containing the chroot jail where the RPC will be run
 KESTREL_RPC_DIR=${KESTREL_DATA_DIR}/rpc
 

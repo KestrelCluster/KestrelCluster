@@ -169,13 +169,23 @@ default-image() {
 lock_image() {
     local image_name=$1
 
-    exec 200>${KESTREL_IMAGE_DIR}/.${image_name}.lock
+    exec 200> ${KESTREL_LOCK_DIR}/${image_name}.lock
 
-    if ! flock --nonblock --exclusive 200; then 
+    if ! flock --nonblock --exclusive 200; then
         echo "Waiting till the image gets unlocked"
         flock --exclusive 200
     fi
 }
+
+
+# rm_lock_image
+# 
+#     Delete lock
+
+rm_lock_image() {
+    rm ${KESTREL_LOCK_DIR}/${image_name}.lock
+}
+
 
 
 # User and Permission functions
