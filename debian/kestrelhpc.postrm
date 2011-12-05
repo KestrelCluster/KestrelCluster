@@ -21,12 +21,6 @@ set -e
 case "$1" in
     purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
         
-        [ -e /etc/init.d/kestrel_halt_cluster ] &&
-            update-rc.d -f kestrel_halt_cluster remove >/dev/null
-        
-        [ -e /etc/init.d/kestrel_daemon ] &&
-            update-rc.d -f kestrel_daemon remove >/dev/null
-        
         if [ -n "`id -u kestrel`" ]; then
             deluser --remove-home kestrel > /dev/null || true
         fi
