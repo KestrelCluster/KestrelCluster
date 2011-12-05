@@ -24,7 +24,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z   "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ ! -d "$KESTREL_SHARE" ] && KESTREL_SHARE="${0%/*}/share"
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib

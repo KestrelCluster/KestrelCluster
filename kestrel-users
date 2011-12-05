@@ -16,7 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z   "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ ! -d "$KESTREL_SHARE" ] && KESTREL_SHARE="${0%/*}/share"
 
 # load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
@@ -92,6 +93,7 @@ _add() {
 
 _add-to-cluster() {
     local user=$1
+    
     # check if the user exists.
     if ! id ${user} &>/dev/null; then
         echo "The user \"${user}\" doesn't exist on the system"
@@ -159,7 +161,7 @@ while (( $# > 0 )); do
             # Ensure this script is executed as root
             check_root
 
-            # Call the corresponding function
+            # Call the corresponding function: _add, _add-to-cluster, _delete
             _${1#--} "$2"
             
             shift
