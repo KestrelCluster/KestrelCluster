@@ -57,7 +57,7 @@ KESTREL_IMAGE_DIR=${KESTREL_DATA_DIR}/images
 KESTREL_BACKUP_DIR=${KESTREL_DATA_DIR}/backup
 
 # Directory containing the log files
-KESTREL_LOG_DIR=${KESTREL_DATA_DIR}/backup
+KESTREL_LOG_DIR=${KESTREL_DATA_DIR}/log
 
 # Directory containing the lock files
 KESTREL_LOCK_DIR=${KESTREL_DATA_DIR}/lock
