@@ -26,14 +26,6 @@ KESTREL_SHARE=/usr/share/kestrel
 case "$1" in
     remove|upgrade)
         
-        if [ "$1" = "remove" ]; then
-            invoke-rc.d kestrel_halt_cluster stop
-        fi
-        
-        [ -x /etc/init.d/kestrel_daemon ] &&
-            invoke-rc.d kestrel_daemon stop
-        
-        
         kestrel-reconfigure --disable
         
         if [ "$1" = "remove" ]; then
