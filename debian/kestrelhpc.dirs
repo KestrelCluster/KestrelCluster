@@ -3,5 +3,8 @@
 /var/lib/kestrel/rpc/lib
 /var/lib/kestrel/rpc/etc
 /var/lib/kestrel/images
+/var/lib/kestrel/lock
+/var/lib/kestrel/backup
+/var/lib/kestrel/log
 /var/lib/kestrel/tftpboot
 /var/lib/kestrel/tftpboot/pxelinux.cfg
