@@ -116,6 +116,8 @@ find_templates() {
 # 
 #     
 check_flags() {
+    local flag
+    
     for flag in ${flags} ${flags2}; do
         
         case "${flag}" in
@@ -240,7 +242,6 @@ run_template() {
     local link
     local label
     
-    local flag
     local dest_file
     local dest_stat
     local FILE
@@ -280,9 +281,19 @@ run_template() {
             if [[ "${run}" == "package" ]]; then
                 local packages=$(. ${path} )
                 
+                echo -e "install:${packages}\n" \
+                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-history
+                
+                echo -e "install:${packages}\n" \
+                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
+                
                 export LANG=C
                 export DEBIAN_FRONTEND=noninteractive
-                chroot ${os_dir} apt-get -qq -y install ${packages}
+                export DEBIAN_PRIORITY=critical
+                export DEBCONF_NONINTERACTIVE_SEEN=true
+                
+                chroot ${os_dir} apt-get -q -y --force-yes install ${packages} \
+                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
             
             # Run the edit or run script under a chroot
             elif [[ ! -n "${chroot}" ]]; then
@@ -323,9 +334,16 @@ run_template() {
             elif [[ "${run}" == "package" && -z "${os_dir}" ]]; then
                 local packages=$(. ${path} )
                 
+                echo -e "remove:${packages}\n" \
+                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-history
+                
+                echo -e "remove:${packages}\n" \
+                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
+                
                 export LANG=C
                 export DEBIAN_FRONTEND=noninteractive
-                chroot ${os_dir} apt-get -qq -y remove ${packages}
+                chroot ${os_dir} apt-get -qq -y remove ${packages} \
+                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
             fi
         fi
         
