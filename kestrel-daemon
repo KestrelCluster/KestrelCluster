@@ -20,40 +20,41 @@ export_config
 NAME=${0##*/}
 LOGFILE=/var/log/${NAME}.log
 PIDFILE=/var/run/${NAME}.pid
-LOCKFILE=/var/lock/${NAME}.lock
-
-# Set verbose flag
-VERBOSE=yes
 
 
-# Check parameters
-case $1 in
-    --version|-v)
-        kestrel_version
-        exit 0
-        ;;
-    --help)
-        echo "KestrelHPC daemon"
-        exit 0
-        ;;
-esac
+usage() {
+echo "
+Usage: ${NAME} options
+
+OPTIONS:
+
+   --start
+     Start the daemon
+
+   --status
+     Check if the daemon is running
+
+   --log
+     Show the log file
+"
+}
 
 
-# Check if the daemon is already running
-if [[ -e "${PIDFILE}" &&
-      -e "/proc/$(cat ${PIDFILE})" ]]; then
-      
-    echo "${NAME} already running"
-    exit 1
-    
-fi
+check_running() {
+    if [[ -e "${PIDFILE}" && -e "/proc/$(cat ${PIDFILE})" ]]; then
+        
+        echo "${NAME} already running"
+        
+        return 1
+    else
+        return 0
+    fi
+}
+
 
 # Remove the PIDFILE and exit when the daemon receives a SIGTERM signal
 close() {
-   exec 200> ${LOCKFILE}
-   flock -x 200
    rm -f ${PIDFILE}
-   rm -f ${LOCKFILE}
    exit 0 
 }
 
@@ -113,14 +114,17 @@ run_event_scripts() {
     case "${action}" in
         # When registering, asign a hostname for the node
         register)
+            # Check if we are registering nodes
+            [ ! -e ${KESTREL_LOCK_DIR}/register ] && return 0
+            
             # Check if the node is not registered to the same group
             if ! registered_nodes "${group}" | grep -Eq "^${hostname}$"; then
-
+                
                 # Look for the last registered node number
                 re="^${KESTREL_HOSTNAME}-${group_re}-(${node_re})$"
                 
-                last_node=$( registered_nodes ${group} | sed -rn "s/${re}/\1/p" |\
-                             sort -n | tail -n1 )
+                last_node=$( registered_nodes ${group} | 
+                             sed -rn "s/${re}/\1/p" | sort -n | tail -n1 )
                 
                 [ -z "${last_node}" ] && last_node=0
                 
@@ -161,7 +165,7 @@ run_event_scripts() {
     # Run event.d script.
     list_scripts "event.d" | \
     while read script; do
-        echo ${script}
+        echo "event script: ${script}"
         . ${script}
     done
 
@@ -171,22 +175,65 @@ run_event_scripts() {
 }
 
 
+# Check parameters
+case $1 in
+    --start)
+        ;;
+        
+    --status)
+        check_running && msg "${NAME} is stopped"
+        exit 0
+        ;;
+        
+    --version|-v)
+        kestrel_version
+        exit 0
+        ;;
+        
+    --help)
+        usage
+        exit 0
+        ;;
+        
+    --log)
+        [ -e  ${LOGFILE} ] &&
+          cat ${LOGFILE}
+        exit 0
+        ;;
+        
+    *)
+        usage-error
+        ;;
+esac
+
+
+# Check if the daemon is already running
+check_running || exit 1
+
+check_root
+
+# Check if Kestrel is enabled
+[ ! -f /etc/init.d/kestrel_daemon ] &&
+    die "KestrelHPC is disabled" \
+        "\t-Enable with : sudo kestrel-reconfigure --enable"
+
+[ ! -p ${KESTREL_RPC_FIFO} ] &&
+    die "Kestrel RPC FIFO: ${KESTREL_RPC_FIFO} not found"
+
+
 # fork twice so the innermost subshell detaches from the current process
 (   (
-        # Delete the lock
-        rm "${LOCKFILE}" &>/dev/null
         
         trap close SIGINT SIGTERM
         
         while :; do
             while read read_line; do
                 ( 
-                #    flock -s 200
                     
                     # Run the event scripts when we read a line
                     run_event_scripts ${read_line}
                     
-                ) # 200> ${LOCKFILE} &
+                )
             done < ${KESTREL_RPC_FIFO}
         done >> ${LOGFILE} 2>&1
     
