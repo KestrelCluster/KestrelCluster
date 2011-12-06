@@ -1,0 +1,15 @@
+description "track if this is lxc instance"
+
+start on startup
+
+env container
+env LIBVIRT_LXC_UUID
+
+pre-start script
+   [ -z $container ] && [ -z $LIBVIRT_LXC_UUID ] && stop
+   # clean up /var/run - in case the container shutdown did not
+   rm -rf /var/run/*
+   touch /var/run/utmp
+   chown root:utmp /var/run/utmp
+   exit 0
+end script

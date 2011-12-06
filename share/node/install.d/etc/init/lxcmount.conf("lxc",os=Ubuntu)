@@ -1,0 +1,36 @@
+description "redirect builtin fstab for lxc"
+
+start on starting mountall
+console output
+task
+
+env container
+env LIBVIRT_LXC_UUID
+
+pre-start script
+        # liblxc sends 'container=lxc'
+        # natty and older libvirt send (only) 'container=libvirt'
+        # oneiric and newer libvirt send (only) 'LIBVIRT_LXC_UUID=<uuid>'
+        if [ -z $container ]; then
+                if [ ! -z $LIBVIRT_LXC_UUID ]; then
+                        container="libvirt"
+                else
+                        stop
+                        exit 0
+                fi
+        fi
+        if [ ! -r /lib/init/fstab.$container ]; then
+                echo "lxcmount: no /lib/init/fstab.$container found"
+                stop
+                exit 0
+        fi
+
+        exit 0;
+end script
+
+script
+        # Pre-start stops us from getting here if it's neither lxc nor libvirt
+        # So empty $container means it's libvirt from (>= oneiric)
+        [ -z $container ] && container="libvirt"
+        exec mount --bind /lib/init/fstab.$container /lib/init/fstab
+end script
