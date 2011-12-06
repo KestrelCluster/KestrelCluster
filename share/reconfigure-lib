@@ -425,11 +425,13 @@ search_backup_file() {
         # Escape the dots for using it as a the regular expression
         local file_re="${dirname}${filename}${version}"
               file_re="${file_re//./\\.}"
-        [[ "${version}" =~ ^${version_link_re}$ ]] &&
-        result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
-                       -iregex "^.*/${file_re}$" -print -quit ) ||
-        result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
-                       -iregex "^.*/${file_re}$" -print -quit )
+        if [[ "${version}" =~ ^${version_link_re}$ ]]; then
+            result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
+                           -iregex "^.*/${file_re}$" -print -quit )
+        else
+            result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
+                           -iregex "^.*/${file_re}$" -print -quit )
+        fi
     else
         result="${os_dir}/${KESTREL_BACKUP_DIR%/}/${file}"
     fi
@@ -455,7 +457,7 @@ search_backup_file() {
 
 # list_backup_versions <os_dir> file[.(version|last|actual)]
 # 
-#     
+#     List the versions of a saved file
 
 list_backup_versions() {
     local os_dir="${1}"
@@ -480,7 +482,7 @@ list_backup_versions() {
 
 # list_original_files <os_dir>
 # 
-#     
+#     List the saved original files
 
 list_original_files() {
     local os_dir="${1}"
@@ -495,9 +497,10 @@ list_original_files() {
 }
 
 
-# list_backup_files <os_dir> [file[:(version|last|actual)]]
+# list_backup_files <os_dir> [file]
 # 
-#     
+#     List all the versions of all the saved files or list all the versions of
+#     a saved file.
 
 list_backup_files() {
     local os_dir="${1}"
@@ -534,6 +537,9 @@ list_backup_files() {
 }
 
 
+# diff_files <file1> <file2>
+# 
+#     Compare files file1 and file2
 
 diff_files() {
     local os_dir="${1}"
@@ -592,16 +598,23 @@ list_log_files() {
 # stage configuration functions
 ################################
 
-# run_configuration_stage <node|system> <stage> [<optional flags>]
+# run_configuration_stage <stage> [<optional flags>]
 # 
 #     Runs the configuration stage
+#     
+#     Note: Requires $image_dir and $image_name to be already set
 
 run_configuration_stage() {
-    local scope="${1}"
-    local stage="${2}"
-    local oflag="${3}"
-    local   dir="${scope}/${stage}.d"
+    local stage="${1}"
+    local oflag="${2}"
     local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
+    local   dir
+    
+    if [ -z "${image_dir}" ]; then
+        dir="system/${stage}.d"
+    else
+        dir="node/${stage}.d"
+    fi
     
     mkdir -p "${log%/*}"
     
@@ -635,5 +648,29 @@ run_configuration_stage() {
                      "${image_dir}" "run,${oflag}" "${event}"  \
                      >> "${log}" 2>&1
         
+    done
+}
+
+
+# applicable_templates <stage>
+# 
+#     List applicable templates
+#     
+#     Note: Requires $image_dir and $image_name to be already set
+
+applicable_templates() {
+    local stage="${1}"
+    local dir
+    
+    if [ -z "${image_dir}" ]; then
+        dir="system/${stage}.d"
+    else
+        dir="node/${stage}.d"
+    fi
+    
+    find_templates "${dir}" |
+    while read path FILE flags label; do
+        check_flags
+        echo "${FILE}"
     done
 }
