@@ -215,6 +215,10 @@ list_users() {
 }
 
 
+# home_dir <user>
+# 
+#     Show a user's home directory
+
 home_dir() {
     sed -nr "s/^${1}:.*:.*:.*:.*:(.*):.*/\1/p" < /etc/passwd
 }
@@ -433,14 +437,13 @@ question_yN() {
 
 # msg <messages>*
 # 
-#     Show messages if verbose mode is on
+#     Show messages
 
 msg() {
-    [ "$VERBOSE" == "yes" -o "$VERBOSE" == "1" ] &&
     while (( $# > 0 )); do
         echo -e "${indent:-"    "}${1}"
         shift
-    done    
+    done
 }
 
 
