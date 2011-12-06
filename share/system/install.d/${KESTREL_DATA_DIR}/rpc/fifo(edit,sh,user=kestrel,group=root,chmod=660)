@@ -1,3 +1,5 @@
+# Create the FIFO used to communicate the kestrel RPC with the kestrel-daemon
+
 [ -e ${FILE} ] &&
 rm                  ${FILE}
 mkfifo              ${FILE}
