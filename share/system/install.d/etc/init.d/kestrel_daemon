@@ -54,13 +54,13 @@ do_start() {
     
     [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
     
-	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
-	    > /dev/null
-	
-	case "$?" in
-		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
-	esac
+    start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
+        > /dev/null
+    
+    case "$?" in
+        0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+        2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+    esac
 }
 
 #
@@ -72,17 +72,17 @@ do_stop(){
     local DESC=$3
     local NAME=$4
     
-	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
-	
-	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
-	
-	case "$?" in
-		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
-	esac
-	
-	# Many daemons don't delete their pidfiles when they exit.
-	rm -f $PIDFILE
+    [ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+    
+    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
+    
+    case "$?" in
+        0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+        2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+    esac
+    
+    # Many daemons don't delete their pidfiles when they exit.
+    rm -f $PIDFILE
 }
 
 check_and_start(){
@@ -103,26 +103,26 @@ check_and_start(){
 }
 
 case "$1" in
-  start)
-    check_and_start
-    ;;
-  stop)
-    do_stop $PIDFILE $DAEMON $DESC $NAME
-    do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
-    ;;
-  status)
-    status_of_proc "$DAEMON" "$NAME" &&
-    status_of_proc "$DAEMON_RPC" "$NAME_RPC" && exit 0 || exit $?
-    ;;
-  restart|force-reload)
-    do_stop $PIDFILE $DAEMON $DESC $NAME
-    do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
-    check_and_start
-    ;;
-  *)
-    echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
-    exit 3
-    ;;
+    start)
+        check_and_start
+        ;;
+    stop)
+        do_stop $PIDFILE $DAEMON $DESC $NAME
+        do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+        ;;
+    status)
+        status_of_proc "$DAEMON" "$NAME" &&
+        status_of_proc "$DAEMON_RPC" "$NAME_RPC" && exit 0 || exit $?
+        ;;
+    restart|force-reload)
+        do_stop $PIDFILE $DAEMON $DESC $NAME
+        do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+        check_and_start
+        ;;
+    *)
+        echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+        exit 3
+        ;;
 esac
 
 :
