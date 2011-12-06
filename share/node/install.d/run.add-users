@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Only continue if a new image is being created
-[ "$1" = "add" ] || continue
+[ "$1" = "install" ] || continue
 
 log=/tmp/${0##*/}-$$.log
 touch ${log}
