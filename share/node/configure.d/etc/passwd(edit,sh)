@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Set the exported home (variable $KESTREL_HOME) for each user on the guest os
+
 list_users | while read user; do
 
    home=/${KESTREL_HOME}/${user}
