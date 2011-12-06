@@ -6,62 +6,10 @@ kestrel-nodes                       usr/bin
 kestrel-cron                        usr/sbin
 kestrel-daemon                      usr/sbin
 
-debian/kestrel.conf                 etc/kestrel
-
-init.d                              etc
 network                             etc
 bash_completion.d                   etc
 
-rpc/kestrel_rpc.py                  var/lib/kestrel/rpc/
-rpc/daemon.py                       var/lib/kestrel/rpc/
+rpc                                 var/lib/kestrel
+tftpboot                            var/lib/kestrel
 
-tftpboot/splash.png                 var/lib/kestrel/tftpboot
-tftpboot/pxemenu-background01.jpg   var/lib/kestrel/tftpboot
-tftpboot/template                   var/lib/kestrel/tftpboot
-
-share/default.conf                  usr/share/kestrel
-share/kestrel-lib                   usr/share/kestrel
-share/kestrel-chroot-lib            usr/share/kestrel
-share/defaults-lib                  usr/share/kestrel
-
-share/default.d/beep-on-startup     usr/share/kestrel/default.d
-share/default.d/initramfs           usr/share/kestrel/default.d
-
-share/event.d/dhcp-server_register-node                 usr/share/kestrel/event.d
-share/event.d/etc-hosts_connect-node                    usr/share/kestrel/event.d
-share/event.d/pxe_default-on-shutdown                   usr/share/kestrel/event.d
-share/event.d/running_lock                              usr/share/kestrel/event.d
-share/event.d/ssh_add-to-known-hosts                    usr/share/kestrel/event.d
-
-share/frontend/install.d/dnsmasq_config                 usr/share/kestrel/frontend/install.d
-share/frontend/install.d/nfs4_root-export               usr/share/kestrel/frontend/install.d
-
-share/frontend/configure.d/dnsmasq_config               usr/share/kestrel/frontend/configure.d
-share/frontend/configure.d/dnsmasq_tftpboot             usr/share/kestrel/frontend/configure.d
-share/frontend/configure.d/nfs4_root-export             usr/share/kestrel/frontend/configure.d
-share/frontend/configure.d/sshd_users-keygen            usr/share/kestrel/frontend/configure.d
-share/frontend/configure.d/ufw_kestrel-rpc              usr/share/kestrel/frontend/configure.d
-
-share/node/packages.d/basic_packages                    usr/share/kestrel/node/packages.d
-
-share/node/configure.d/host_nfs_export-image                usr/share/kestrel/node/configure.d
-share/node/configure.d/host_pxe_image-menu                  usr/share/kestrel/node/configure.d
-share/node/configure.d/image_core_beep-on-startup_chroot    usr/share/kestrel/node/configure.d
-share/node/configure.d/image_core_kestrel-rpc_chroot        usr/share/kestrel/node/configure.d
-share/node/configure.d/image_nfs_home-fstab_chroot          usr/share/kestrel/node/configure.d
-share/node/configure.d/image_sshd_authkeys_chroot           usr/share/kestrel/node/configure.d
-share/node/configure.d/image_user-home                      usr/share/kestrel/node/configure.d
-
-share/node/install.d/host_nfs_export-image                          usr/share/kestrel/node/install.d
-share/node/install.d/host_pxe_add-to-imagelist                      usr/share/kestrel/node/install.d
-share/node/install.d/image_core_add-kestrel-users                   usr/share/kestrel/node/install.d
-share/node/install.d/image_core_beep-on-startup_chroot              usr/share/kestrel/node/install.d
-share/node/install.d/image_core_dhclient-hook-set-hostname_chroot   usr/share/kestrel/node/install.d
-share/node/install.d/image_core_dhclient-wol-on-startup_chroot      usr/share/kestrel/node/install.d
-share/node/install.d/image_core_disable-dhclient-script_chroot      usr/share/kestrel/node/install.d
-share/node/install.d/image_core_disable-dpkg-upstart_chroot         usr/share/kestrel/node/install.d
-share/node/install.d/image_core_num-of-cpus_chroot                  usr/share/kestrel/node/install.d
-share/node/install.d/image_core_set-hostname_chroot                 usr/share/kestrel/node/install.d
-
-share/node/post-install.d/image_core_delete-sshd-motd_chroot        usr/share/kestrel/node/post-install.d
-share/node/post-install.d/image_nfs_configure_chroot                usr/share/kestrel/node/post-install.d
+share/*                             usr/share/kestrel
