@@ -1,35 +1,34 @@
 #!/bin/bash
 
-if grep -Eq "Host[[:space:]]+${KESTREL_HOSTNAME}-\*" ${FILE}; then
+if grep -Eq "Host\s+${KESTREL_HOSTNAME}-\*" ${FILE}; then
 
-    # Deletes the old kestrel_hostname entry. Deletes everything between the old
-    # Host kestrel-* entry and the next Host entry
     sed -ri "
-    /^[[:space:]]*[Hh]ost[[:space:]]+${KESTREL_HOSTNAME}-\*/ , \
-    /^[[:space:]]*[Hh]ost[[:space:]]+.*|^[[:space:]]*$/ {
+    # Modify the lines between the old kestrel entry and 
+    # the next host entry or the next paragraph
+    /^\s*[Hh]ost\s+${KESTREL_HOSTNAME}-\*/ , \
+    /^\s*[Hh]ost\s+.*|^\s*$/ {
         
-        # delete the line of Host kestrel-*
-        /^[[:space:]]*[Hh]ost[[:space:]]+${KESTREL_HOSTNAME}-\*/d
+        # delete the line which contains Host kestrel-*
+        /^\s*[Hh]ost\s+${KESTREL_HOSTNAME}-\*/d
 
-        # delete everything except the remaining (next) Host
-        /^[[:space:]]*[Hh]ost[[:space:]]+.*/"\!"d 
+        # delete everything in the selection except the remaining Host entry
+        /^\s*[Hh]ost\s+.*/"\!"d 
     }" ${FILE}
 
 fi
 
 # Get the number of the line of the first Host entry
-num=$(grep -E -m1 -n "^[[:space:]]*[Hh]ost[[:space:]]+" ${FILE})
+num=$(grep -E -m1 -n "^\s*[Hh]ost\s+" ${FILE})
 num=${num%%:*}
 
 # If there is not Host entry then include kestrel entries at the end of the file
 if [ -z "${num}" ]; then
-    (
-    echo
-    echo "Host ${KESTREL_HOSTNAME}-*"
-    echo "    StrictHostKeyChecking yes"
-    echo "    HashKnownHosts no"
-    echo "    IdentityFile ~/.ssh/kestrel_id_dsa
-    ) >> ${FILE}
+    cat <<EOF >> ${FILE}
+Host ${KESTREL_HOSTNAME}-*
+    StrictHostKeyChecking yes
+    HashKnownHosts no
+    IdentityFile ~/.ssh/kestrel_id_dsa
+EOF
 
 else
     # Add kestrel Host entry before the first Host entry
