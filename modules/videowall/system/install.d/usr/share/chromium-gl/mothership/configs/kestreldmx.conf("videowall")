@@ -116,7 +116,9 @@ for tile in dmx:
     renderspu.Conf('render_to_app_window', 1)
 
     try:
-        host = os.popen('awk "/%s/ {print \$1}" $HOME/.kestrel-videowall.display' % tile['display'], 'r').read()
+        displaylist = "$HOME/kestrel/.videowall.display"
+        cmd  = ('awk "/%s/ {print \$1}" ' + displaylist) % tile['display']
+        host = os.popen(cmd, 'r').read()
         host = host.replace('\n','')
     except:
         host = host
@@ -133,8 +135,10 @@ for tile in dmx:
     servernode.Conf('use_dmx', 1)
     cr.AddNode( servernode )
 
-    servernode.AutoStart( ["/usr/bin/ssh", host,
-                          "/bin/sh -c 'DISPLAY=%s  LD_LIBRARY_PATH=%s %s/crserver -mothership %s:%d'" % (tile['display'], crlibdir, crbindir, localHostname, mothershipPort) ] )
+    cmd = "/bin/sh -c 'DISPLAY=%s  LD_LIBRARY_PATH=%s %s/crserver -mothership %s:%d'"
+    cmd = cmd % (tile['display'], crlibdir, crbindir, localHostname, mothershipPort)
+    
+    servernode.AutoStart( ["/usr/bin/ssh", host, cmd ] )
 
     tilesortspu.AddServer( servernode, protocol='tcpip', port=serverPort )
 

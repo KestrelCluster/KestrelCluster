@@ -1,6 +1,6 @@
 ACTION!="add|change", GOTO="xorg_nvidia_end"
 KERNEL!="nvidia", GOTO="xorg_nvidia_end"
 
-ENV{xorg_driver}="nvidia", RUN+="/lib/udev/xorg-nvidia"
+ENV{xorg_driver}="nvidia", RUN+="/sbin/xorg-use-nvidia"
 
 LABEL="xorg_nvidia_end"

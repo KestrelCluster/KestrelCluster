@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# The Nvidia propietary drivers
+echo "nvidia-current"

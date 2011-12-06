@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# The X Window Server
+echo "xserver-xorg xserver-xorg-video-all xserver-xorg-input-all x11-xserver-utils xinit xterm"
+
+# The OpenGL drivers
+echo "libgl1-mesa-glx libgl1-mesa-dri"
+
