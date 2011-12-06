@@ -1,0 +1,7 @@
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+    post-up /sbin/ethtool -s $IFACE wol g
+    post-down /sbin/ethtool -s $IFACE wol g
