@@ -8,15 +8,21 @@
 
 create_evaluation_script() {
     # Apply variable sustitution rules when a non escaped "$" character is found
-    evaluation_script='/(^|[^\\])\$/{'
+    local script='/(^|[^\\])\$/{'
     
-        # Create a sustitution rule for each variable
-        for var in $(variable_list); do
-            re='s#\$\{?'"${var}"'\}?#'"${!var}"'#g;'
-            evaluation_script="${evaluation_script}${re}"
-        done
+    # Create a sustitution rule for each variable
+    for var in $(variable_list); do
+        re='s#\$\{?'"${var}"'\}?#'"${!var}"'#g;'
+        script="${script}${re}"
+    done
     
-    export evaluation_script="${evaluation_script}"'};/\\\$(\w|\{)/s/\\\$/$/g'
+    [ -n "${image_name}" ] && 
+        script="${script}"'s#\$\{?'"${image_name}"'\}?#'"${!image_name}"'#g;'
+    
+    [ -n "${image_dir}" ] && 
+        script="${script}s"'#\$\{?'"${image_dir}"'\}?#'"${!image_name}"'#g;'
+    
+    export evaluation_script="${script}"'};/\\\$(\w|\{)/s/\\\$/$/g'
 }
 
 
