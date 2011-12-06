@@ -33,7 +33,7 @@ enable-tftp
 
 # Make the TFTP server more secure: with this set, only files owned by
 # the user dnsmasq is running as will be send over the net.
-tftp-secure
+#tftp-secure
 
 # Look for files to transfer using TFTP relative to the given directory.
 tftp-root=${TFTPBOOT_DIR}
