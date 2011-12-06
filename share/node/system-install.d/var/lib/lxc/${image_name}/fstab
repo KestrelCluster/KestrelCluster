@@ -1,0 +1,2 @@
+proc            ${image_dir}/proc         proc    nodev,noexec,nosuid 0 0
+sysfs           ${image_dir}/sys          sysfs defaults  0 0
