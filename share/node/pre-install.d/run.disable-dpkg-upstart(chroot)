@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Only continue if a new image is being created
-[ "$1" = "add" ] || exit 0
+[ "$1" = "install" ] || exit 0
 
 # dpkg hold dpkg and upstart packages, since they contain the start-stop-daemon
 # and the initclt daemon which are used to start daemons. Before we get into an
