@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Check if the mac is defined
+if [[ -n "${mac}" && "${pxebootloader}" != "grub" ]]; then
+
+pxemac=$(mac_2_pxemac ${mac})
+
+case ${action} in
+    disconnect|desregister)
+       [[ -n "${pxemac}" && "$reboot" = "False" && 
+          -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
+          rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+       ;;
+
+    wake|reboot)
+        cp -f ${TFTPBOOT_DIR}/${image_name} \
+              ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+        ;;
+
+    shutdow)
+        [[ -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
+           rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+        ;;
+
+esac
+
+fi
