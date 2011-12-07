@@ -1,8 +1,8 @@
 #! /bin/bash
 ### BEGIN INIT INFO
 # Provides:          kestrel_daemon
-# Required-Start:    $remote_fs $network
-# Required-Stop:     $remote_fs $network
+# Required-Start:    \$remote_fs \$network
+# Required-Stop:     \$remote_fs \$network
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
 # Short-Description: KestrelHPC's daemon
@@ -11,10 +11,10 @@
 
 # Author: Jon Ander Hernández <jonan.h@gmail.org>
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z "\$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
 # Load kestrel_lib
-. "$KESTREL_SHARE"/defaults-lib
+. "\$KESTREL_SHARE"/defaults-lib
 
 export_config
 
@@ -22,19 +22,19 @@ export_config
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="KestrelHPC's daemon"
 NAME="kestrel-daemon"
-DAEMON=/usr/sbin/$NAME
-PIDFILE=/var/run/$NAME.pid
-SCRIPTNAME=/etc/init.d/$NAME
+DAEMON=/usr/sbin/\$NAME
+PIDFILE=/var/run/\$NAME.pid
+SCRIPTNAME=/etc/init.d/\$NAME
 
 DESC_RPC="KestrelHPC's RPC"
 NAME_RPC=kestrel_rpc.py
-DAEMON_RPC=${KESTREL_DATA_DIR}/rpc/$NAME_RPC
-PIDFILE_RPC=/var/run/$NAME_RPC.pid
-SCRIPTNAME_RPC=/etc/init.d/$NAME_RPC
+DAEMON_RPC=\${KESTREL_SHARE}/rpc/\$NAME_RPC
+PIDFILE_RPC=/var/run/\$NAME_RPC.pid
+SCRIPTNAME_RPC=/etc/init.d/\$NAME_RPC
 
 # Exit if the package is not installed
-[ -x "$DAEMON" ] || exit 0
-[ -x "$DAEMON_RPC" ] || exit 0
+[ -x "\$DAEMON"     ] || exit 0
+[ -x "\$DAEMON_RPC" ] || exit 0
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
@@ -47,19 +47,19 @@ SCRIPTNAME_RPC=/etc/init.d/$NAME_RPC
 # Function that starts the daemon/service
 #
 do_start() {
-    local PIDFILE=$1
-    local DAEMON=$2
-    local DESC=$3
-    local NAME=$4
+    local PIDFILE=\$1
+    local DAEMON=\$2
+    local DESC=\$3
+    local NAME=\$4
     
-    [ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+    [ "\$VERBOSE" != no ] && log_daemon_msg "Starting \$DESC" "\$NAME"
     
-    start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON \
-        > /dev/null
+    start-stop-daemon --quiet --pidfile \$PIDFILE --exec \$DAEMON \
+        --start -- --start > /dev/null
     
-    case "$?" in
-        0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-        2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+    case "\$?" in
+        0|1) [ "\$VERBOSE" != no ] && log_end_msg 0 ;;
+        2)   [ "\$VERBOSE" != no ] && log_end_msg 1 ;;
     esac
 }
 
@@ -67,60 +67,60 @@ do_start() {
 # Function that stops the daemon/service
 #
 do_stop(){
-    local PIDFILE=$1
-    local DAEMON=$2
-    local DESC=$3
-    local NAME=$4
+    local PIDFILE=\$1
+    local DAEMON=\$2
+    local DESC=\$3
+    local NAME=\$4
     
-    [ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+    [ "\$VERBOSE" != no ] && log_daemon_msg "Stopping \$DESC" "\$NAME"
     
-    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE
+    start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile \$PIDFILE
     
-    case "$?" in
-        0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
-        2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+    case "\$?" in
+        0|1) [ "\$VERBOSE" != no ] && log_end_msg 0 ;;
+        2)   [ "\$VERBOSE" != no ] && log_end_msg 1 ;;
     esac
     
     # Many daemons don't delete their pidfiles when they exit.
-    rm -f $PIDFILE
+    rm -f \$PIDFILE
 }
 
 check_and_start(){
     check_root
     
     # Ensure register process is always finnished before starting
-    [ -e ${KESTREL_LOCK_DIR}/register ] &&
-      rm ${KESTREL_LOCK_DIR}/register
+    [ -e \${KESTREL_LOCK_DIR}/register ] &&
+      rm \${KESTREL_LOCK_DIR}/register
 
     detect_iface
 
-    if [ -n "${KESTREL_IFACE}" ]; then
-        do_start $PIDFILE $DAEMON $DESC $NAME
-        do_start $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+    if [ -n "\${KESTREL_IFACE}" ]; then
+        do_start \$PIDFILE \$DAEMON \$DESC \$NAME
+        do_start \$PIDFILE_RPC \$DAEMON_RPC \$DESC_RPC \$NAME_RPC
     else
-        log_failure_msg "KestrelHPC daemon: No network interface found with ip : \"${FRONTEND_IP}\"."
+        log_failure_msg "KestrelHPC daemon: No network interface found with ip : \"\${FRONTEND_IP}\"."
     fi
 }
 
-case "$1" in
+case "\$1" in
     start)
         check_and_start
         ;;
     stop)
-        do_stop $PIDFILE $DAEMON $DESC $NAME
-        do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+        do_stop \$PIDFILE \$DAEMON \$DESC \$NAME
+        do_stop \$PIDFILE_RPC \$DAEMON_RPC \$DESC_RPC \$NAME_RPC
         ;;
     status)
-        status_of_proc "$DAEMON" "$NAME" &&
-        status_of_proc "$DAEMON_RPC" "$NAME_RPC" && exit 0 || exit $?
+        status_of_proc "\$DAEMON" "\$NAME" &&
+        status_of_proc "\$DAEMON_RPC" "\$NAME_RPC" && exit 0 || exit \$?
         ;;
     restart|force-reload)
-        do_stop $PIDFILE $DAEMON $DESC $NAME
-        do_stop $PIDFILE_RPC $DAEMON_RPC $DESC_RPC $NAME_RPC
+        do_stop \$PIDFILE \$DAEMON \$DESC \$NAME
+        do_stop \$PIDFILE_RPC \$DAEMON_RPC \$DESC_RPC \$NAME_RPC
         check_and_start
         ;;
     *)
-        echo "Usage: $SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
+        echo "Usage: \$SCRIPTNAME {start|stop|status|restart|force-reload}" >&2
         exit 3
         ;;
 esac
