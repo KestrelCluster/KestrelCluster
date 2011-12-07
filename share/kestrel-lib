@@ -308,7 +308,7 @@ kestrel_version() {
 }
 
 
-# run_script <dir> [<label>]
+# run_script <dir> [<label>] [<show>]
 # 
 #     Run scripts on dir.
 #     - If a label is specified only runs scripts with that label.
@@ -318,6 +318,7 @@ kestrel_version() {
 run_script() {
     local   dir="${1}"
     local label="${2}"
+    local  show="${3}"
     
     for script in $(ls -1 ${dir}); do
         
@@ -332,7 +333,9 @@ run_script() {
             [ "${!variable}" == "true" ] && continue
         fi
         
-        . ${script}
+        [ -n "${show}" ] && msg "${show} ${script}"
+        
+        . ${dir}/${script}
     done
 }
 
@@ -525,7 +528,7 @@ eval_variables() {
 }
 
 
-# run_from_script
+# close_lock
 # 
 #     When we reconfigure kestrel, we use a lock which makes any other kestrel
 #     command wait till everything is reconfigured. While the reconfiguration
@@ -535,11 +538,9 @@ eval_variables() {
 #     This function runs a daemon in a subshell after having closed our lock's
 #     file descriptor.
 
-run_from_script(){
+close_lock(){
     # Create a subshell and close the descriptor
-    (   exec 200>&-
-        $@
-    )
+    exec 200>&-
 }
 
 
@@ -560,7 +561,7 @@ check_kestrel_daemon() {
             "" \
             "\t-Edit the configuration file: /etc/kestrel/kestrel.conf" \
             "\t-Check the FRONTEND_IP variable" \
-            "\t-Reconfigure the frontend and the images: sudo kestrel-reconfigure --all"
+            "\t-Reconfigure the frontend and the images: sudo kestrel-configure --all"
     else
         /etc/init.d/kestrel_daemon restart ||
         die "KestrelHPC Daemon is not running and failed to start." \
