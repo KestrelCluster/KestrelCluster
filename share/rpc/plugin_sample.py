@@ -2,7 +2,7 @@
 
 import sys
 
-def kestrel_plugin_sample(self, test):
+def kestrel_sample(self, test):
     
     sys.stdout.write("received : " + test)
 

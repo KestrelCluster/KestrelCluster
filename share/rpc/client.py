@@ -32,8 +32,8 @@ try:
     print "\tresponse : \"" + s.disconnect(True) + "\""
     print "\tserver output : \"" + f.readline()
     print
-    print "Method: kestrel_plugin_sample"
-    print "\tresponse : \"" + s.plugin_sample("Testing plugins") + "\""
+    print "Method: sample"
+    print "\tresponse : \"" + s.sample("Testing plugins") + "\""
     print "\tserver output : \"" + f.readline()
     print
     f.close()

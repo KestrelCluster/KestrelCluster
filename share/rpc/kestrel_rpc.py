@@ -10,7 +10,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
     @classmethod
     def load_plugins(cls, plugin_dir):
         try:
-            plugin_files = filter(lambda f:re.search('plugin.*\.py',f),
+            plugin_files = filter(lambda f:re.search('^plugin.*\.py',f),
                                     os.listdir(plugin_dir))
             # Make sure the files are sorted. This can be useful to set
             # priorities to plugins prefixing them with a number.
@@ -77,14 +77,13 @@ plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
 
 class MyDaemon(Daemon):
     def run(self):
-        ip =          check_environ("FRONTEND_IP",         "localhost")
-        port =    int(check_environ("KESTREL_RPC_PORT",    "8000"))
+        ip =          check_environ("FRONTEND_IP",      "localhost")
+        port =    int(check_environ("KESTREL_RPC_PORT", "8000"))
 
         # Load the plugins from the plugin directory
         RequestHandler.load_plugins(plugins_dir)
 
-        server = SimpleXMLRPCServer((ip, port),
-                                    requestHandler=RequestHandler)
+        server = SimpleXMLRPCServer((ip, port), requestHandler=RequestHandler)
         server.serve_forever()
 
 
@@ -99,11 +98,11 @@ if __name__ == "__main__":
     else:
         pid_dir=log_dir=os.getcwd()
 
-    daemon = MyDaemon(pidfile=pid_dir + '/kestrel_rpc.py.pid',
-                      stderr=log_dir + '/kestrel_rpc.log',
-                      stdout=fifo,
-                      user=user,
-                      chroot=chroot)
+    daemon = MyDaemon(pidfile= pid_dir + '/kestrel_rpc.py.pid',
+                      stderr = log_dir + '/kestrel_rpc.log',
+                      stdout = fifo,
+                      user   = user,
+                      chroot = chroot)
 
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:

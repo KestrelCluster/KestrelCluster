@@ -69,7 +69,7 @@ KESTREL_RPC_DIR=${KESTREL_DATA_DIR}/rpc
 KESTREL_RPC_FIFO=${KESTREL_RPC_DIR}/fifo
 
 # Directory containing RPC plugins
-KESTREL_RPC_PLUGINS=${KESTREL_SHARE}/rpc-plugins.d
+KESTREL_RPC_PLUGINS=${KESTREL_SHARE}/rpc
 
 
 # System info
