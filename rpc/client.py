@@ -22,15 +22,15 @@ try:
     print 
     print "Method: register"
     print "\tresponse : \"" + s.register("2", "image1", "group1") + "\""
-    print "\tserver output : \"" + f.readline()
+    print "\tserver output : \"" + f.readline() + "\""
     print
     print "Method: connect"
     print "\tresponse : \"" + s.connect("2", "image1") + "\""
-    print "\tserver output : \"" + f.readline()
+    print "\tserver output : \"" + f.readline() + "\""
     print
     print "Method: disconnect"
     print "\tresponse : \"" + s.disconnect(True) + "\""
-    print "\tserver output : \"" + f.readline()
+    print "\tserver output : \"" + f.readline() + "\""
     print
     print "Method: sample"
     print "\tresponse : \"" + s.sample("Testing plugins") + "\""

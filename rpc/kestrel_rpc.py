@@ -5,6 +5,28 @@ from daemon import Daemon
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
+
+def check_environ(key,default):
+    try:
+        return os.environ[key]
+    except KeyError:
+        return default
+
+
+def check(variable,value,re):
+    val=str(value)
+    if re.match(val):
+        return " " + variable + "=" + val
+    else:
+        raise Exception(" invalid " + variable + " = " + value)
+
+num_re   = re.compile("[0-9]+")
+true_re  = re.compile("True|False")
+node_re  = re.compile(check_environ("node_re", "[0-9]+"))
+group_re = re.compile(check_environ("group_re","[0-9A-Za-z_]+"))
+image_re = re.compile(check_environ("image_re","[0-9A-Za-z_]+"))
+
+
 class RequestHandler(SimpleXMLRPCRequestHandler):
 
     @classmethod
@@ -36,50 +58,64 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
         else:
             return func(*params)
 
-
     # Basic KestrelHPC methods
     #
     # It passes the action and the parameters to kestrel_daemon through the
     # FIFO file defined in KESTREL_RPC_FIFO
 
     def kestrel_connect(self, num_cpus, image):
-        sys.stdout.write(" action=connect" + \
-                         " ip=" + self.client_address[0] + \
-                         " cpu=" + str(num_cpus) + \
-                         " image=" + str(image) )
-
-        return time.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            sys.stdout.write(" action=connect" + \
+                             " ip=" + self.client_address[0] + \
+                             check("cpu",   num_cpus, num_re) + \
+                             check("image", image,    image_re ) )
+            
+            return time.strftime("%Y-%m-%d %H:%M:%S")
+            
+        except Exception as e:
+            sys.stderr.write(" action=connect" + \
+                             " ip=" + self.client_address[0] + str(e) )
+            
+            return "Invalid call"
 
     def kestrel_register(self, num_cpus, image, group):
-        sys.stdout.write(" action=register" + \
-                         " ip=" + self.client_address[0] + \
-                         " cpu=" + str(num_cpus) +
-                         " group=" + str(group) + \
-                         " image=" + str(image) )
-
-        return time.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            sys.stdout.write(" action=register" + \
+                             " ip=" + self.client_address[0] + \
+                             check("cpu",   num_cpus, num_re) + \
+                             check("group", group,    group_re) + \
+                             check("image", image,    image_re) )
+            
+            return time.strftime("%Y-%m-%d %H:%M:%S")
+            
+        except Exception as e:
+            sys.stderr.write(" action=register" + \
+                             " ip=" + self.client_address[0] + str(e))
+            
+            return "Invalid call"
 
     def kestrel_disconnect(self, reboot):
-        sys.stdout.write(" action=disconnect " + \
-                         " ip=" + self.client_address[0] +
-                         " reboot=" + str(reboot) )
+        try:
+            sys.stdout.write(" action=disconnect " + \
+                             " ip=" + self.client_address[0] + \
+                             check("reboot", reboot, true_re) )
+            
+            return time.strftime("%Y-%m-%d %H:%M:%S")
+            
+        except Exception as e:
+            sys.stderr.write(" action=disconnect " + \
+                             " ip=" + self.client_address[0] + str(e))
+            
+            return "Invalid call"
 
-        return time.strftime("%Y-%m-%d %H:%M:%S")
-
-
-def check_environ(key,default):
-    try:
-        return os.environ[key]
-    except KeyError:
-        return default
 
 plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
-
+ 
 class MyDaemon(Daemon):
     def run(self):
         ip =          check_environ("FRONTEND_IP",      "localhost")
         port =    int(check_environ("KESTREL_RPC_PORT", "8000"))
-
+        
         # Load the plugins from the plugin directory
         RequestHandler.load_plugins(plugins_dir)
 

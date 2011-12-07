@@ -6,4 +6,4 @@ def kestrel_sample(self, test):
     
     sys.stdout.write("received : " + test)
 
-    return "It works :-)"
+    return "It works! :-)"

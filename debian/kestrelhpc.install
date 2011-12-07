@@ -1,7 +1,7 @@
 kestrel-apt                         usr/bin
 kestrel-images                      usr/bin
 kestrel-users                       usr/bin
-kestrel-reconfigure                 usr/bin
+kestrel-configure                   usr/bin
 kestrel-nodes                       usr/bin
 kestrel-cron                        usr/sbin
 kestrel-daemon                      usr/sbin
@@ -9,7 +9,9 @@ kestrel-daemon                      usr/sbin
 network                             etc
 bash_completion.d                   etc
 
-rpc                                 var/lib/kestrel
 tftpboot                            var/lib/kestrel
 
 share/*                             usr/share/kestrel
+
+rpc/kestrel_rpc.py                  usr/share/kestrel/rpc/
+rpc/daemon.py                       usr/share/kestrel/rpc/
