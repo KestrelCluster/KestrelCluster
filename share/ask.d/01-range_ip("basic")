@@ -21,11 +21,8 @@ configure_range_ip() {
     export DHCP_STARTING_IP=${BASH_REMATCH[1]}
     export   DHCP_ENDING_IP=${BASH_REMATCH[2]}
     
-    echo "DHCP_STARTING_IP=\"${DHCP_STARTING_IP}\""
-    echo   "DHCP_ENDING_IP=\"${DHCP_ENDING_IP}\""
-    
-#    set_key_value "DHCP_STARTING_IP" "${DHCP_STARTING_IP}" "${FILE}"
-#    set_key_value   "DHCP_ENDING_IP"   "${DHCP_ENDING_IP}" "${FILE}"
+    set_key_value "DHCP_STARTING_IP" "${DHCP_STARTING_IP}" "${FILE}"
+    set_key_value "DHCP_ENDING_IP"   "${DHCP_ENDING_IP}"   "${FILE}"
 }
 
 configure_range_ip

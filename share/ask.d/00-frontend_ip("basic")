@@ -101,9 +101,7 @@ configure_frontend_ip() {
     
     export FRONTEND_IP="${result}"
     
-    echo "FRONTEND_IP=\"${FRONTEND_IP}\""
-    
-#    set_key_value "FRONTEND_IP" "${FRONTEND_IP}" "${FILE}"
+    set_key_value "FRONTEND_IP" "${FRONTEND_IP}" "${FILE}"
 }
 
 
