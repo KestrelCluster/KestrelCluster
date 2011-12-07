@@ -42,13 +42,6 @@ load_config() {
     for configfile in ${KESTREL_SHARE}/default.d/internal*; do
         [ -e "$configfile" ] && . "$configfile"
     done
-    
-    # Some variable checks
-    ######################
-    # TODO: In the future we may/should add more variable checking
-    
-    # Remove the first and the last "/" if they exist.
-    [[ "$KESTREL_HOME" =~ ^/?([^/]*)/?$ ]] && KESTREL_HOME=${BASH_REMATCH[1]}
 }
 
 
@@ -67,6 +60,30 @@ variable_list() {
         ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
         sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)=.*$/\1/p' | \
         sort | uniq
+}
+
+
+# variable_list2
+# 
+#     List non internal variables
+
+variable_list2() {
+    cat ${KESTREL_SHARE}/default.conf \
+        ${KESTREL_SHARE}/default.d/!(internal*) \
+        ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
+        sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)=.*$/\1/p' | \
+        sort | uniq
+}
+
+
+# variable_values
+# 
+#     List variables
+
+variable_values() {
+    for var in $(variable_list2); do
+        echo "${var}=${!var}"
+    done
 }
 
 # export_config
