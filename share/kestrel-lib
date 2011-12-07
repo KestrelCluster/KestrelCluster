@@ -168,7 +168,7 @@ default-image() {
 
 lock_image() {
     local image_name=$1
-
+    
     exec 200> ${KESTREL_LOCK_DIR}/${image_name}.lock
 
     if ! flock --nonblock --exclusive 200; then
@@ -305,6 +305,35 @@ check_root() {
 
 kestrel_version() {
     echo "KestrelHPC ${KESTREL_VERSION}"
+}
+
+
+# run_script <dir> [<label>]
+# 
+#     Run scripts on dir.
+#     - If a label is specified only runs scripts with that label.
+#     - A script with label <label> can be disabled by setting the variable
+#       <label>_disabled=true
+
+run_script() {
+    local   dir="${1}"
+    local label="${2}"
+    
+    for script in $(ls -1 ${dir}); do
+        
+        # Get the label
+        if [[ "${script}" =~ [^\"]+(\([^\"]*(\"([^\"]*)\")?.*\))? ]]; then
+            elabel="${BASH_REMATCH[3]}"
+            
+            [[ -z "${label}" || "${label}" == "${elabel}" ]] || continue
+            
+            # Check if the label is disabled
+            variable=${elabel}_disabled
+            [ "${!variable}" == "true" ] && continue
+        fi
+        
+        . ${script}
+    done
 }
 
 
