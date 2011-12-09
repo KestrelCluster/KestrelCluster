@@ -71,6 +71,26 @@ mount_chroot_image(){
 }
 
 
+# mount_lxc_image
+# 
+#     Start the container
+
+mount_lxc_image(){
+    
+    # Share apt's preferences, package's cache, etc...
+    #for mount in etc/apt/ \
+    #             var/lib/apt/lists/ \
+    #             var/cache/apt/
+    #do
+    #     mount --bind /${mount} ${image_dir}/${mount}
+    #done
+    
+    touch ${KESTREL_LOCK_DIR}/${image_name}.running-lxc
+    
+    lxc-start -n ${image_name}
+}
+
+
 # umount_chroot_image <image_dir>
 # 
 #     Unmounts the chrooted image.
@@ -98,7 +118,18 @@ umount_chroot_image(){
 }
 
 
-# check_image <image_name>
+# umount_lxc_image
+# 
+#     Stop the container
+
+umount_lxc_image(){
+    lxc-stop -n ${image_name}
+    
+    rm ${KESTREL_LOCK_DIR}/${image_name}.running-lxc
+}
+
+
+# check_image <image_name> [<no running check>]
 # 
 #     Check if ${image_name} contains the name of an installed and valid image.
 #     
@@ -107,7 +138,10 @@ umount_chroot_image(){
 
 check_image() {
     
-    [ -n "$1" ] && image_name=$1
+    if [ -n "$1" ]; then 
+        image_name=$1
+        image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    fi
     
     [[ "${image_name}" =~ ^${image_re}$ ]] ||
         die "Invalid image name \"${image_name}\""
@@ -118,9 +152,15 @@ check_image() {
         image_dir=${KESTREL_IMAGE_DIR}/${image_name}
         
         if [ -z "$image_name" ]; then
-            die "There is no node image available" \
-                "Create an image with :" \
-                "   sudo kestrel-images --new \"image_name\""
+            if [ -n "$(list_images)" ]; then
+                die "There is no default image" \
+                    "Set a default image with :" \
+                    "   sudo kestrel-images --set-default \"image_name\""            
+            else
+                die "There is no node image available" \
+                    "Create an image with :" \
+                    "   sudo kestrel-images --new \"image_name\""
+            fi
         fi
     fi
     
@@ -132,8 +172,11 @@ check_image() {
         die "The image \"${image_name}\" hasn't been found"
     
     # Verify the image is not being currently used
-    [[ -f "${KESTREL_IMAGE_DIR}/.${image_name}.running" && \
-          "$1" != "no_running_check" ]] &&
+    [[ -n "${2}" || -f "${KESTREL_LOCK_DIR}/${image_name}.running" ]] && \
+        die "The image \"${image_name}\" is being used by some client node"
+    
+    # Verify the image is not being currently used
+    [[ -n "${2}" || -f "${KESTREL_LOCK_DIR}/${image_name}.running-lxc" ]] && \
         die "The image \"${image_name}\" is being used by some client node"
 }
 
@@ -143,6 +186,7 @@ check_image() {
 #     List installed images
 
 list_images() {
+    [ -d  ${KESTREL_IMAGE_DIR} ] &&
     ls -1 ${KESTREL_IMAGE_DIR} | grep -Ev "default|cached-image"
 }
 
@@ -168,6 +212,8 @@ default-image() {
 
 lock_image() {
     local image_name=$1
+    
+    mkdir -p ${KESTREL_LOCK_DIR}
     
     exec 200> ${KESTREL_LOCK_DIR}/${image_name}.lock
 
@@ -233,8 +279,11 @@ user_sshkeygen() {
     local user=$1
     local user_group=$(id -gn ${user})
     local user_home=$(home_dir ${user})
-    local user_khome=/${KESTREL_HOME}/${user}
-
+    
+    mkdir -p /${KESTREL_HOME}/${user}
+    
+    local user_khome=$(cd /${KESTREL_HOME}/${user}; pwd)
+        
     [[ "${user_home}" == "${user_khome}" ]] &&
         warn_config \
             "KESTREL_HOME=\"${KESTREL_HOME}\"" \
