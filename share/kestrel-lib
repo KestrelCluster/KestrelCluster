@@ -540,21 +540,21 @@ die() {
         else
             break
         fi
-    done
+    done >&2
     
     exit ${1:-1}
 }
 
 
-# warning <messages>*
+# warn <messages>*
 # 
 #     Show a warning message
 
-warning() {
+warn() {
     while (( $# > 0 )); do
         echo -e "${indent:-"    "}Warning: ${1}"
         shift
-    done
+    done >&2
 }
 
 
