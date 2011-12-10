@@ -4,7 +4,7 @@ lxc.tty = 4
 lxc.pts = 1024
 lxc.rootfs = ${image_dir}
 lxc.mount  = /var/lib/lxc/${image_name}/fstab
-#lxc.arch = $(usr/bin/dpkg --print-architecture)
+lxc.arch = ${OS_ARCHITECTURE}
 
 lxc.cgroup.devices.deny = a
 # /dev/null and zero
