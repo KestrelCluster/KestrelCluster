@@ -61,8 +61,8 @@ find_templates() {
     local   etc_dir
     
     [ -d "${KESTREL_ETC}" ] &&
-      etc_dir=$( cd   ${KESTREL_ETC}/${subdir}; pwd)
-    share_dir=$( cd ${KESTREL_SHARE}/${subdir}; pwd)
+      etc_dir=$( cd   ${KESTREL_ETC}/${subdir} && pwd)
+    share_dir=$( cd ${KESTREL_SHARE}/${subdir} && pwd)
     
     # Obtain only the path ignoring the flags (contained between parenthesis)
     #local path_re="(([^\/]*\/)*[^\(\/]+)"
@@ -74,11 +74,10 @@ find_templates() {
     
     # List scripts on ${share_dir} and on ${etc_dir}
     ( 
-      cd ${share_dir} &&
+      [ -d "${share_dir}" ] && cd "${share_dir}" &&
       find . -type f $@
       
-      [ -n "${etc_dir}" ] &&
-      cd ${etc_dir} &&
+      [ -d "${etc_dir}"   ] && cd "${etc_dir}" &&
       find . -type f $@
       
     ) | \
