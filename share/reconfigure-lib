@@ -472,6 +472,9 @@ test_applicable_templates() {
 
 
 
+# backup functions
+###################
+
 # search_backup_files
 # 
 #     Searches a backup file
@@ -525,7 +528,7 @@ search_backup_file() {
 }
 
 
-# list_backup_versions <os_dir> file[.(version|last|actual)]
+# list_backup_versions <os_dir> file[:(version|last|actual)]
 # 
 #     List the versions of a saved file
 
@@ -545,8 +548,33 @@ list_backup_versions() {
              \( -type l -iregex ".*/${filename}${version_link_re}$" \) \
              -o         -iregex ".*/${filename}${version_back_re}$" |
       
-      # Remove "./". Add a new entry ".actual" for each ".last" entry
-      sed -r 's#.*'"${version_re}"'$#\1#; s#last#last\nactual#' )
+      # Remove "./". Add a new entry ":actual" for each ":last" entry
+      sed -r 's#.*'"${version_re}"'$#\1#; s#last$#last\nactual#' )
+}
+
+
+# list_backup_versions <os_dir> file[:(version|last|actual)]
+# 
+#     List the versions of a saved file
+
+list_backup_versions() {
+    local os_dir="${1}"
+    local   file="${2}"
+    local dirname
+    local version
+    local filename
+    
+    search_backup_file "${file}"
+    
+    ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/${dirname}"
+      
+      # List backup files which match the regular expression
+      find . -regextype posix-egrep \
+             \( -type l -iregex ".*/${filename}${version_link_re}$" \) \
+             -o         -iregex ".*/${filename}${version_back_re}$" |
+      
+      # Remove "./". Add a new entry ":actual" for each ":last" entry
+      sed -r 's#.*'"${version_re}"'$#\1#; s#last$#last\nactual#' )
 }
 
 
@@ -567,12 +595,27 @@ list_original_files() {
 }
 
 
-# list_backup_files <os_dir> [file]
+list_backup_files() {
+    local os_dir="${1}"
+    
+    [ -d "${os_dir}/${KESTREL_BACKUP_DIR}/" ] &&
+    ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/";
+        
+      # List backup files which match the regular expression
+      find . -regextype posix-egrep \
+             -type f -iregex "${backup_back_re}$" | 
+      
+      sed -r 's#\.\/'${backup_back_re}'#\1\2#' | uniq
+    )
+}
+
+
+# list_all_backup_files <os_dir> [file]
 # 
 #     List all the versions of all the saved files or list all the versions of
 #     a saved file.
 
-list_backup_files() {
+list_all_backup_files() {
     local os_dir="${1}"
     local   file="${2}"
     local dirname
@@ -582,6 +625,7 @@ list_backup_files() {
     if [ -n "${file}" ]; then
         search_backup_file "${file}"
         
+        [ -d "${os_dir}/${KESTREL_BACKUP_DIR}/" ] &&
         ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/"
 
           filename="${dirname}${filename}"
@@ -594,6 +638,7 @@ list_backup_files() {
           sed -r 's#\.\/##; s#^((.*)\:last)$#\1\n\2:actual#' )
      
      else
+        [ -d "${os_dir}/${KESTREL_BACKUP_DIR}/" ] &&
         ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/";
         
           # List backup files which match the regular expression
@@ -601,48 +646,119 @@ list_backup_files() {
              \( -type l -iregex "${backup_link_re}$" \) \
              -o         -iregex "${backup_back_re}$" | 
           
-          # Remove "./". Add a new entry ".actual" for each ".last" entry
+          # Remove "./". Add a new entry ":actual" for each ".last" entry
           sed -r 's#\.\/##; s#^((.*)\:last)$#\1\n\2:actual#' )
      fi | sort
 }
 
 
-# diff_files <file1> <file2>
+list_all_backup_files2() {
+    local os_dir="${1}"
+    local   file="${2}"
+    local    dir=${os_dir}/${KESTREL_BACKUP_DIR}/
+    
+    list_all_backup_files "${1}" "${2}" | while read file; do
+        
+        [[ "${file}" =~ ^${backup_re}$ ]]
+        local version=${BASH_REMATCH[3]}
+
+        if [[ "${version}" == @(":actual"|":last"|":orig") ]]; then
+            continue
+        else
+            local date=$(date -d "@${version#:}" "+%F %T")
+            local type=" "
+            
+            if [[ -e "${dir}/${file%:*}:last" ]]; then
+                local file2=$(readlink -n "${dir}/${file%:*}:last")
+                [[ "${file##*/}" == "${file2}" ]] && type="L"
+            fi
+            
+            if [[ -e "${dir}/${file%:*}:orig" ]]; then
+                local file2=$(readlink -n "${dir}/${file%:*}:orig")
+                [[ "${file##*/}" == "${file2}" ]] && type="O"
+            fi
+            
+            msg "${date}  ${type}  ${file}"
+        fi
+        
+    done
+}
+
+
+# diff_files <file> [<version>]
 # 
 #     Compare files file1 and file2
 
 diff_files() {
     local os_dir="${1}"
-    local  file1="${2}"
-    local  file1="${3}"
+    local   file="${2}"
+    local   vers="${3}"
     local dirname
     local version
     local filename
+    local file2
     
-    if [ ! -e "${file1}" ]; then
-        search_backup_file "${file1}"
-        file1="${dirname}/${filename}/${version}"
-    fi
+    search_backup_file "${file1}"
     
-    if [ ! -e "${file2}" ]; then
-        search_backup_file "${file2}"
-        file2="${dirname}/${filename}/${version}"
+    file2="${os_dir}/${KESTREL_BACKUP_DIR}/${dirname}/${filename}"
+    
+    if [ -z "${vers}" ]; then
+        
+        if [ -e "${file2}:orig" ]; then
+            
+            file2="${file2}:orig"
+            
+        else
+            file2="${os_dir}/${dirname}/${filename}"
+        fi
+        
+    else
+        if [[ ! "${vers}" =~ ^version_re$ ]]; then
+            
+            die "Invalid version \"${vers}\""
+            
+        elif [ -e "${file}:${vers}" ]; then
+            
+            file2="${file}:${vers}"
+            
+        elif [ "${vers}" == actual ]; then
+            
+            file2="${os_dir}/${dirname}/${filename}"
+            
+        else
+            
+            die "Version \"${vers}\" not found"
+            
+        fi
     fi
     
     diff -urN ${file1} ${file2}
 }
 
 
+
 # log functions
 ################
 
-list_log_times() {
+# list_log_dates
+# 
+#     List of log dates
+
+list_log_dates() {
     local stage="${1}"
     local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     
-    [ -e "${log}" ] && grep -E "${log_time_re}" "${log}"
+    if [ -f "${log}" ]; then
+        grep -E "${log_time_re}" "${log}"
+    else
+        die "Log file \"${stage}\" not found"
+    fi
 }
 
+
+# show_log_file <stage> [<log_date>]
+# 
+#     Show a log. If no <log date> is specified, show the last log.
 
 show_log_file() {
     local stage="${1}"
@@ -650,17 +766,44 @@ show_log_file() {
     local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     
     if [ -z "${time}" ]; then
-        time=$(list_log_times ${1} | tail -n1)
+        
+        # time=$(list_log_dates ${1} | tail -n1)
+        [ -e "${log}" ] && cat "${log}"
+        
     elif ! [[ ${time} =~ ${log_time_re} ]]; then
+        
         die "Invalid time: ${time}"
+        
+    else
+        
+        [ -e "${log}" ] && sed -rn "/^${time}$/,/^${log_time_re}$/ {
+            /^${log_time_re}$/!p; /^${time}$/p; }" "${log}"
+        
     fi
-    
-    [ -e "${log}" ] && sed -rn "/^${time}$/,/^${log_time_re}$/ {
-        /^${log_time_re}$/!p; /^${time}$/p; }" "${log}"
 }
 
 
+# show_log_stage <install|configure|uninstall> [<log_date>]
+# 
+#     Show a log. If no <log date> is specified, show the last log.
+
+show_log_stage() {
+    local stage="${1}"
+    local  time="${2}"
+    
+    "pre-install"
+    "packages"
+    "install"
+    "system-install"
+}
+
+
+# list_log_files
+# 
+#     List of log files
+
 list_log_files() {
+    [ -d  ${image_dir}/${KESTREL_LOG_DIR} ] &&
     ls -1 ${image_dir}/${KESTREL_LOG_DIR}
 }
 
