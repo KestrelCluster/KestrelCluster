@@ -808,20 +808,48 @@ list_log_files() {
 }
 
 
+
 # stage configuration functions
 ################################
+
+# list_stages
+# 
+#     List stages
+
+list_stages() {
+    if [ -z "${image_dir}" ]; then
+        ls -1 ${KESTREL_SHARE}/system
+    else
+        ls -1 ${KESTREL_SHARE}/node
+    fi | sed 's/\.d$//'
+}
+
+
+# check_stage <stage>
+# 
+#     Check if exists the stage <stage>
+
+check_stage() {
+    if [ -z "${image_dir}" ]; then
+        [ -d ${KESTREL_SHARE}/system/$1.d ]
+    else
+        [ -d ${KESTREL_SHARE}/node/$1.d ]
+    fi
+}
+
 
 # run_configuration_stage <stage> [<optional flags>]
 # 
 #     Runs the configuration stage
 #     
-#     Note: Requires $image_dir and $image_name to be already set
+#     Note: Requires $image_dir, $image_name $event vars to be already set
 
 run_configuration_stage() {
-    local stage="${1}"
-    local oflag="${2}"
-    local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
-    local   dir
+    local  stage="${1}"
+    local os_dir="${2}"
+    local  oflag="${2}"
+    local    log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
+    local    dir
     
     if [ -z "${image_dir}" ]; then
         dir="system/${stage}.d"
@@ -829,12 +857,14 @@ run_configuration_stage() {
         dir="node/${stage}.d"
     fi
     
+    [ -z "${config_date}" ] && config_date=$(date "+%F_%T")
+    
     create_evaluation_script
     
     mkdir -p "${log%/*}"
     
     {
-        echo ${config_date:-$(date "+%F %T")}
+        echo ${config_date}
         echo "===================" 
     } >> "${log}" 2>&1
     
@@ -842,7 +872,7 @@ run_configuration_stage() {
     while read path FILE flags label; do
         echo "${FILE}"
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
-                     "${image_dir}" "run,${oflag}" "${event}"  \
+                     "${os_dir}" "run,${oflag}" "${event}"  \
                      >> "${log}" 2>&1
         
     done
@@ -851,7 +881,7 @@ run_configuration_stage() {
     while read path FILE flags label; do
         echo "${FILE}"
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
-                     "${image_dir}" "${oflag}"     "${event}"  \
+                     "${os_dir}" "${oflag}"     "${event}"  \
                      >> "${log}" 2>&1
         
     done
@@ -860,32 +890,52 @@ run_configuration_stage() {
     while read path FILE flags label; do
         echo "${FILE}"
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
-                     "${image_dir}" "run,${oflag}" "${event}"  \
+                     "${os_dir}" "run,${oflag}" "${event}"  \
                      >> "${log}" 2>&1
         
     done
 }
 
 
-# applicable_templates <stage>
-# 
-#     List applicable templates
-#     
-#     Note: Requires $image_dir and $image_name to be already set
 
-applicable_templates() {
-    local stage="${1}"
-    local dir
+# Funtions to be used from kestrel-reconfigure
+###############################################
+
+node_configure() {
+    local event="${1:-${event}}"
     
-    if [ -z "${image_dir}" ]; then
-        dir="system/${stage}.d"
-    else
-        dir="node/${stage}.d"
-    fi
+    run_configuration_stage "${image_dir}" "configure"
+    run_configuration_stage ""             "system-configure"
+}
+
+
+node_install() {
+    local event="${1}"
     
-    find_templates "${dir}" |
-    while read path FILE flags label; do
-        check_flags
-        echo "${FILE}"
-    done
+    run_configuration_stage "${image_dir}" "pre-install"
+    run_configuration_stage "${image_dir}" "packages" "package"
+    run_configuration_stage "${image_dir}" "install"
+    run_configuration_stage ""             "system-install"
+    node_configure
+}
+
+
+system_configure() {
+    local event="${1:-${event}}"
+    local image_dir=
+    local image_name=
+    
+    run_configuration_stage "" "configure"
+}
+
+
+system_install() {
+    local event="${1}"
+    local image_dir=
+    local image_name=
+    
+    run_configuration_stage "" "pre-install"
+    run_configuration_stage "" "packages" "package"
+    run_configuration_stage "" "install"
+    frontend_configure
 }
