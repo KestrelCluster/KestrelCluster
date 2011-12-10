@@ -400,6 +400,78 @@ install_service() {
 }
 
 
+# applicable_templates <stage>
+# 
+#     List applicable templates
+#     
+#     Note: Requires $image_dir and $image_name to be already set
+
+applicable_templates() {
+    local stage="${1}"
+    local dir
+    
+    if [ -z "${image_dir}" ]; then
+        dir="system/${stage}.d"
+    else
+        dir="node/${stage}.d"
+    fi
+    
+    find_templates "${dir}" |
+    while read path FILE flags label; do
+        check_flags || continue
+        echo "${path}"
+    done
+}
+
+
+# test_applicable_templates <stage>
+# 
+#     List applicable templates (for testing purposes)
+#     
+#     Note: Requires $image_dir and $image_name to be already set
+
+test_applicable_templates() {
+    local stage="${1}"
+    local dir
+    
+    if [ -z "${image_dir}" ]; then
+        dir="system/${stage}.d"
+    else
+        dir="node/${stage}.d"
+    fi
+    
+    find_templates "${dir}" |
+    while read path FILE flags label; do
+        echo "path:     $path"
+        chroot=
+        run=
+        user=
+        group=
+        mode=
+        link=
+        label=
+        
+        check_flags || continue
+        
+        echo "name:     $FILE"
+        echo
+        echo "run:      ${run:-no}"
+        [ -n "${run}" ] &&
+        echo "template: no" ||
+        echo "template: yes"
+        echo "chroot:   ${chroot:-no}"
+        echo 
+        echo "user:     $user"
+        echo "group:    $group"
+        echo "mode:     $mode"
+        echo "link:     $link"
+        echo "label:    $label"
+        echo
+    done
+}
+
+
+
 # search_backup_files
 # 
 #     Searches a backup file
