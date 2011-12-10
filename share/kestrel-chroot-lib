@@ -151,7 +151,7 @@ restore_file() {
     if [ -L "${orig_link}" ]; then
         cp -a "${orig_file}" "${dest_file}"
         
-        [[ "${action}" == @(desinstall|disable) ]] &&
+        [[ "${action}" == @(uninstall|disable) ]] &&
         rm "${orig_link}"
     
     # Otherwise simply delete the file
