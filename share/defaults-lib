@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z "$KESTREL_ETC"   ] && KESTREL_ETC=/etc/kestrel
 
 # Enable extended pattern matching
 shopt -s extglob
@@ -34,10 +35,10 @@ load_config() {
     for configfile in ${KESTREL_SHARE}/default.d/!(internal*); do
         [ -e "$configfile" ] && . "$configfile"
     done
-
+    
     # Load user's local config
     [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
-
+    
     # Source internal variables
     for configfile in ${KESTREL_SHARE}/default.d/internal*; do
         [ -e "$configfile" ] && . "$configfile"
