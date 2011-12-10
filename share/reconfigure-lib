@@ -116,6 +116,7 @@ find_templates() {
 #     
 check_flags() {
     local flag
+    local IFS="\,"
     
     for flag in ${flags} ${flags2}; do
         
@@ -141,15 +142,15 @@ check_flags() {
             os=*-*)
                 [ "${flag#os=}"   == "${OS_DISTRIBUTION}-${OS_CODENAME}" ] ||
                 [ "${flag#os=}"   == "${OS_DISTRIBUTION}-${OS_RELEASE}"  ] ||
-                return 0
+                return 1
                 ;;
             os=*)
                 [ "${flag#os=}"   == "${OS_DISTRIBUTION}" ] ||
-                return 0
+                return 1
                 ;;
             arch=*)
                 [ "${flag#arch=}" == "${OS_ARCHITECTURE}" ] ||
-                return 0
+                return 1
                 ;;
             
             # Mode flags
@@ -173,7 +174,7 @@ check_flags() {
                     
                     # Only restore if we are really running the template
                     [ -n "${action}" ] && restore_file
-                    return 0
+                    return 1
                 fi
                 ;;
             
@@ -183,17 +184,17 @@ check_flags() {
                 
                 # Check if the label is disabled
                 variable=${label}_disabled
-                [ "${!variable}" == "true" ] && return 0
+                [ "${!variable}" == "true" ] && return 1
                 
                 variable=${label}_${image_name}_disabled
-                [ "${!variable}" == "true" ] && return 0
+                [ "${!variable}" == "true" ] && return 1
                 ;;
             
             sh|python)
                 ;;
             
             ?*)
-                echo "unsupported flag: \"${flag}\" on dir: \"${dir}\""
+                warn "unsupported flag: \"${flag}\" on file: \"${path}\""
                 ;;
         esac
     done
@@ -245,9 +246,7 @@ run_template() {
     local dest_stat
     local FILE
     
-    local IFS="\,"
-    
-    check_flags
+    check_flags || return 0
     
     export file action user group mode link
     
