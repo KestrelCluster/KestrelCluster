@@ -13,13 +13,13 @@ case ${action} in
     connect)
        # Note: We don't waste time checking if there is already online any node
        #       of the ${image_name} group, we simply create the lock.
-       touch ${KESTREL_IMAGE_DIR}/.${image_name}.running
+       touch ${KESTREL_LOCK_DIR}/${image_name}.running
        ;;
 
     disconnect)
        # Check if the is any other connected node of the ${image_name} group
        if ! grep "${image_name}" /etc/hosts | grep -vq "${ip}"; then
-           rm ${KESTREL_IMAGE_DIR}/.${image_name}.running
+           rm ${KESTREL_LOCK_DIR}/${image_name}.running
        fi
        ;;
 esac

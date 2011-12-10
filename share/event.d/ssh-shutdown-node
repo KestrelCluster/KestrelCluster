@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [[ "${action}" == @(halt|reboot) ]]; then
+    
+    # FIXME Hack to avoid something I don't remember now
+    su kestrel -c "ssh ${host} sudo ${op}" 2> /dev/null || {
+    warn "\tUnable to ${op} ${host} (ip:${ip})"; fail=True } &
+    
+    wait $!
+    
+    [ -n "${fail}" ] && return 1
+fi

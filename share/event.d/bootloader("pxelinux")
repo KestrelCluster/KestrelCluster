@@ -1,27 +1,42 @@
 #!/bin/bash
 
 # Check if the mac is defined
-if [[ -n "${mac}" && "${pxebootloader}" != "grub" ]]; then
+if [[ -n "${mac}" ]]; then
+    
+    pxemac=$(mac_2_pxemac ${mac})
+    
+    case ${action} in
+        disconnect|desregister)
+           [[ -n "${pxemac}" && "$reboot" = "False" && 
+              -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
+              rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+           ;;
 
-pxemac=$(mac_2_pxemac ${mac})
+        wake|reboot)
+            cp -f ${TFTPBOOT_DIR}/${image_name} \
+                  ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+            ;;
 
-case ${action} in
-    disconnect|desregister)
-       [[ -n "${pxemac}" && "$reboot" = "False" && 
-          -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
-          rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
-       ;;
-
-    wake|reboot)
-        cp -f ${TFTPBOOT_DIR}/${image_name} \
-              ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
-        ;;
-
-    shutdow)
-        [[ -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
-           rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
-        ;;
-
-esac
-
+        shutdow)
+            [[ -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
+               rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+            ;;
+    esac
+    
+else
+    
+    case ${action} in
+        start-register)
+            # Set the pxelinux register configuration as the default
+            sed "/append/s/$/ register=${group} /" \
+                < ${TFTPBOOT_DIR}/${image_name}    \
+                > ${TFTPBOOT_DIR}/pxelinux.cfg/default
+            ;;
+            
+        stop-register)
+            # Reboot by default
+            cp -f ${TFTPBOOT_DIR}/reboot ${TFTPBOOT_DIR}/pxelinux.cfg/default
+            ;;
+    esac
+    
 fi

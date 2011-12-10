@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ "${action}" == "wake" ]; then
+    
+    # $KESTREL_IFACE is exported by check_kestrel_daemon function
+    etherwake -i "${KESTREL_IFACE}" "${mac}" > /dev/null ||
+    warn "Wol failed"
+    
+fi
