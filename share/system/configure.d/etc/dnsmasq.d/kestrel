@@ -25,8 +25,15 @@ dhcp-range=${DHCP_STARTING_IP},${DHCP_ENDING_IP},12h
 dhcp-option=option:router,${FRONTEND_IP}
 dhcp-option=option:tftp-server,${FRONTEND_IP}
 
+# Options for Macs
+dhcp-boot=burg64.efi
+dhcp-vendorclass=apple-boot,AAPLBSDPC/i386
+dhcp-option-force=net:apple-boot,43,08:04:81:00:00:67
+dhcp-option-force=net:apple-boot,60,"AAPLBSDPC/i386"
+
 # Set BOOTP options to be returned by the DHCP server.
-dhcp-boot=pxelinux.0,${HOSTNAME},${FRONTEND_IP}
+dhcp-boot=net:#apple-boot,pxelinux.0,${HOSTNAME},${FRONTEND_IP}
+dhcp-boot=net:apple-boot,grub.efi
 
 # Enable the TFTP server function.
 enable-tftp
