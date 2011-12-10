@@ -3,34 +3,32 @@
 delete_entry () {
     sed -ri "
         # Deletes the group of lines between the label and the next label
-        /^[[:space:]]*Label.*[[:space:]]+${image_name}([[:space:]]+|$)/ , \
-        /^[[:space:]]*$|^[[:space:]]*Label/ {
+        /^\s*Label.*\s+${image_name}(\s+|$)/ , \
+        /^\s*$|^\s*Label/ {
 
              # delete the line of group ${image_name}
-             /^[[:space:]]*Label.*[[:space:]]${image_name}([[:space:]]+|$)/d
+             /^\s*Label.*\s+${image_name}(\s+|$)/d
 
              # delete everything except the remaining (next) group
-             /^[[:space:]]*Label/"\!"d 
-        }" ${TFTPBOOT_DIR}/image-list
+             /^\s*Label/"\!"d 
+        }" ${FILE}
 }
 
 case $1 in
-    add)
-        if [ ! -e ${TFTPBOOT_DIR}/image-list ]; then
-            echo -e "\ninclude template\n" > ${TFTPBOOT_DIR}/image-list
-            chown dnsmasq:kestrel ${TFTPBOOT_DIR}/image-list
+    install)
+        if (($(stat -c %s ${FILE}) == 0)); then
+            echo -e "\ninclude template\n" > ${FILE}
         fi
         
         delete_entry
         
-        (
-            echo "Label KestrelHPC Image : ${image_name}"
-            echo "    menu ${image_name}"
-            echo "    config ${image_name}"
-            echo                            
-        ) >> ${TFTPBOOT_DIR}/image-list
+        cat <<EOF >> ${FILE}
+Label KestrelHPC Image : ${image_name}
+    menu ${image_name}
+    config ${image_name}
+
+EOF
         
-        chown dnsmasq:kestrel ${TFTPBOOT_DIR}/image-list
         ;;
 
     remove)
