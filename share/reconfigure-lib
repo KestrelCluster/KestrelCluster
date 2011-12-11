@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Copyright (C) 2011 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 
 # create_evaluation_script
 # 
@@ -118,7 +133,7 @@ check_flags() {
     local flag
     local IFS="\,"
     
-    for flag in ${flags} ${flags2}; do
+    for flag in ${flags2} ${flags}; do
         
         case "${flag}" in
             
@@ -173,7 +188,7 @@ check_flags() {
                    [[ "${!BASH_REMATCH[1]}" != "yes" ]]; then
                     
                     # Only restore if we are really running the template
-                    [ -n "${action}" ] && restore_file
+                    #[ -n "${action}" ] && restore_file
                     return 1
                 fi
                 ;;
@@ -230,8 +245,8 @@ run_template() {
     
     shift 6
     
-    local action=$1
-    local   args=$@
+    local event=$1
+    local  args=$@
     
     # default values
     local chroot
@@ -248,11 +263,11 @@ run_template() {
     
     check_flags || return 0
     
-    export file action user group mode link
+    export file event user group mode link
     
     if [ -n "${run}" ]; then
         
-        if [[ "${args}" == @(install|enable) ]]; then
+        if [[ "${args}" == @(install|enable|configure) ]]; then
             
             echo "script: ${path}"
             echo "tofile: ${file}"
@@ -267,17 +282,13 @@ run_template() {
             
             # If a file is being edited, first create a backup or create the file
             [[ "${run}" == "edit" ]] &&
-                if [ -f "${os_dir}/${file}" ]; then     
-                    test_backup
-                    
-                else
-                    mkdir -p "${os_dir}/${file%/*}"
-                    touch -d "@0" "${os_dir}/${file}"
-                fi
+                test_backup
             
             # Run the package script
-            if [[ "${run}" == "package" ]]; then
+            if [[ "${run}" == "package" && "${args}" != "configure" ]]; then
                 local packages=$(. ${path} )
+                
+                msg "package:  ${path}" >&3
                 
                 echo -e "install:${packages}\n" \
                     >> ${os_dir}/${KESTREL_LOG_DIR}/apt-history
@@ -296,12 +307,17 @@ run_template() {
             # Run the edit or run script under a chroot
             elif [[ ! -n "${chroot}" ]]; then
                 
+                msg "script:   ${file}" >&3
+                
                 FILE="${os_dir}/${file}"
                 
                 . "${path}" ${args}
                 
             # Run the edit or run script
             else
+                
+                msg "chscript: ${file}" >&3
+                
                 export FILE=${file}
                 
                 # Copy the basic chroot kestrel-lib
@@ -321,16 +337,23 @@ run_template() {
             [[ "${run}" == "edit" ]] &&
                 perms_and_backup
             
+        # uninstall
         else
-            echo "file: ${file}"
+            
+            echo "file: /${file}"
             echo
             
             if [[ "${run}" == "edit" ]]; then
+                
+                msg "edit:     /${file}" >&3
+                
                 restore_file
             
             # Run the package script
             elif [[ "${run}" == "package" && -z "${os_dir}" ]]; then
                 local packages=$(. ${path} )
+                
+                msg "package:  ${file}" >&3
                 
                 echo -e "remove:${packages}\n" \
                     >> ${os_dir}/${KESTREL_LOG_DIR}/apt-history
@@ -342,16 +365,48 @@ run_template() {
                 export DEBIAN_FRONTEND=noninteractive
                 chroot ${os_dir} apt-get -qq -y remove ${packages} \
                     >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
+                        
+            # Run the edit or run script under a chroot
+            elif [[ ! -n "${chroot}" ]]; then
+                
+                msg "script:   ${file}" >&3
+                
+                FILE="${os_dir}/${file}"
+                
+                . "${path}" ${args}
+                
+            # Run the edit or run script
+            else
+                
+                msg "chscript: ${file}" >&3
+                
+                export FILE=${file}
+                
+                # Copy the basic chroot kestrel-lib
+                cat < ${KESTREL_SHARE}/kestrel-chroot-lib > ${os_dir}/tmp/hook
+                
+                # Copy the script to the chroot
+                cat < ${path} >> ${os_dir}/tmp/hook
+                chmod 755 ${os_dir}/tmp/hook
+                
+                # Avoid any locale setting
+                export LANG=C
+                chroot ${os_dir} /tmp/hook ${args}
+                
+                rm /tmp/hook
             fi
         fi
         
     else
+        msg "template: /${file}" >&3
         
-        if [[ ! "${args}" == @(install|enable) ]]; then
+        if [[ ! "${args}" == @(install|enable|configure) ]]; then
             restore_file
+            
         else
+            
             echo "template: ${path}"
-            echo "tofile:   ${file}"
+            echo "tofile:   /${file}"
             [ -n "${user}"  ] && 
                 echo "user:     ${user}"  ||  user=$(stat -c %u "${path}")
             [ -n "${group}" ] && 
@@ -364,7 +419,7 @@ run_template() {
             template_file "${path}" "${file}"
         fi
         
-        [ "${file%/*}" == "/etc/init.d" ] && install_service
+        [ "${file%/*}" == "etc/init.d" ] && install_service
     fi
 }
 
@@ -825,7 +880,7 @@ list_stages() {
 }
 
 
-# check_stage <stage>
+# check_stage
 # 
 #     Check if exists the stage <stage>
 
@@ -838,6 +893,45 @@ check_stage() {
 }
 
 
+# restore_all <os_dir>
+# 
+#     Restore all the backup files
+
+restore_all() {
+    local os_dir="${1}"
+    
+    [ -d ${os_dir}/${KESTREL_BACKUP_DIR}/ ] &&
+    ( cd ${os_dir}/${KESTREL_BACKUP_DIR}/
+      find . -type l -iregex '.*:last$' ) | \
+    while read file; do
+        file=${file#.}
+        restore_file
+    done
+}
+
+
+# restore_stage <stage> <os_dir>
+# 
+#     Restore the backup files of a stage
+
+restore_stage() {
+    local  stage="${1}"
+    local os_dir="${2}"
+    
+    if [ -z "${image_dir}" ]; then
+        dir="system/${stage}.d"
+    else
+        dir="node/${stage}.d"
+    fi
+    
+    find_templates "${dir}" ! -iregex '.*/\(check\|run\|restart\)\..*' \
+                            ! -iregex '.*/[^\/\(]\(.*run.*\)' | \
+    while read path file flags label; do
+        restore_file
+    done
+}
+
+
 # run_configuration_stage <stage> [<optional flags>]
 # 
 #     Runs the configuration stage
@@ -845,9 +939,9 @@ check_stage() {
 #     Note: Requires $image_dir, $image_name $event vars to be already set
 
 run_configuration_stage() {
-    local  stage="${1}"
-    local os_dir="${2}"
-    local  oflag="${2}"
+    local os_dir="${1}"
+    local  stage="${2}"
+    local  oflag="${3}"
     local    log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     local    dir
     
@@ -868,9 +962,10 @@ run_configuration_stage() {
         echo "===================" 
     } >> "${log}" 2>&1
     
+    exec 3>&1
+    
     find_templates "${dir}" -iregex '.*/check\..*' |
     while read path FILE flags label; do
-        echo "${FILE}"
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
                      "${os_dir}" "run,${oflag}" "${event}"  \
                      >> "${log}" 2>&1
@@ -879,7 +974,6 @@ run_configuration_stage() {
     
     find_templates "${dir}" ! -iregex '.*/\(check\|run\|restart\)\..*' |
     while read path FILE flags label; do
-        echo "${FILE}"
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
                      "${os_dir}" "${oflag}"     "${event}"  \
                      >> "${log}" 2>&1
@@ -888,12 +982,13 @@ run_configuration_stage() {
     
     find_templates "${dir}" -iregex '.*/\(run\|restart\)\..*' |
     while read path FILE flags label; do
-        echo "${FILE}"
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
                      "${os_dir}" "run,${oflag}" "${event}"  \
                      >> "${log}" 2>&1
         
     done
+    
+    exec 3>&-
 }
 
 
@@ -902,7 +997,7 @@ run_configuration_stage() {
 ###############################################
 
 node_configure() {
-    local event="${1:-${event}}"
+    local event="${event:-configure}"
     
     run_configuration_stage "${image_dir}" "configure"
     run_configuration_stage ""             "system-configure"
@@ -910,7 +1005,7 @@ node_configure() {
 
 
 node_install() {
-    local event="${1}"
+    local event="${1:-install}"
     
     run_configuration_stage "${image_dir}" "pre-install"
     run_configuration_stage "${image_dir}" "packages" "package"
@@ -921,7 +1016,7 @@ node_install() {
 
 
 system_configure() {
-    local event="${1:-${event}}"
+    local event="${event:-configure}"
     local image_dir=
     local image_name=
     
@@ -930,12 +1025,13 @@ system_configure() {
 
 
 system_install() {
-    local event="${1}"
+    local event="${1:-install}"
     local image_dir=
     local image_name=
     
     run_configuration_stage "" "pre-install"
     run_configuration_stage "" "packages" "package"
     run_configuration_stage "" "install"
-    frontend_configure
+    system_configure
 }
+
