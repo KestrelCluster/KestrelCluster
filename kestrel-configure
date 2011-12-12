@@ -1,0 +1,436 @@
+#!/bin/bash
+
+# Copyright (C) 2010, 2011 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+[ -z   "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ ! -d "$KESTREL_SHARE" ] && KESTREL_SHARE="${0%/*}/share"
+
+# load kestrel_lib
+. "$KESTREL_SHARE"/kestrel-lib
+. "$KESTREL_SHARE"/reconfigure-lib
+
+export_config
+
+# List of images to reconfigure
+array_images=
+
+
+usage() {
+echo "
+Usage: ${0##*/} [options] command
+
+Commands:
+   --configure
+     Reconfigure the system or an image
+
+   --enable
+     Enable KestrelCluster on the system
+
+   --disable
+     Disable KestrelCluster on the system
+
+   --edited
+     List files installed or modified files
+
+   --edited-info [file]
+     Show information of the saved files and versions
+
+   --templates <stage>
+     List aplicable templates or scripts
+
+   --restore  <file>
+     Restore the original file
+
+   --diff     <file>
+     Show the difference between the edited file and the original
+
+   --log      <install | configure | uninstall> <time>
+     View log stage
+
+   --log-file <stage> <time>
+     View log file
+
+   --log-files
+     List log files
+
+   --options
+     List kestrel options
+
+   --set-option <variable> <value>
+     Set kestrel option
+
+   --ask
+     Ask kestrel options
+
+Options:
+   --quiet
+     
+   --image [<image>]
+     Reconfigure an image
+     
+   --system
+     Reconfigure the frontend
+     
+   --all
+     Reconfigure everything
+     
+   --force
+     Runs again the install stage
+"
+}
+
+
+# internal functions
+#####################
+
+configure_system() {
+    local image_name=
+    local image_dir=
+    
+    msg "Configuring the system" ""
+    
+    # Restore system configure state
+    restore_stage "configure" ""
+    
+    # Restore node configure state
+    image_dir="system"
+    restore_stage "system-configure" ""
+    unset image_dir
+    
+    if [[ "${force}" == "true" ]]; then
+        system_install "install"
+    else
+        system_configure "configure"
+    fi
+}
+
+
+configure_image() {
+    local image_name=$1
+    local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
+    
+    msg "Configuring the image \"${i}\"" ""
+    
+    # Verify the image is not being used by a node
+    if [ -f ${KESTREL_LOCK_DIR}/${image_name}.running ]; then
+        warn "The image ${image_name} is being used by some node"
+        return 1
+    fi
+    
+    # Lock the image, so nobody can start any node while the image is being
+    # modified
+    (
+        lock_image ${image_name}
+        
+        mount_chroot_image ${image_dir}
+        
+        if [[ "${force}" == "true" ]]; then
+            node_install "install"
+        else
+            node_configure "configure"
+        fi
+        
+        sync 
+        
+        umount_chroot_image ${image_dir}
+    )
+}
+
+
+configure_all() {
+    [ -n "${force}" ] || check_enabled || return 0
+    
+    configure_system
+    
+    for i in $(list_images); do
+        
+        configure_image "${i}"
+        
+    done
+}
+
+
+# reconfigure_enable
+# 
+#     Enables KestrelHPC on the frontend : 
+#       - runs install scripts.
+#       - reconfigures the frontend.
+#       - reconfigures all the images.
+#         (forced reconfigure, so it also reinstalls everything on the images).
+
+configure_enable() {
+    [ -z "${force}" ] && check_enabled "" && 
+        die "Kestrel already enabled"
+    
+    [[ "${array_images}" != @("all"|"") ]] &&
+        warn "--${event} command ignores --image and--system options since it configures all, the system and all the nodes"
+    
+    # Detect the current system and store it under a config file
+    if [ ! -e ${KESTREL_SHARE}/default.d/internal_detected_os ] || 
+       [ -n "${force}" ]; then
+        
+        export OS_RELEASE=$(      lsb_release -rs )
+        export OS_CODENAME=$(     lsb_release -cs )
+        export OS_DISTRIBUTION=$( lsb_release -is )
+        export OS_ARCHITECTURE=$( dpkg --print-architecture )
+        
+        cat <<EOF > ${KESTREL_SHARE}/default.d/internal_detected_os
+# Internal variables. Do not modify any of these variables!
+OS_RELEASE=${OS_RELEASE}
+OS_CODENAME=${OS_CODENAME}
+OS_DISTRIBUTION=${OS_DISTRIBUTION}
+OS_ARCHITECTURE=${OS_ARCHITECTURE}
+EOF
+        
+    fi
+    
+    force=true
+    configure_system
+}
+
+
+# configure_disable
+# 
+#     Disables KestrelHPC on the frontend :
+#       - runs install scripts in uninstall mode.
+
+configure_disable() {
+    [ -z "${force}" ] && check_enabled "die"
+    
+    system_install "uninstall"
+    restore_all ""
+}
+
+
+# applied_image
+# 
+#     Calcule to which image (or to the system) we should apply the command
+#     having a look to the list_images array.
+
+applied_image() {
+    if [ -n "${array_images}" ]; then
+        if [[ "${array_images}" == "system" ]]; then
+            image_name=""
+            image_dir=""
+        else
+            image_name="${array_images}"
+            image_dir="${KESTREL_IMAGE_DIR}/${image_name}"
+        fi
+    else
+        image_name=""
+        image_dir=""
+    fi
+}
+
+
+# option handling
+##################
+
+for param in "$@"; do
+    case $param in
+        --quiet)
+            quiet=">/dev/null"
+            ;;
+        --force)
+            force=true
+            ;;
+        --version|-v)
+            kestrel_version
+            ;;
+        --help|-h)
+            usage
+            ;;
+     esac
+done
+
+
+# If no parameter is specified
+(( $# == 0 )) && usage-error
+
+
+while (( $# > 0 )); do
+    case ${1} in
+        --image)
+            # Check for the optional parameter
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            else
+                image=default
+            fi
+            
+            check_image ${image}
+            
+            [[ "${array_images}" != "all" ]] &&
+            array_images=(${image} ${array_images[@]})
+            ;;
+            
+        --system|--frontend)
+            [[ "${array_images}" != "all" ]] &&
+            array_images=(system ${array_images[@]})
+            ;;
+            
+        --enable|--disable|--all)
+            # Ensure this script is executed as root
+            check_root
+            
+            configure_${1#--}
+            ;;
+            
+        --edited)
+            # Ok
+            applied_image
+            list_backup_files "${image_dir}"
+            ;;
+            
+        --edited-info)
+            # Ok
+            [[ -z "${2}" || "${2}" =~ ^--.* ]] || info=${2}
+            
+            applied_image
+            list_all_backup_files2 "${image_dir}" "${info}"
+            
+            unset info
+            shift 1
+            ;;
+            
+        --templates)
+            # Ok
+            applied_image
+            
+            [[ -z "${2}" || "${2}" =~ ^--.* ]] && usage-error
+            check_stage "$2" || msg "Invalid stage \"${2}\""
+            
+            applicable_templates "$2"
+            
+            shift 1
+            ;;
+            
+        --restore)
+            die "ToDo"
+            ;;
+            
+        --diff)
+            [[ -z "${2}" || "${2}" =~ ^--.* ]] && usage-error
+            
+            file=${2}
+            
+            [[ -z "${3}" || "${3}" =~ ^--.* ]] || { vers=${3}; shift 1; }
+            
+            applied_image
+            
+            diff_files "${image_dir}" "${file}" "${vers}"
+            
+            unset vers
+            shift 1
+            ;;
+            
+        --log)
+            die "ToDo"
+            [[ ! "${2}" == @(install|configure|uninstall) ]] && error-usage
+            applied_image
+            show_log_stage
+            ;;
+            
+        --log-file)
+            applied_image
+            
+            [[ -z "${2}" || "${2}" =~ --.* ]] && usage-error
+            
+            echo $2
+            
+            check_stage "$2" || die "Invalid stage \"${2}\""
+            
+            if [[ "${3}" =~ ^--.* ]]; then
+                show_log_file "${2}"
+            else
+                show_log_file "${2}" "${3}"
+            fi
+            
+            shift 1
+            ;;
+            
+        --log-files)
+            # Ok
+            applied_image
+            list_log_files
+            ;;
+            
+        --options)
+            # Ok
+            variable_values
+            ;;
+            
+        --set-option)
+            # Ok
+            [ -z "${2}" -o -z "${3}" ] && usage-error
+            
+            variable_list | grep -Eq "${2}" || die "Invalid option: \"${2}\""
+            
+            check_root
+            
+            set_key_value "${2}" "${3}" /etc/kestrel/kestrel.conf
+            
+            shift 2
+            ;;
+            
+        --ask)
+            check_root
+            
+            FILE=/etc/kestrel/kestrel.conf
+            
+            run_script "${KESTREL_SHARE}/ask.d"
+            ;;
+            
+        # hidden commands (for autocomplete)
+            
+        --log-dates)
+            applied_image
+            
+            [[ -z "${2}" || "${2}" =~ ^--.* ]] && usage-error
+            
+            list_log_dates "${2}"
+            
+            shift 1
+            ;;
+            
+        --list-versions)
+            # Check for the optional parameter
+            if [[ -n "${2}" || ! "${2}" =~ ^--.+ ]]; then
+                file=$2
+                shift
+            else
+                file=""
+            fi
+            list_backup_files "" "${file}"
+            ;;
+            
+        --list-originals)
+            list_original_files ""
+            ;;
+            
+        --quiet|--force|--version|-v|--help|-h)
+            ;;
+            
+        *)
+            usage-error
+            ;;
+    esac
+    shift
+done
+
+exit 0
