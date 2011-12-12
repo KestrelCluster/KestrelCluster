@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Restart all the NFS services
+
+if [ -e /etc/init/idmapd.conf ]; then
+    initctl stop idmapd
+    initctl start idmapd
+
+elif [ -x /etc/init.d/idmapd ]; then
+    /etc/init.d/idmapd restart
+
+elif [ -x /etc/init.d/nfs-common ]; then
+    /etc/init.d/nfs-common restart
+
+fi
+
+
+if [ -e /etc/init/statd.conf ]; then
+    initctl stop statd
+    initctl start statd
+
+elif [ -x /etc/init.d/statd ]; then
+    /etc/init.d/statd restart
+
+fi
+
+
+# Check if the kestrel home dir is already mounted somewhere else
+mount_dir=$(mount | sed -rn "s/^.*\s(.*\/kestrel\/home)\s+.*$/\1/p")
+
+# Check if the new mount dir is different from the old one
+if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
+
+    install -d /${KESTREL_HOME}
+    
+    mount --bind /${KESTREL_HOME} ${new_mount_dir}
+    
+    if [ -x /etc/init.d/nfs-kernel-server ]; then
+        /etc/init.d/nfs-kernel-server restart
+    else
+        die_config "nfs-kernel-server not found"
+    fi
+    
+    if [ -n "${mount_dir}" ]; then
+        umount ${mount_dir}
+    fi
+fi
+
