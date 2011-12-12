@@ -41,6 +41,8 @@ modify_image() {
 
         # Set LANG as POSIX in a subshell
         (
+            close_lock
+            
             export LANG=C
             chroot ${image_dir} apt-get -qq "$@"
         )
@@ -78,10 +80,10 @@ _upgrade() {
 
 _history() {
     local image_name=${image:-default}
-
-    check_image no_running_check
-
-    cat ${KESTREL_IMAGE_DIR}/.${image_name}.history
+    
+    check_image ${image_name} no_running_check
+    
+    cat ${KESTREL_IMAGE_DIR}/${KESTREL_LOG_DIR}/apt-history
 }
 
 
