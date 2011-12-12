@@ -17,7 +17,7 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-KESTREL_VERSION="2.1"
+KESTREL_VERSION="2.9"
 
 # Loads the config from the config file default.conf, from the defaul.d dir
 # and from the user's
@@ -29,6 +29,16 @@ KESTREL_VERSION="2.1"
 # Image functions
 ##################
 
+
+# check_unmounted
+# 
+#    Ensure the image is completely unmounted
+
+check_unmounted() {
+    local image_dir=$1
+    grep -Eq "${image_dir}" /proc/mounts &&
+        umount_chroot_image "${image_dir}"
+}
 
 # mount_chroot_image <image_dir>
 # 
@@ -201,7 +211,7 @@ default-image() {
 }
 
 
-# lock_image <image_name>
+# lock_image <image_name> [<non block>]
 #
 # example :
 # (
@@ -216,8 +226,9 @@ lock_image() {
     mkdir -p ${KESTREL_LOCK_DIR}
     
     exec 200> ${KESTREL_LOCK_DIR}/${image_name}.lock
-
+    
     if ! flock --nonblock --exclusive 200; then
+        [ -n "${2}" ] && return 1
         echo "Waiting till the image gets unlocked"
         flock --exclusive 200
     fi
@@ -600,9 +611,7 @@ close_lock(){
 check_kestrel_daemon() {
     detect_iface
 
-    [ ! -f /etc/init.d/kestrel_daemon ] &&
-        die "KestrelHPC is disabled" \
-            "\t-Enable with : sudo kestrel-reconfigure --enable"
+    check_enabled "die"
     
     /etc/init.d/kestrel_daemon status &> /dev/null || \
     if [ -z ${KESTREL_IFACE} ]; then
@@ -617,3 +626,20 @@ check_kestrel_daemon() {
             "\t-Check the log file for more info: /var/log/kestrel.log"
     fi
 }
+
+
+# check_enabled <die>
+# 
+#     Check if kestrel is enabled
+
+check_enabled() {
+    if [ -n "$1" ]; then
+        [ ! -f /etc/init.d/kestrel_daemon ] &&
+            die "KestrelHPC is disabled" \
+                "\t-Enable with : sudo kestrel-configure --enable"
+    else
+        [ ! -f /etc/init.d/kestrel_daemon ] && return 1
+    fi
+    return 0
+}
+
