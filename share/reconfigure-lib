@@ -32,10 +32,10 @@ create_evaluation_script() {
     done
     
     [ -n "${image_name}" ] && 
-        script="${script}"'s#\$\{?'"${image_name}"'\}?#'"${!image_name}"'#g;'
+        script="${script}"'s#\$\{?image_name\}?#'"${image_name}"'#g;'
     
     [ -n "${image_dir}" ] && 
-        script="${script}s"'#\$\{?'"${image_dir}"'\}?#'"${!image_name}"'#g;'
+        script="${script}s"'#\$\{?image_dir\}?#'"${image_dir}"'#g;'
     
     export evaluation_script="${script}"'};/\\\$(\w|\{)/s/\\\$/$/g'
 }
@@ -345,8 +345,6 @@ run_template() {
             
             if [[ "${run}" == "edit" ]]; then
                 
-                msg "edit:     /${file}" >&3
-                
                 restore_file
             
             # Run the package script
@@ -369,7 +367,7 @@ run_template() {
             # Run the edit or run script under a chroot
             elif [[ ! -n "${chroot}" ]]; then
                 
-                msg "script:   ${file}" >&3
+                msg "script:   ${file}" >&3 
                 
                 FILE="${os_dir}/${file}"
                 
@@ -398,12 +396,13 @@ run_template() {
         fi
         
     else
-        msg "template: /${file}" >&3
         
         if [[ ! "${args}" == @(install|enable|configure) ]]; then
             restore_file
             
         else
+            
+            msg "template: /${file#/}" >&3
             
             echo "template: ${path}"
             echo "tofile:   /${file}"
@@ -429,28 +428,34 @@ run_template() {
 
 install_service() {
     
-    [ -n "chroot" ] && chroot="chroot ${os_image}"
+    [ -n "${os_image}" ] && chroot="chroot ${os_image}"
+    [ -n "${chroot}"   ] && chroot="chroot ${os_image}"
     
     if [[ ! "${args}" == @(install|enable) ]]; then
         
-        ${chroot} update-rc.d -f ${file} remove
+        ${chroot} update-rc.d -f ${file##*/} remove
         
     else
         # Remove the init script links
-        ${chroot} update-rc.d -f ${file} remove >/dev/null
+        ${chroot} update-rc.d -f ${file##*/} remove
         
-        local start
-        local  stop
+        local pri_start pri_stop run_start run_stop
         
-        start=$(sed -rn 's/\s*#\s*Run-Level-Start:\s*([0-9]+)$/\1/p' ${path})
-         stop=$(sed -rn 's/\s*#\s*Run-Level-Stop:\s*([0-9]+)$/\1/p'  ${path})
+        pri_start=$(sed -rn 's/\s*#\s*Run-Level-Start:\s*([0-9]+)$/\1/p' ${path})
+         pri_stop=$(sed -rn 's/\s*#\s*Run-Level-Stop:\s*([0-9]+)$/\1/p'  ${path})
         
-        [ -z "${start}" ] && start=20
-        [ -z "${stop}"  ] &&  stop=20
+        [ -z "${pri_start}" ] && pri_start=20
+        [ -z "${pri_stop}"  ] &&  pri_stop=20
+        
+        run_start=$(sed -rn 's/\s*#\s*Default-Start:\s*(([S0-6]\s*)*)$/\1/p' ${path})
+         run_stop=$(sed -rn 's/\s*#\s*Default-Stop:\s*(([S0-6]\s*)+)$/\1/p'  ${path})
+        
+        [ -z "${run_start}" ] && run_start="2 3 4 5"
+        [ -z "${run_stop}"  ] &&  run_stop="0 1 6"
         
         # Add the start and stop links
-        ${chroot} update-rc.d ${file} start ${start} .
-        ${chroot} update-rc.d ${file} stop  ${stop} .
+        ${chroot} update-rc.d ${file##*/} start ${pri_start} ${run_start} .
+        ${chroot} update-rc.d ${file##*/} stop  ${pri_stop}  ${run_stop}  .
     fi
 }
 
@@ -543,7 +548,7 @@ search_backup_file() {
          dirname=${BASH_REMATCH[1]}
          version=${BASH_REMATCH[3]%\:actual}
          version=${version:-\:last}
-        filename=${BASH_REMATCH[2]%${version}}
+        filename=${BASH_REMATCH[2]}
     else
         die "Invalid filename: \"${file}\""
     fi
@@ -553,10 +558,15 @@ search_backup_file() {
         # Escape the dots for using it as a the regular expression
         local file_re="${dirname}${filename}${version}"
               file_re="${file_re//./\\.}"
+        echo $version
         if [[ "${version}" =~ ^${version_link_re}$ ]]; then
+            echo find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
+                           -iregex "^.*/${file_re}$" -print -quit
             result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
                            -iregex "^.*/${file_re}$" -print -quit )
         else
+            echo find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
+                           -iregex "^.*/${file_re}$" -print -quit
             result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
                            -iregex "^.*/${file_re}$" -print -quit )
         fi
@@ -580,31 +590,6 @@ search_backup_file() {
      dirname=${BASH_REMATCH[1]}
      version=${BASH_REMATCH[3]}
     filename=${BASH_REMATCH[2]%${version}}
-}
-
-
-# list_backup_versions <os_dir> file[:(version|last|actual)]
-# 
-#     List the versions of a saved file
-
-list_backup_versions() {
-    local os_dir="${1}"
-    local   file="${2}"
-    local dirname
-    local version
-    local filename
-    
-    search_backup_file "${file}"
-    
-    ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/${dirname}"
-      
-      # List backup files which match the regular expression
-      find . -regextype posix-egrep \
-             \( -type l -iregex ".*/${filename}${version_link_re}$" \) \
-             -o         -iregex ".*/${filename}${version_back_re}$" |
-      
-      # Remove "./". Add a new entry ":actual" for each ":last" entry
-      sed -r 's#.*'"${version_re}"'$#\1#; s#last$#last\nactual#' )
 }
 
 
@@ -658,9 +643,9 @@ list_backup_files() {
         
       # List backup files which match the regular expression
       find . -regextype posix-egrep \
-             -type f -iregex "${backup_back_re}$" | 
+             -type l -iregex "${backup_last_re}$" | 
       
-      sed -r 's#\.\/'${backup_back_re}'#\1\2#' | uniq
+      sed -r 's#\.\/'${backup_last_re}'#\1\2#' | uniq
     )
 }
 
@@ -753,7 +738,7 @@ diff_files() {
     local filename
     local file2
     
-    search_backup_file "${file1}"
+    search_backup_file "${file}"
     
     file2="${os_dir}/${KESTREL_BACKUP_DIR}/${dirname}/${filename}"
     
@@ -787,7 +772,7 @@ diff_files() {
         fi
     fi
     
-    diff -urN ${file1} ${file2}
+    diff -urN ${file} ${file2}
 }
 
 
@@ -795,7 +780,7 @@ diff_files() {
 # log functions
 ################
 
-# list_log_dates
+# list_log_dates <stage>
 # 
 #     List of log dates
 
@@ -808,6 +793,19 @@ list_log_dates() {
     else
         die "Log file \"${stage}\" not found"
     fi
+}
+
+
+# list_log_dates2 <stage>
+# 
+#     List of log dates
+
+list_log_dates2() {
+    local stage="${1}"
+    local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
+    
+    [ -f "${log}" ] &&
+        sed -rn 's#^'"${log_time_re}"'$#\1_\3#p'
 }
 
 
@@ -904,7 +902,8 @@ restore_all() {
     ( cd ${os_dir}/${KESTREL_BACKUP_DIR}/
       find . -type l -iregex '.*:last$' ) | \
     while read file; do
-        file=${file#.}
+        file=${file#./}
+        echo ${file}
         restore_file
     done
 }
@@ -963,6 +962,8 @@ run_configuration_stage() {
     } >> "${log}" 2>&1
     
     exec 3>&1
+        
+    [ "${verbose:-yes}" == "yes" ] && msg ${stage}
     
     find_templates "${dir}" -iregex '.*/check\..*' |
     while read path FILE flags label; do
