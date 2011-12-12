@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Copyright (C) 2010, 2011 Jon Ander Hernández
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # kestrel-daemon
 #
 # Run register scripts when a new event occurs.
@@ -20,6 +35,7 @@ export_config
 NAME=${0##*/}
 LOGFILE=/var/log/${NAME}.log
 PIDFILE=/var/run/${NAME}.pid
+RPCLOGFILE=/var/log/kestrel_rpc.log
 
 
 usage() {
@@ -36,6 +52,9 @@ OPTIONS:
 
    --log
      Show the log file
+
+   --rpc-log
+     Show the rpc's log file
 "
 }
 
@@ -162,12 +181,8 @@ run_event_scripts() {
         "----------------------"    \
         ""
     
-    # Run event.d script.
-    list_scripts "event.d" | \
-    while read script; do
-        echo "event script: ${script}"
-        . ${script}
-    done
+    # Run event.d scripts
+    run_script "${KESTREL_SHARE}/event.d" "" "script: "
 
     msg ""                          \
         "======================"    \
@@ -201,6 +216,12 @@ case $1 in
         exit 0
         ;;
         
+    --rpc-log)
+        [ -e  ${RPCLOGFILE} ] &&
+          cat ${RPCLOGFILE}
+        exit 0
+        ;;
+        
     *)
         usage-error
         ;;
@@ -213,9 +234,7 @@ check_running || exit 1
 check_root
 
 # Check if Kestrel is enabled
-[ ! -f /etc/init.d/kestrel_daemon ] &&
-    die "KestrelHPC is disabled" \
-        "\t-Enable with : sudo kestrel-reconfigure --enable"
+check_enabled "die"
 
 [ ! -p ${KESTREL_RPC_FIFO} ] &&
     die "Kestrel RPC FIFO: ${KESTREL_RPC_FIFO} not found"
