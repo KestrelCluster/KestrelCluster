@@ -47,7 +47,9 @@ select_net_device() {
         local type
         local driver
         
-        for net in /sys/class/net/!(lo); do
+        for net in /sys/class/net/*; do
+            
+            [ ${net} == lo ] && continue
             
             net=${net##*/}
             ifconfig=$(ifconfig ${net##*/})
