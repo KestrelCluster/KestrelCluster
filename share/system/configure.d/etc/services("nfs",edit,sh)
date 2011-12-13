@@ -1,4 +1,4 @@
-
+#!/bin/bash
 
 # SecuringNFS. http://wiki.debian.org/SecuringNFS
 if [[ "${secure_nfs}" == "yes" ]]; then

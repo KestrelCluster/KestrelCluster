@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # Ensure the config line enabling the /etc/sudoers.d dir is present
 set_key_value "#includedir" "/etc/sudoers.d" ${FILE} " "

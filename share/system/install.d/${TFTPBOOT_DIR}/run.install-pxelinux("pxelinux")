@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # Copy files for PXE
 cp /usr/lib/syslinux/pxelinux.0        ${TFTPBOOT_DIR}/

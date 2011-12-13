@@ -95,7 +95,7 @@ check_and_start(){
     detect_iface
 
     if [ -n "\${KESTREL_IFACE}" ]; then
-        do_start \$PIDFILE \$DAEMON \$DESC \$NAME
+        do_start \$PIDFILE     \$DAEMON     \$DESC     \$NAME
         do_start \$PIDFILE_RPC \$DAEMON_RPC \$DESC_RPC \$NAME_RPC
     else
         log_failure_msg "KestrelHPC daemon: No network interface found with ip : \"\${FRONTEND_IP}\"."
@@ -107,15 +107,16 @@ case "\$1" in
         check_and_start
         ;;
     stop)
-        do_stop \$PIDFILE \$DAEMON \$DESC \$NAME
+        do_stop \$PIDFILE     \$DAEMON     \$DESC     \$NAME
         do_stop \$PIDFILE_RPC \$DAEMON_RPC \$DESC_RPC \$NAME_RPC
         ;;
     status)
-        status_of_proc "\$DAEMON" "\$NAME" &&
-        status_of_proc "\$DAEMON_RPC" "\$NAME_RPC" && exit 0 || exit \$?
+        status_of_proc "\$DAEMON"     "\$NAME"     || exit_code=\$?
+        status_of_proc "\$DAEMON_RPC" "\$NAME_RPC" || exit_code=\$?
+        exit \${exit_code:-0}
         ;;
     restart|force-reload)
-        do_stop \$PIDFILE \$DAEMON \$DESC \$NAME
+        do_stop \$PIDFILE     \$DAEMON     \$DESC     \$NAME
         do_stop \$PIDFILE_RPC \$DAEMON_RPC \$DESC_RPC \$NAME_RPC
         check_and_start
         ;;
