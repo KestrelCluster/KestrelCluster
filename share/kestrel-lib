@@ -634,11 +634,11 @@ check_kestrel_daemon() {
 
 check_enabled() {
     if [ -n "$1" ]; then
-        [ ! -f /etc/init.d/kestrel_daemon ] &&
+        [ ! -f ${KESTREL_DATA_DIR}/enabled ] &&
             die "KestrelHPC is disabled" \
                 "\t-Enable with : sudo kestrel-configure --enable"
     else
-        [ ! -f /etc/init.d/kestrel_daemon ] && return 1
+        [ ! -f ${KESTREL_DATA_DIR}/enabled ] && return 1
     fi
     return 0
 }
