@@ -3,4 +3,4 @@
 #
 # This file will be sourced by kestrel_beep
 
-BEEP=$BEEP
+BEEP=${BEEP}
