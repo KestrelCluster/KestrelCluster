@@ -21,6 +21,8 @@ case ${action} in
         
         echo "${hostname} ssh-rsa ${key}" >> /etc/ssh/ssh_known_hosts
         
+        unset SSH_AUTH_SOCK
+        
         su kestrel -c "ssh ${hostname} sudo set_hostname ${hostname} ${FRONTEND_IP} $(hostname)"
         ;;
         

@@ -52,7 +52,7 @@ _ssh() {
     
     check_user
     
-    #ssh-add
+    unset SSH_AUTH_SOCK
     
     ssh "${host}" "$@"
 }
