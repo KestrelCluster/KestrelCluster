@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[ "$#" != "1" ] && 
+[ "$#" != "0" ] && 
 echo "This script outputs the number of real cpus on the system"
 
 num=$(sed -nr '
