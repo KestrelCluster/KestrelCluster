@@ -244,6 +244,31 @@ rm_lock_image() {
 }
 
 
+# detect_system
+# 
+#     Detects the system
+
+detect_system() {
+    # Detect the current system and store it under a config file
+    if [ ! -e ${KESTREL_SHARE}/default.d/internal_detected_os ] || 
+       [ -n "${force}" ]; then
+        
+        export OS_RELEASE=$(      lsb_release -rs )
+        export OS_CODENAME=$(     lsb_release -cs )
+        export OS_DISTRIBUTION=$( lsb_release -is )
+        export OS_ARCHITECTURE=$( dpkg --print-architecture )
+        
+        cat <<EOF > ${KESTREL_SHARE}/default.d/internal_detected_os
+# Internal variables. Do not modify any of these variables!
+OS_RELEASE=${OS_RELEASE}
+OS_CODENAME=${OS_CODENAME}
+OS_DISTRIBUTION=${OS_DISTRIBUTION}
+OS_ARCHITECTURE=${OS_ARCHITECTURE}
+EOF
+        
+    fi
+}
+
 
 # User and Permission functions
 ################################
@@ -313,10 +338,10 @@ user_sshkeygen() {
     [[ -L ${home_link} || ! -e ${home_link} ]] &&
         ( cd /; ln -snf ${user_khome} ${home_link} )
     
-    rm  ${user_home}/.ssh/kestrel_id_dsa{,.pub} 2>/dev/null
+    rm -f ${user_home}/.ssh/kestrel_id_dsa{,.pub}
     
     if [[ "/${KESTREL_HOME}/" != "/home/" ]]; then
-        rm ${user_khome}/.ssh/authorized_keys 2>/dev/null
+        rm -f ${user_khome}/.ssh/authorized_keys
     else
         test_backup ${user_khome}/.ssh/authorized_keys
     fi
@@ -344,15 +369,6 @@ check_root() {
         die "You need root rights to do this action."
     fi
 }
-
-
-# Check if the user has rights
-
-#check_image_perm() {
-#    (( $(id -u) != 0 )) && sudo $0 $@
-#    
-#    grep -Eq "^$1$"
-#}
 
 
 
@@ -520,10 +536,24 @@ kestrel_dialog() {
 #     Note: Only use it on the tools not in any hook or config script
 
 question_yN() {
-    echo -e "${indent:-"    "}${1} (y/N)? "
+    echo -en "${indent:-"    "}${1} (y/N)? "
     read response
     # Check if the response is 'y' or 'yes' in a case insensitive way
     [[ $response =~ ^[[:space:]]*([yY]|[yY][eE][sS])[[:space:]]*$ ]]
+}
+
+
+# inc_indent
+
+inc_indent() {
+    indent="${indent}${LOG_INDENT}"
+}
+
+
+# dec_indent
+
+dec_indent() {
+    indent="${indent#${LOG_INDENT}}"
 }
 
 
@@ -533,9 +563,21 @@ question_yN() {
 
 msg() {
     while (( $# > 0 )); do
-        echo -e "${indent:-"    "}${1}"
+        echo -e "${indent:=${LOG_INDENT}}${1}"
         shift
     done
+}
+
+
+# msg_config <messages>*
+# 
+#     Show messages
+
+msg_config() {
+    while (( $# > 0 )); do
+        echo -e "${indent:=${LOG_INDENT}}${1}"
+        shift
+    done >&3
 }
 
 
@@ -546,7 +588,7 @@ msg() {
 die() {
     while (( $# > 0 )); do
         if [[ ! "${1}" =~ ^[0-9]+$ ]]; then
-            echo -e "${indent:-"    "}${1}"
+            echo -e "${indent:=${LOG_INDENT}}${1}"
             shift
         else
             break
@@ -563,9 +605,21 @@ die() {
 
 warn() {
     while (( $# > 0 )); do
-        echo -e "${indent:-"    "}Warning: ${1}"
+        echo -e "${indent:=${LOG_INDENT}}Warning: ${1}"
         shift
     done >&2
+}
+
+
+# warn_config <messages>*
+# 
+#     Show a warning message
+
+warn_config() {
+    while (( $# > 0 )); do
+        echo -e "${indent:=${LOG_INDENT}}Warning: ${1}"
+        shift
+    done >&3
 }
 
 
