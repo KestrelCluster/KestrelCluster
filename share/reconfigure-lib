@@ -436,8 +436,8 @@ run_template() {
 
 install_service() {
     
-    [ -n "${os_image}" ] && chroot="chroot ${os_image}"
-    [ -n "${chroot}"   ] && chroot="chroot ${os_image}"
+    [ -n "${os_dir}" ] && chroot="chroot ${os_dir}"
+    [ -n "${chroot}" ] && chroot="chroot ${os_dir}"
     
     if [[ ! "${args}" == @(install|enable) ]]; then
         
