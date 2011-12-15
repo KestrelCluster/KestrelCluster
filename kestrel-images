@@ -60,10 +60,11 @@ _new() {
         
         msg "\nCreating the image from the image cache\n"
         
+        mkdir -p ${image_dir}
         # Show the progress : usr, lib, etc...
         for file in ${KESTREL_IMAGE_DIR}/cached-image/*; do
             msg "Copying ${file##*/}"
-            cp -Ra "${file}" "${image_dir}" || _trap_copy_cached_image
+            cp -Ra "${file}/" "${image_dir}/" || _trap_copy_cached_image
         done
         
     # Create a new image using debootstrap
@@ -77,19 +78,29 @@ _new() {
         mount --bind /var/cache/apt/archives \
                      "${image_dir}/var/cache/apt/archives" || die
         
+        detect_system
+        
+        log=${KESTREL_LOG_DIR}/${image_name}.debootstrap.log
+        
         msg "\ndebootstrap will take some time, please wait\n"
         
         # Create the image using debootstrap
-        debootstrap "${OS_CODENAME}" "${image_dir}" \
-            > "${image_dir}.debootstrap.log" ||     \
-        # Finish correctly if debootstrap fails
-        _trap_debootstrap \\
-            "Debian boostraping tool failed to create an image" \\
-            "- Check the internet conection" \\
-            "- Check the log : ${image_dir}.debootstrap.log"
-        
-        # remove the 'I: ' and show a tab instead.
-        sed 's/^I: /   /' ${quiet} < "${image_dir}.debootstrap.log"
+        if [ -n "${quiet}" ]; then
+            debootstrap "${OS_CODENAME}" "${image_dir}" > ${log} ||
+            # Finish correctly if debootstrap fails
+            _trap_debootstrap \
+                "\n\nDeboostrap failed to create a basic system" \
+                "- Check the internet conection" \
+                "- Check the log : ${log}\n"
+        else
+            debootstrap "${OS_CODENAME}" "${image_dir}" | tee ${log}
+            
+            # Finish correctly if debootstrap fails
+            [ ${PIPESTATUS[0]} -ne "0" ] && _trap_debootstrap \
+                "\n\nDeboostrap failed to create a basic system" \
+                "- Check the internet conection" \
+                "- Check the log : ${log}\n"
+        fi
         
         sync
         
@@ -101,10 +112,13 @@ _new() {
             lock_image "cached-image"
             
             msg "\nCreating image cache, please wait"
+            
+            mkdir -p ${image_cache}
+            
             # Show the progress : usr, lib, etc...
-            for file in ${KESTREL_IMAGE_DIR}/cached-image/*; do
+            for file in ${image_dir}/*; do
                 msg "Copying ${file##*/}"
-                cp -Ra "${file}" "${image_dir}" || _trap_cache_creation
+                cp -Ra "${file}/" "${image_cache}/" || _trap_cache_creation
             done
           )
         fi
@@ -141,13 +155,15 @@ _trap_copy_cached_image() {
 _trap_debootstrap() {
     sync
     
-    # Unmount archives
-    umount "${image_dir}/var/cache/apt/archives"
+    # Ensure everything is unmounted
+    grep -E "\s${image_dir}/" < /proc/mounts | while read type dir rest; do
+        umount ${dir}
+    done > /dev/null 2>&1
     
     # Delete partial image or partial cache-image
     [ -d "${image_dir}" ] && rm -R "${image_dir}"
     
-    [ -n "{1}" ] && die "@"
+    [ -n "${1}" ] && die "$@"
 }
 
 _trap_cache_creation() {
@@ -396,7 +412,7 @@ for param in "$@"; do
             CACHED_IMAGE="false"
             ;;
         --quiet)
-            quiet=">/dev/null"
+            quiet="yes"
             ;;
         --version|-v)
             kestrel_version
