@@ -37,15 +37,6 @@ case "$1" in
         # Create the file of registered nodes
         [ ! -e "${KESTREL_REG_NODES}" ] &&
         touch ${KESTREL_REG_NODES}
-        #echo "# [<hwaddr>][,id:<client_id>|*][,set:<tag>][,<ipaddr>][,<hostname>][,<lease_time>][,ignore]" > ${KESTREL_REG_NODES}
-
-        act="restart"
-        [ "$1:$2" = "configure:" ] && act="start"
-
-        kestrel-nodes --halt-cluster
-        
-        [ -x /etc/init.d/kestrel_daemon ] &&
-        invoke-rc.d kestrel_daemon $act
         
     ;;
 
