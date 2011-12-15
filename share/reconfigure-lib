@@ -27,15 +27,15 @@ create_evaluation_script() {
     
     # Create a sustitution rule for each variable
     for var in $(variable_list); do
-        re='s#\$\{?'"${var}"'\}?#'"${!var}"'#g;'
+        re='s#\$\{'"${var}"'\}#'"${!var}"'#g;'
         script="${script}${re}"
     done
     
     [ -n "${image_name}" ] && 
-        script="${script}"'s#\$\{?image_name\}?#'"${image_name}"'#g;'
+        script="${script}"'s#\$\{image_name\}#'"${image_name}"'#g;'
     
     [ -n "${image_dir}" ] && 
-        script="${script}s"'#\$\{?image_dir\}?#'"${image_dir}"'#g;'
+        script="${script}s"'#\$\{image_dir\}#'"${image_dir}"'#g;'
     
     export evaluation_script="${script}"'};/\\\$(\w|\{)/s/\\\$/$/g'
 }
@@ -132,7 +132,6 @@ find_templates() {
 check_flags() {
     local flag
     local IFS="\,"
-    
     for flag in ${flags2} ${flags}; do
         
         case "${flag}" in
@@ -213,6 +212,7 @@ check_flags() {
                 ;;
         esac
     done
+    return 0
 }
 
 
@@ -304,19 +304,23 @@ run_template() {
                 chroot ${os_dir} apt-get -q -y --force-yes install ${packages} \
                     >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
             
-            # Run the edit or run script under a chroot
+            # Run the edit or run script
             elif [[ ! -n "${chroot}" ]]; then
                 
-                msg "script:   ${file}" >&3
+                [[ "${run}" == "edit" ]] &&
+                    msg "edit:     /${file#/}" >&3 ||
+                    msg "script:   ${file}" >&3
                 
                 FILE="${os_dir}/${file}"
                 
                 . "${path}" ${args}
                 
-            # Run the edit or run script
+            # Run the edit or run script under a chroot
             else
                 
-                msg "chscript: ${file}" >&3
+                [[ "${run}" == "edit" ]] &&
+                    msg "edit:     /${file#/}" >&3 ||
+                    msg "script:   ${file}" >&3
                 
                 export FILE=${file}
                 
@@ -335,7 +339,7 @@ run_template() {
             fi
             
             [[ "${run}" == "edit" ]] &&
-                perms_and_backup
+                perms_and_backup || true
             
         # uninstall
         else
@@ -373,10 +377,12 @@ run_template() {
                 
                 . "${path}" ${args}
                 
+                echo
+                
             # Run the edit or run script
             else
                 
-                msg "chscript: ${file}" >&3
+                msg "script: ${file}" >&3
                 
                 export FILE=${file}
                 
@@ -390,6 +396,8 @@ run_template() {
                 # Avoid any locale setting
                 export LANG=C
                 chroot ${os_dir} /tmp/hook ${args}
+                
+                echo
                 
                 rm /tmp/hook
             fi
@@ -405,7 +413,7 @@ run_template() {
             msg "template: /${file#/}" >&3
             
             echo "template: ${path}"
-            echo "tofile:   /${file}"
+            echo "tofile:   /${file#/}"
             [ -n "${user}"  ] && 
                 echo "user:     ${user}"  ||  user=$(stat -c %u "${path}")
             [ -n "${group}" ] && 
@@ -418,7 +426,7 @@ run_template() {
             template_file "${path}" "${file}"
         fi
         
-        [ "${file%/*}" == "etc/init.d" ] && install_service
+        [ "${file%/*}" == "etc/init.d" ] && install_service || true
     fi
 }
 
@@ -558,15 +566,10 @@ search_backup_file() {
         # Escape the dots for using it as a the regular expression
         local file_re="${dirname}${filename}${version}"
               file_re="${file_re//./\\.}"
-        echo $version
         if [[ "${version}" =~ ^${version_link_re}$ ]]; then
-            echo find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
-                           -iregex "^.*/${file_re}$" -print -quit
             result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  -type l \
                            -iregex "^.*/${file_re}$" -print -quit )
         else
-            echo find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
-                           -iregex "^.*/${file_re}$" -print -quit
             result=$( find "${os_dir}/${KESTREL_BACKUP_DIR%/}/"  \
                            -iregex "^.*/${file_re}$" -print -quit )
         fi
@@ -593,6 +596,49 @@ search_backup_file() {
 }
 
 
+# get_backup_version <file> <vers>
+# 
+#     Get backup file
+
+get_backup_version() {
+    local file="${1}"
+    local vers="${2}"
+    local   dir=${os_dir%/}/${KESTREL_BACKUP_DIR#/}
+    
+    if [[ "${vers}" == "actual" ]]; then
+        
+        [ -e "${os_dir}/${file}" ] &&
+            filename="${os_dir}/${file}" ||
+            filename=""
+        
+    elif [[ "${vers}" == @(orig|last) ]]; then
+        
+        [ -e "${dir}/${file}:${vers}" ] &&
+            filename="${dir}/${file}:${vers}" ||
+            filename=""
+        
+    elif [[ ":${vers}" =~ ^${version_re}$ ]]; then
+        
+        [ -e "${dir}/${file}:${vers}" ] &&
+            filename="${dir}/${file}:${vers}" ||
+            die "Version \"${vers}\" not found"
+        
+    elif [[ "${vers}" =~ ^${log_time_re}$ ]]; then
+        
+        local year=${BASH_REMATCH[1]}
+        local time=${BASH_REMATCH[3]}
+        local date=$(date -d "${year} ${time}" "+%s")
+        
+        [ -e "${dir}/${file}:${date}" ] &&
+            filename="${dir}/${file}:${date}" ||
+            die "Version \"${vers}\" not found"
+        
+    else
+        die "Version \"${vers}\" not found"
+    fi
+}
+
+
 # list_backup_versions <os_dir> file[:(version|last|actual)]
 # 
 #     List the versions of a saved file
@@ -611,10 +657,21 @@ list_backup_versions() {
       # List backup files which match the regular expression
       find . -regextype posix-egrep \
              \( -type l -iregex ".*/${filename}${version_link_re}$" \) \
-             -o         -iregex ".*/${filename}${version_back_re}$" |
-      
-      # Remove "./". Add a new entry ":actual" for each ":last" entry
-      sed -r 's#.*'"${version_re}"'$#\1#; s#last$#last\nactual#' )
+             -o         -iregex ".*/${filename}${version_back_re}$" ) | \
+      while read file; do
+          file="${file##*\:}"
+          case ${file} in
+              [0-9]*)
+                  echo $file
+                  date -d "@${file}" "+%F_%T"
+                  ;;
+              last)
+                  echo -e "last\nactual"
+                  ;;
+              *)
+                  echo $file
+          esac
+      done
 }
 
 
@@ -635,7 +692,11 @@ list_original_files() {
 }
 
 
-list_backup_files() {
+# list_edited_files
+# 
+#     List edited files
+
+list_edited_files() {
     local os_dir="${1}"
     
     [ -d "${os_dir}/${KESTREL_BACKUP_DIR}/" ] &&
@@ -692,7 +753,13 @@ list_all_backup_files() {
 }
 
 
-list_all_backup_files2() {
+# backup_files_info
+# 
+#     Shows information about the saved backups.
+#     Note: It doesn't show an entry for each :last/:orig files, instead the 
+#           the entry pointed by those files is marked with an O or a L.
+
+backup_files_info() {
     local os_dir="${1}"
     local   file="${2}"
     local    dir=${os_dir}/${KESTREL_BACKUP_DIR}/
@@ -708,6 +775,7 @@ list_all_backup_files2() {
             local date=$(date -d "@${version#:}" "+%F %T")
             local type=" "
             
+            # Check if is a last or a orig file
             if [[ -e "${dir}/${file%:*}:last" ]]; then
                 local file2=$(readlink -n "${dir}/${file%:*}:last")
                 [[ "${file##*/}" == "${file2}" ]] && type="L"
@@ -725,54 +793,38 @@ list_all_backup_files2() {
 }
 
 
-# diff_files <file> [<version>]
+# diff_files <os_dir> <file> [<version>] [<version>]
 # 
-#     Compare files file1 and file2
+#     Compare files versions.
+#     - If no version is pass tries to compare between the current version and
+#       and the original version. If the original version doesn't exists then
+#       it shows a message.
 
 diff_files() {
     local os_dir="${1}"
     local   file="${2}"
-    local   vers="${3}"
+    local  vers1="${3}"
+    local  vers2="${4}"
     local dirname
     local version
     local filename
+    local file1
     local file2
     
     search_backup_file "${file}"
+    file=${dirname}${filename}
     
-    file2="${os_dir}/${KESTREL_BACKUP_DIR}/${dirname}/${filename}"
+    touch /tmp/$$-empty
     
-    if [ -z "${vers}" ]; then
-        
-        if [ -e "${file2}:orig" ]; then
-            
-            file2="${file2}:orig"
-            
-        else
-            file2="${os_dir}/${dirname}/${filename}"
-        fi
-        
-    else
-        if [[ ! "${vers}" =~ ^version_re$ ]]; then
-            
-            die "Invalid version \"${vers}\""
-            
-        elif [ -e "${file}:${vers}" ]; then
-            
-            file2="${file}:${vers}"
-            
-        elif [ "${vers}" == actual ]; then
-            
-            file2="${os_dir}/${dirname}/${filename}"
-            
-        else
-            
-            die "Version \"${vers}\" not found"
-            
-        fi
-    fi
+    get_backup_version ${file} ${vers1:-actual}
+    file1=${filename:-/tmp/$$-empty}
     
-    diff -urN ${file} ${file2}
+    get_backup_version ${file} ${vers2:-orig}
+    file2=${filename:-/tmp/$$-empty}
+    
+    diff -urN ${file2} ${file1}
+    
+    rm /tmp/$$-empty
 }
 
 
@@ -820,15 +872,19 @@ show_log_file() {
     
     if [ -z "${time}" ]; then
         
-        # time=$(list_log_dates ${1} | tail -n1)
         [ -e "${log}" ] && cat "${log}"
         
-    elif ! [[ ${time} =~ ${log_time_re} ]]; then
-        
-        die "Invalid time: ${time}"
-        
     else
-        
+        if [ "${time}" == last ]; then
+            
+            time=$(list_log_dates ${1} | tail -n1)
+            
+        elif ! [[ ${time} =~ ${log_time_re} ]]; then
+            
+            die "Invalid time: ${time}"
+            
+        fi
+                
         [ -e "${log}" ] && sed -rn "/^${time}$/,/^${log_time_re}$/ {
             /^${log_time_re}$/!p; /^${time}$/p; }" "${log}"
         
@@ -902,8 +958,7 @@ restore_all() {
     ( cd ${os_dir}/${KESTREL_BACKUP_DIR}/
       find . -type l -iregex '.*:last$' ) | \
     while read file; do
-        file=${file#./}
-        echo ${file}
+        file=${file%:last}
         restore_file
     done
 }
@@ -958,18 +1013,21 @@ run_configuration_stage() {
     
     {
         echo ${config_date}
+        echo "event: ${event}"
         echo "===================" 
     } >> "${log}" 2>&1
     
     exec 3>&1
         
-    [ "${verbose:-yes}" == "yes" ] && msg ${stage}
+    msg ${stage}
+    inc_indent
     
     find_templates "${dir}" -iregex '.*/check\..*' |
     while read path FILE flags label; do
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
                      "${os_dir}" "run,${oflag}" "${event}"  \
-                     >> "${log}" 2>&1
+                     >> "${log}" 2>&1 || 
+            msg "  error, check the log"
         
     done
     
@@ -977,7 +1035,8 @@ run_configuration_stage() {
     while read path FILE flags label; do
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
                      "${os_dir}" "${oflag}"     "${event}"  \
-                     >> "${log}" 2>&1
+                     >> "${log}" 2>&1 ||
+            msg "  error, check the log"
         
     done
     
@@ -985,9 +1044,12 @@ run_configuration_stage() {
     while read path FILE flags label; do
         run_template "${path}" "${FILE}" "${flags}" "${label}" \
                      "${os_dir}" "run,${oflag}" "${event}"  \
-                     >> "${log}" 2>&1
+                     >> "${log}" 2>&1 || 
+            msg "  error, check the log"
         
     done
+    
+    dec_indent
     
     exec 3>&-
 }
@@ -1001,6 +1063,8 @@ node_configure() {
     local event="${event:-configure}"
     
     run_configuration_stage "${image_dir}" "configure"
+    
+    check_enabled &&
     run_configuration_stage ""             "system-configure"
 }
 
@@ -1008,11 +1072,20 @@ node_configure() {
 node_install() {
     local event="${1:-install}"
     
-    run_configuration_stage "${image_dir}" "pre-install"
-    run_configuration_stage "${image_dir}" "packages" "package"
-    run_configuration_stage "${image_dir}" "install"
-    run_configuration_stage ""             "system-install"
-    node_configure
+    if [[ "${event}" == "uninstall" || "${force}" == "enable" ]]; then
+        run_configuration_stage ""             "system-install"
+        run_configuration_stage ""             "system-configure"
+        
+    else
+        run_configuration_stage "${image_dir}" "pre-install"
+        run_configuration_stage "${image_dir}" "packages" "package"
+        run_configuration_stage "${image_dir}" "install"
+        
+        check_enabled &&
+        run_configuration_stage ""             "system-install"
+        
+        node_configure
+    fi
 }
 
 
@@ -1033,6 +1106,7 @@ system_install() {
     run_configuration_stage "" "pre-install"
     run_configuration_stage "" "packages" "package"
     run_configuration_stage "" "install"
+    
     system_configure
 }
 
