@@ -25,6 +25,8 @@
 add_to_images(){
     local kestrel_user=$1
 
+    msg "Please wait while the user is added to the images"
+    
     log=/tmp/${0##*/}-$$.log
     touch ${log}
 
@@ -80,28 +82,19 @@ add_to_images(){
 
 
 _add() {
-    local new_user=$1
-
-    # add the user to the frontend
-    adduser ${new_user} ${NEW_USER_OPTIONS} &&
-    adduser ${new_user} ${KESTREL_GROUP}
-
-    # add the user to the images
-    add_to_images ${new_user}
-}
-
-
-_add-to-cluster() {
     local user=$1
-    
+
     # check if the user exists.
     if ! id ${user} &>/dev/null; then
-        echo "The user \"${user}\" doesn't exist on the system"
+        
+        question_yN "The user \"${user}\" doesn't exit, Do you want to create it?"
+        adduser ${user} ${NEW_USER_OPTIONS} &&
+        adduser ${user} ${KESTREL_GROUP}    &&
+        add_to_images ${user}
+        
     else
         # add the user to the frontend
-        adduser ${user} ${KESTREL_GROUP}
-
-        # add the user to the images
+        adduser ${user} ${KESTREL_GROUP}    &&
         add_to_images ${user}
     fi
 }
@@ -123,6 +116,10 @@ _delete() {
     deluser ${new_user} ${KESTREL_GROUP}
 }
 
+_remove() {
+    _delete $1
+}
+
 
 usage() {
 echo "
@@ -133,11 +130,8 @@ OPTIONS:
    --list
      List Cluster's users
   
-   --add user
-     Adds a new user to the system and to the Cluster
-
-   --add-to-cluster user
-     Adds an existing user to the Cluster
+   --add <user>
+     Adds a user to the system and to the Cluster
 
    --delete user
      Deletes a user
@@ -155,7 +149,7 @@ while (( $# > 0 )); do
             list_users
             ;;
 
-        --add|--add-to-cluster|--delete)
+        --add|--delete|--remove)
             (( $# >= 2 )) || usage-error
 
             # Ensure this script is executed as root
