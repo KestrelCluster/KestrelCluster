@@ -85,7 +85,7 @@ run_event_scripts() {
     msg ""                          \
         "======================"    \
         ""                          \
-        $(date)                     \
+        "$(date)"                   \
         ""                          \
         " Event's parameters : "    \
         ""
@@ -106,7 +106,7 @@ run_event_scripts() {
                  export ${key}=${value}
                  
                  # Debug :
-                 echo "${key}=${!key}"
+                 msg "    ${key}=${!key}"
              fi
          fi
     done
@@ -134,7 +134,10 @@ run_event_scripts() {
         # When registering, asign a hostname for the node
         register)
             # Check if we are registering nodes
-            [ ! -e ${KESTREL_LOCK_DIR}/register ] && return 0
+            if [ ! -e ${KESTREL_LOCK_DIR}/register ]; then
+                echo "The system is not registering nodes, so we ignore this event"
+                return 0
+            fi
             
             # Check if the node is not registered to the same group
             if ! registered_nodes "${group}" | grep -Eq "^${hostname}$"; then
