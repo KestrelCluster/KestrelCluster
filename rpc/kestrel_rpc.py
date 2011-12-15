@@ -141,9 +141,9 @@ if __name__ == "__main__":
                       chroot = chroot)
 
     if len(sys.argv) == 2:
-        if 'start' == sys.argv[1]:
+        if '--start' == sys.argv[1]:
             daemon.start()
-        elif 'stop' == sys.argv[1]:
+        elif '--stop' == sys.argv[1]:
             daemon.stop()
         else:
             sys.exit(2)
