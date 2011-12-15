@@ -1,13 +1,5 @@
 #!/bin/bash
  
-# This command helps handling nodes and groups of nodes :
-#
-# - Start up/reboot/halt nodes or group of nodes
-# 
-# - List connected/disconnected/registered nodes
-# 
-# - Add new nodes to a group
-#
 # Copyright (C) 2010, 2011 Jon Ander Hernández
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -24,7 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ -z   "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
+[ ! -d "$KESTREL_SHARE" ] && KESTREL_SHARE="${0%/*}/share"
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
@@ -139,12 +132,8 @@ wake_node() {
     
     echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
     
-    echo " action=wake mac=${mac} hostname=${host} " \
-         > ${KESTREL_RPC_FIFO}
-    
-    # $KESTREL_IFACE is exported by check_kestrel_daemon function
-    [ -n ${KESTREL_IFACE} ] &&
-    etherwake -i ${KESTREL_IFACE} ${mac} > /dev/null
+    action="${wake}"
+    run_script "${KESTREL_SHARE_DIR}/event.d"
 }
 
 # shutdown_node <halt|reboot> <hostname> <image_name>
@@ -155,6 +144,7 @@ shutdown_node() {
     local op=${1}
     local host=${2}
     local image_name=${3}
+    local fail=
     #local title=$(sed -r '/^(.)/s//\U\1\E/' <<<${op})
         
     local ip=$( hostname_2_ip  ${host})
@@ -166,14 +156,10 @@ shutdown_node() {
         echo -e "\n\tRebooting the \"${host}\", ip:${ip}"
     fi
     
-    echo " action=${op} mac=${mac} hostname=${host}" \
-         " image_name=${image_name}" \
-         > ${KESTREL_RPC_FIFO}
-         
-    su kestrel -c "ssh ${host} sudo ${op}" 2> /dev/null ||
-    echo -e "\tUnable to ${op} ${host} (ip:${ip})" &
+    action="${op}"
+    run_script "${KESTREL_SHARE_DIR}/event.d"
     
-    wait $!
+    [ -n "${fail}" ] && return 1
 }
 
 
@@ -305,8 +291,8 @@ _remove_mac() {
     
     host=$(mac_2_hostname ${mac})
     
-    echo " action=desregister mac=${mac} hostname=${host} " \
-         > ${KESTREL_RPC_FIFO}
+    action="desregister"
+    run_script "${KESTREL_SHARE_DIR}/event.d"
     
     echo -e "\t${host}, mac:${mac} removed"
 }
@@ -325,8 +311,8 @@ _remove_node() {
     
     mac=$(hostname_2_mac ${host})
     
-    echo " action=desregister mac=${mac} hostname=${host} " \
-         > ${KESTREL_RPC_FIFO}
+    action="desregister"
+    run_script "${KESTREL_SHARE_DIR}/event.d"
     
     echo -e "\t${host}, mac:${mac} removed"
 }
@@ -347,8 +333,8 @@ _remove_group() {
         
         mac=$(hostname_2_mac ${node})
         
-        echo " action=desregister mac=${mac} hostname=${node} " \
-             > ${KESTREL_RPC_FIFO}
+        action="desregister"
+        run_script "${KESTREL_SHARE_DIR}/event.d"
         
         echo -e "\t${node}, mac:${mac} removed"
         
@@ -361,7 +347,7 @@ _halt-cluster() {
     check_root
     
     if (( $(connected_nodes | wc -l) > 0 )); then
-        connected_nodes | while read node; do
+        for node in $(connected_nodes); do
             echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
             shutdown_node "halt" "${node}" || fail="^${node}$|${fail:-^$}"
         done
@@ -381,14 +367,16 @@ _halt-cluster() {
 #     Executed when the SIGINT signal is received
 
 control_c() {
-
-    cp -f ${TFTPBOOT_DIR}/reboot ${TFTPBOOT_DIR}/pxelinux.cfg/default
+    action="stop-register"
+    run_script "${KESTREL_SHARE}/event.d"
     
     # Clean the feedback file
     [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
-    rm ${KESTREL_DATA_DIR}/register_feedback &> /dev/null
+      rm ${KESTREL_DATA_DIR}/register_feedback
     
-    chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/default
+    [ -e ${KESTREL_LOCK_DIR}/register ] &&
+      rm ${KESTREL_LOCK_DIR}/register
+    
     exit 0
 }
 
@@ -410,23 +398,18 @@ _register() {
     # Ensure this script is executed as root
     check_root
 
-#    exec 200>${KESTREL_IMAGE_DIR}/.${image_name}.lock
-#
-#    if ! flock --nonblock --exclusive 200; then 
-#        echo "Waiting till the image gets unlocked"
-#        flock --exclusive 200
-#    fi
-
-    # Set the pxelinux register configuration as the default
-    sed "/append/s/$/ register=${group} /" \
-        < ${TFTPBOOT_DIR}/${image_name}   \
-        > ${TFTPBOOT_DIR}/pxelinux.cfg/default
-        
-    chown dnsmasq:${KESTREL_GROUP} ${TFTPBOOT_DIR}/pxelinux.cfg/default
+    lock_image ${image_name}
+    
+    action="start-register"
+    run_script "${KESTREL_SHARE}/event.d"
+    
+    # Use a file to mark that the registration process is active.
+    # kestrel-daemon by default ignores register events
+    touch ${KESTREL_LOCK_DIR}/register
     
     # Clean the feedback file
     [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
-    rm   ${KESTREL_DATA_DIR}/register_feedback &> /dev/null
+      rm ${KESTREL_DATA_DIR}/register_feedback
     
     # Set the trap
     trap control_c SIGINT SIGTERM
@@ -522,14 +505,14 @@ while (( $# > 0 )); do
             _${1#--}
             exit 0
             ;;
-
-#       --connected      [<group name>]|[image name]
-#       --disconnected   [<group name>]
-#       --registered     [<group name>]
+            
         --connected|--disconnected|--registered)
             op=${1#--}
             
             # Check for the optional parameter
+            #       --connected      [<group name>]|[image name]
+            #       --disconnected   [<group name>]
+            #       --registered     [<group name>]
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 group=$2
                 shift
@@ -538,17 +521,15 @@ while (( $# > 0 )); do
             _${op} "${group}"
             exit 0
             ;;
-
-#       --connected-groups
-#       --disconnected-groups
+            
         --connected_groups|--disconnected_groups)
             ${1#--}
             ;;
-
-#       --register      [<group-name>]  [<image>]
+            
         --register)
-
+            
             # Check for the optional parameter
+            #       --register      [<group-name>]  [<image>]
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 group=$2
                 shift
@@ -556,7 +537,7 @@ while (( $# > 0 )); do
                 group="group1"
             fi
             
-            # Check for the optional parameter
+            # Check for the second optional parameter
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
@@ -568,12 +549,6 @@ while (( $# > 0 )); do
             exit 0
             ;;
 
-#       --wake-mac      <mac>         [<image>]
-#       --wake-node     <hostname>    [<image>]
-#       --wake-group    <group name>  [<image>]
-#       --reboot-mac    <mac>         [<image>]
-#       --reboot-node   <hostname>    [<image>]
-#       --reboot-group  <group name>  [<image>]
         --wake-mac|--wake-node|--wake-group)
             (( $# >= 2 )) || usage-error
             op=${1#--wake-}
@@ -582,6 +557,9 @@ while (( $# > 0 )); do
             shift
             
             # Check for the optional parameter
+            #       --wake-mac      <mac>         [<image>]
+            #       --wake-node     <hostname>    [<image>]
+            #       --wake-group    <group name>  [<image>]
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
@@ -599,6 +577,9 @@ while (( $# > 0 )); do
             shift
             
             # Check for the optional parameter
+            #       --reboot-mac    <mac>         [<image>]
+            #       --reboot-node   <hostname>    [<image>]
+            #       --reboot-group  <group name>  [<image>]
             if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
                 image=$2
                 shift
@@ -607,11 +588,12 @@ while (( $# > 0 )); do
             op_${op} "reboot" "${data}" ${image:-default}
             exit 0
             ;;
-            
-#       --halt-mac      <mac>         
-#       --halt-node     <hostname>    
-#       --halt-group    <group name>  
+             
         --halt-mac|--halt-node|--halt-group)
+            # Parameters
+            #       --halt-mac      <mac>         
+            #       --halt-node     <hostname>    
+            #       --halt-group    <group name> 
             (( $# >= 2 )) || usage-error
             op=${1#--halt-}
             
@@ -621,11 +603,12 @@ while (( $# > 0 )); do
             op_${op} "halt" "${data}" ${image:-default}
             exit 0
             ;;
-
-#       --remove-mac    <mac>         
-#       --remove-node   <hostname>    
-#       --remove-group  <group-name>  
+            
         --remove-mac|--remove-node|--remove-group)
+            # Parameters
+            #       --remove-mac    <mac>         
+            #       --remove-node   <hostname>    
+            #       --remove-group  <group-name>
             (( $# >= 2 )) || usage-error
             op=${1#--remove-}
             
