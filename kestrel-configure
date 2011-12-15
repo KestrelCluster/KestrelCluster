@@ -27,7 +27,7 @@ export_config
 
 # List of images to reconfigure
 array_images=
-
+verbose=default
 
 usage() {
 echo "
@@ -35,13 +35,16 @@ Usage: ${0##*/} [options] command
 
 Commands:
    --configure
-     Reconfigure the system or an image
+     Reconfigures the system
 
    --enable
      Enable KestrelCluster on the system
 
    --disable
      Disable KestrelCluster on the system
+
+   --status
+     Shows the status if KestrelCluster
 
    --edited
      List files installed or modified files
@@ -52,20 +55,14 @@ Commands:
    --templates <stage>
      List aplicable templates or scripts
 
-   --restore  <file>
+   --restore <file>
      Restore the original file
 
-   --diff     <file>
+   --diff <file> [<version>] [<version>]
      Show the difference between the edited file and the original
 
-   --log      <install | configure | uninstall> <time>
-     View log stage
-
-   --log-file <stage> <time>
+   --log <stage> [<time>|last]
      View log file
-
-   --log-files
-     List log files
 
    --options
      List kestrel options
@@ -77,17 +74,16 @@ Commands:
      Ask kestrel options
 
 Options:
-   --quiet
      
    --image [<image>]
-     Reconfigure an image
+     Select an image
      
    --system
-     Reconfigure the frontend
+     Select the frontend
      
-   --all
-     Reconfigure everything
-     
+   --quiet
+   --verbose
+
    --force
      Runs again the install stage
 "
@@ -101,7 +97,7 @@ configure_system() {
     local image_name=
     local image_dir=
     
-    msg "Configuring the system" ""
+    echo -e "Configuring the system\n"
     
     # Restore system configure state
     restore_stage "configure" ""
@@ -111,10 +107,10 @@ configure_system() {
     restore_stage "system-configure" ""
     unset image_dir
     
-    if [[ "${force}" == "true" ]]; then
-        system_install "install"
+    if [[ -n "${force}" ]]; then
+        system_install "${event:-install}"
     else
-        system_configure "configure"
+        system_configure "${event:-configure}"
     fi
 }
 
@@ -123,7 +119,7 @@ configure_image() {
     local image_name=$1
     local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
     
-    msg "Configuring the image \"${i}\"" ""
+    echo -e "\nConfiguring the image \"${i}\"\n"
     
     # Verify the image is not being used by a node
     if [ -f ${KESTREL_LOCK_DIR}/${image_name}.running ]; then
@@ -138,10 +134,10 @@ configure_image() {
         
         mount_chroot_image ${image_dir}
         
-        if [[ "${force}" == "true" ]]; then
-            node_install "install"
+        if [[ -n "${force}" ]]; then
+            node_install "${event:-install}"
         else
-            node_configure "configure"
+            node_configure "${event:-configure}"
         fi
         
         sync 
@@ -151,8 +147,8 @@ configure_image() {
 }
 
 
-configure_all() {
-    [ -n "${force}" ] || check_enabled || return 0
+configure_configure() {
+    [ -n "${force}" ] || check_enabled "${verbose}" || return 0
     
     configure_system
     
@@ -179,27 +175,13 @@ configure_enable() {
     [[ "${array_images}" != @("all"|"") ]] &&
         warn "--${event} command ignores --image and--system options since it configures all, the system and all the nodes"
     
-    # Detect the current system and store it under a config file
-    if [ ! -e ${KESTREL_SHARE}/default.d/internal_detected_os ] || 
-       [ -n "${force}" ]; then
-        
-        export OS_RELEASE=$(      lsb_release -rs )
-        export OS_CODENAME=$(     lsb_release -cs )
-        export OS_DISTRIBUTION=$( lsb_release -is )
-        export OS_ARCHITECTURE=$( dpkg --print-architecture )
-        
-        cat <<EOF > ${KESTREL_SHARE}/default.d/internal_detected_os
-# Internal variables. Do not modify any of these variables!
-OS_RELEASE=${OS_RELEASE}
-OS_CODENAME=${OS_CODENAME}
-OS_DISTRIBUTION=${OS_DISTRIBUTION}
-OS_ARCHITECTURE=${OS_ARCHITECTURE}
-EOF
-        
-    fi
+    detect_system
     
-    force=true
-    configure_system
+    [ ! -e ${KESTREL_ETC}/kestrel.conf ] && ask_config
+    
+    local force=enable
+    
+    configure_configure
 }
 
 
@@ -209,10 +191,24 @@ EOF
 #       - runs install scripts in uninstall mode.
 
 configure_disable() {
-    [ -z "${force}" ] && check_enabled "die"
+    [ -n "${force}" ] || check_enabled "${verbose}" || return 0
     
-    system_install "uninstall"
+    local force=enable
+    
+    configure_configure
+    
     restore_all ""
+}
+
+
+# ask_config
+# 
+#     
+
+ask_config() {
+    FILE=${KESTREL_ETC}/kestrel.conf
+            
+    run_script "${KESTREL_SHARE}/ask.d"
 }
 
 
@@ -243,12 +239,15 @@ applied_image() {
 for param in "$@"; do
     case $param in
         --quiet)
-            quiet=">/dev/null"
+            unset verbose
             ;;
         --force)
             force=true
             ;;
-        --version|-v)
+        --verbose|-v)
+            verbose=true
+            ;;
+        --version)
             kestrel_version
             ;;
         --help|-h)
@@ -284,17 +283,27 @@ while (( $# > 0 )); do
             array_images=(system ${array_images[@]})
             ;;
             
-        --enable|--disable|--all)
+        --enable|--disable|--configure)
             # Ensure this script is executed as root
             check_root
             
             configure_${1#--}
             ;;
             
+        --status)
+            check_enabled "die"
+            
+            /etc/init.d/kestrel_daemon status
+            ;;
+            
         --edited)
             # Ok
+            [[ -z "${2}" || "${2}" =~ ^--.* ]] || info=${2}
+            
             applied_image
-            list_backup_files "${image_dir}"
+            list_edited_files "${image_dir}" "${info}"
+            
+            [ -n "${info}" ] && { unset info; shift 1; }
             ;;
             
         --edited-info)
@@ -302,10 +311,9 @@ while (( $# > 0 )); do
             [[ -z "${2}" || "${2}" =~ ^--.* ]] || info=${2}
             
             applied_image
-            list_all_backup_files2 "${image_dir}" "${info}"
+            backup_files_info "${image_dir}" "${info}"
             
-            unset info
-            shift 1
+            [ -n "${info}" ] && { unset info; shift 1; }
             ;;
             
         --templates)
@@ -329,29 +337,28 @@ while (( $# > 0 )); do
             
             file=${2}
             
-            [[ -z "${3}" || "${3}" =~ ^--.* ]] || { vers=${3}; shift 1; }
+            if [[ -n "${3}" && ! "${3}" =~ ^--.* ]]; then
+                vers=${3}
+                if [[ -n "${4}" && ! "${4}" =~ ^--.* ]]; then
+                    vers2=${4}
+                    shift 1
+                fi
+                shift 1
+            fi
             
             applied_image
             
-            diff_files "${image_dir}" "${file}" "${vers}"
+            diff_files "${image_dir}" "${file}" "${vers}" "${vers2}"
             
             unset vers
+            unset vers2
             shift 1
             ;;
             
         --log)
-            die "ToDo"
-            [[ ! "${2}" == @(install|configure|uninstall) ]] && error-usage
-            applied_image
-            show_log_stage
-            ;;
-            
-        --log-file)
             applied_image
             
             [[ -z "${2}" || "${2}" =~ --.* ]] && usage-error
-            
-            echo $2
             
             check_stage "$2" || die "Invalid stage \"${2}\""
             
@@ -359,15 +366,10 @@ while (( $# > 0 )); do
                 show_log_file "${2}"
             else
                 show_log_file "${2}" "${3}"
+                shift 1
             fi
             
             shift 1
-            ;;
-            
-        --log-files)
-            # Ok
-            applied_image
-            list_log_files
             ;;
             
         --options)
@@ -391,39 +393,10 @@ while (( $# > 0 )); do
         --ask)
             check_root
             
-            FILE=/etc/kestrel/kestrel.conf
-            
-            run_script "${KESTREL_SHARE}/ask.d"
+            ask_config
             ;;
             
-        # hidden commands (for autocomplete)
-            
-        --log-dates)
-            applied_image
-            
-            [[ -z "${2}" || "${2}" =~ ^--.* ]] && usage-error
-            
-            list_log_dates "${2}"
-            
-            shift 1
-            ;;
-            
-        --list-versions)
-            # Check for the optional parameter
-            if [[ -n "${2}" || ! "${2}" =~ ^--.+ ]]; then
-                file=$2
-                shift
-            else
-                file=""
-            fi
-            list_backup_files "" "${file}"
-            ;;
-            
-        --list-originals)
-            list_original_files ""
-            ;;
-            
-        --quiet|--force|--version|-v|--help|-h)
+        --quiet|--force|--version|-v|--help|-h|--verbose)
             ;;
             
         *)
