@@ -34,7 +34,7 @@ cmdline=f.readline()
 f.close()
 
 # Read the name of the image
-f = open('/etc/kestrel_image_name', 'r')
+f = open('/etc/kestrel/image_name', 'r')
 image=f.readline()
 f.close()
 
