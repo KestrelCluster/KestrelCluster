@@ -24,36 +24,31 @@ KESTREL_SHARE=/usr/share/kestrel
 
 
 case "$1" in
-    remove|upgrade)
+    remove)
+        kestrel-configure --quiet --disable
         
-        kestrel-reconfigure --disable
+        [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
+          rm ${KESTREL_DATA_DIR}/register_feedback
         
-        if [ "$1" = "remove" ]; then
-            
-            [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
-            rm ${KESTREL_DATA_DIR}/register_feedback
-        
-            dir=${KESTREL_DATA_DIR}/tftpboot
-            [ -d $dir ] && rm -R $dir
-            
-        fi
-        
-        for dir in ${KESTREL_SHARE}/default.d \
+        for dir in ${KESTREL_DATA_DIR}/tftpboot \
+                   ${KESTREL_SHARE}/default.d \
                    ${KESTREL_DATA_DIR}/rpc; do
-
+            
             [ -d $dir ] && rm -R $dir
-
+            
         done
-
-    ;;
+        ;;
+        
+    upgrade)
+        ;;
 
     failed-upgrade|deconfigure)
-    ;;
+        ;;
 
     *)
         echo "prerm called with unknown argument \`$1'" >&2
         exit 1
-    ;;
+        ;;
 esac
 
 # dh_installdeb will replace this with shell code automatically
