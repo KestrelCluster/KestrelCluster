@@ -6,13 +6,20 @@ _kestrel_load_config() {
     . "$KESTREL_SHARE"/defaults-lib
 }
 
+_k_variable_list2() {
+    _kestrel_load_config
+    variable_list2
+}
+
 _kestrel_list_groups() {
+    _kestrel_load_config
     local re
     re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${_k_group_re})-${node_re}[^0-9]*$"
     sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq 
 }
 
 _kestrel_connected_nodes() {
+    _kestrel_load_config
     local group re
     if [ -n "$1" ]; then
         group="${1}"
@@ -24,24 +31,27 @@ _kestrel_connected_nodes() {
 }
 
 _kestrel_connected_groups() {
+    _kestrel_load_config
     local re
     re="^\s*${ip_re}\s+${KESTREL_HOSTNAME}-(${group_re})-${node_re}([^0-9].*)*$"
     sed -rn "s/${re}/\1/p" ${KESTREL_CON_NODES} | sort | uniq
 }
 
 _kestrel_disconnected_nodes() {
-
+    
     echo $(_kestrel_connected_nodes $1) $(_kestrel_registered_nodes $1) | 
     sed -r 's/[[:space:]]/\n/g' | sort | uniq --unique
 }
 
 _kestrel_disconnected_groups() {
+    _kestrel_load_config
     local re
     re="^${KESTREL_HOSTNAME}-(${group_re})-.*$"
     _kestrel_disconnected_nodes | sed -rn "s/${re}/\1/p" | sort | uniq
 }
 
 _kestrel_registered_nodes() {
+    _kestrel_load_config
     local group re
     if [[ -n "$1" && "$1" =~ ${group_re} ]]; then
         group="${1}"
@@ -53,21 +63,25 @@ _kestrel_registered_nodes() {
 }
 
 _kestrel_registered_groups() {
+    _kestrel_load_config
     local re
     re="^[^#]*,\s*${KESTREL_HOSTNAME}-(${group_re})-${node_re}[^0-9]*$"
     sed -rn "s/${re}/\1/p" ${KESTREL_REG_NODES} | sort | uniq
 }
 
 _kestrel_list_users() {
+    _kestrel_load_config
     echo $KESTREL_USER
     sed < /etc/group -nr "s/^${KESTREL_GROUP}:.*:.*:(.+)$/\1/p" | sed 's/,/\n/'
 }
 
 _kestrel_list_images() {
+    _kestrel_load_config
     ls -1 ${KESTREL_IMAGE_DIR} | grep -Ev "default|cached-image"
 }
 
-_kestrel_backup_files() {
+_k_edited_files() {
+    _kestrel_load_config
     local os_dir="${1}"
     
     [ -d "${os_dir}/${KESTREL_BACKUP_DIR}/" ] &&
@@ -81,14 +95,12 @@ _kestrel_backup_files() {
     )
 }
 
-_kestrel_backup_versions2() {
+_k_backup_versions() {
+    _kestrel_load_config
     local os_dir="${1}"
     local   file="${2}"
     
     ( cd "${os_dir}/${KESTREL_BACKUP_DIR}/"
-      
-             #\( -type l -iregex ".*/${backup_link_re}$" \) \
-             #-o         -iregex ".*/${backup_back_re}$" | \
 
       # List backup files which match the regular expression
       find . -regextype posix-egrep \
@@ -109,20 +121,23 @@ _kestrel_backup_versions2() {
       done )
 }
 
-_list_log_dates() {
-    local stage="${1}"
-    local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
-    
-    [ -f "${log}" ] &&
-        grep -E "${log_time_re}" "${log}"
-}
 
-_list_log_dates2() {
+_k_list_log_dates() {
+    _kestrel_load_config
     local stage="${1}"
     local   log="${image_dir}/${KESTREL_LOG_DIR}/${stage}"
     
     [ -f "${log}" ] &&
         sed -rn 's#^'"${log_time_re}"'$#\1_\3#p' "${log}"
+}
+
+_k_list_stages() {
+    _kestrel_load_config
+    if [ -z "${image_dir}" ]; then
+        ls -1 ${KESTREL_SHARE}/system
+    else
+        ls -1 ${KESTREL_SHARE}/node
+    fi | sed 's/\.d$//'
 }
 
 _kestrel_longopt() {
@@ -140,7 +155,6 @@ _kestrel_apt()
     
     COMPREPLY=()
     _get_comp_words_by_ref cur prev
-    _kestrel_load_config
     
     for (( i=0; i < ${#COMP_WORDS[@]}-1; i++ )); do
         if [[ ${COMP_WORDS[i]} == @(--install|--remove|--delete) ]]; then
@@ -186,7 +200,6 @@ _kestrel_nodes()
     local cur prev
     COMPREPLY=()
     _get_comp_words_by_ref cur prev
-    _kestrel_load_config
     
     case $prev in
         --ssh)
@@ -241,7 +254,6 @@ _kestrel_images()
     local cur prev
     COMPREPLY=()
     _get_comp_words_by_ref cur prev
-    _kestrel_load_config
 
     case $prev in
       --remove|--delete|--chroot|--set-default|--unlock|--umount)
@@ -262,7 +274,6 @@ _kestrel_users()
     local cur prev
     COMPREPLY=()
     _get_comp_words_by_ref cur prev
-    _kestrel_load_config
 
     case $prev in
       --delete|--remove)
@@ -323,21 +334,14 @@ _kestrel_configure()
             ;;
             
       --edited-info) # [file]
-            if [ -d  ${image_dir}/${KESTREL_LOG_DIR} ]; then
-                local list="$(ls -1 ${image_dir}/${KESTREL_LOG_DIR})"
-                COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
-            fi
+            local list=$(_k_edited_files "${image_dir}")
+            COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
             return 0
             ;;
             
       --templates)
-            if [ -z "${image_dir}" ]; then
-                local list="$(ls -1 ${KESTREL_SHARE}/system | sed 's/\.d$//' )"
-                COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
-            else
-                loca list="$(ls -1 ${KESTREL_SHARE}/node | sed 's/\.d$//' )"
-                COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
-            fi
+            local list="$(_k_list_stages)"
+            COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
             return 0
             ;;
             
@@ -345,34 +349,32 @@ _kestrel_configure()
             ;;
             
       --diff)
-            local list=$(_kestrel_backup_files "${image_dir}")
+            local list=$(_k_edited_files "${image_dir}")
             COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
             return 0
             ;;
             
-      --log-file)
-            if [ -d  ${image_dir}/${KESTREL_LOG_DIR} ]; then
-                local list="$(ls ${image_dir}/${KESTREL_LOG_DIR})"
-                COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
-            fi
+      --log)
+            local list="$(_k_list_stages)"
+            COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
             return 0
             ;;
             
       --set-option)
-            COMPREPLY=( $(compgen -W "$(variable_list2)" -- "$cur" ) )
+            COMPREPLY=( $(compgen -W "$(_k_variable_list2)" -- "$cur" ) )
             return 0
             ;;
     esac
     
     if (($cword > 2)); then
         case "${words[cword-2]}" in
-            --log-file)
-                local list=$(_list_log_dates2 "$prev")
+            --log)
+                local list=$(_k_list_log_dates "$prev")
                 COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
                 return 0
                 ;;
             --diff)
-                local list=$(_kestrel_backup_versions2 "${image_dir}" "${prev}")
+                local list=$(_k_backup_versions "${image_dir}" "${prev}")
                 COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
                 return 0
                 ;;
@@ -383,7 +385,7 @@ _kestrel_configure()
         case "${words[cword-3]}" in
             --diff)
                 prev="${words[cword-2]}"
-                local list=$(_kestrel_backup_versions2 "${image_dir}" "${prev}")
+                local list=$(_k_backup_versions "${image_dir}" "${prev}")
                 COMPREPLY=( $(compgen -W "${list}" -- "$cur" ) )
                 return 0
                 ;;
