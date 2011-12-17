@@ -133,7 +133,7 @@ wake_node() {
     echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
     
     action="${wake}"
-    run_script "${KESTREL_SHARE_DIR}/event.d"
+    run_script "${KESTREL_SHARE}/event.d"
 }
 
 # shutdown_node <halt|reboot> <hostname> <image_name>
@@ -157,7 +157,7 @@ shutdown_node() {
     fi
     
     action="${op}"
-    run_script "${KESTREL_SHARE_DIR}/event.d"
+    run_script "${KESTREL_SHARE}/event.d"
     
     [ -n "${fail}" ] && return 1
 }
@@ -292,7 +292,7 @@ _remove_mac() {
     host=$(mac_2_hostname ${mac})
     
     action="desregister"
-    run_script "${KESTREL_SHARE_DIR}/event.d"
+    run_script "${KESTREL_SHARE}/event.d"
     
     echo -e "\t${host}, mac:${mac} removed"
 }
@@ -312,7 +312,7 @@ _remove_node() {
     mac=$(hostname_2_mac ${host})
     
     action="desregister"
-    run_script "${KESTREL_SHARE_DIR}/event.d"
+    run_script "${KESTREL_SHARE}/event.d"
     
     echo -e "\t${host}, mac:${mac} removed"
 }
@@ -334,7 +334,7 @@ _remove_group() {
         mac=$(hostname_2_mac ${node})
         
         action="desregister"
-        run_script "${KESTREL_SHARE_DIR}/event.d"
+        run_script "${KESTREL_SHARE}/event.d"
         
         echo -e "\t${node}, mac:${mac} removed"
         
