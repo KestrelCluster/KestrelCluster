@@ -134,12 +134,14 @@ configure_image() {
         
         mount_chroot_image ${image_dir}
         
-        if [[ -n "${force}" ]]; then
-            node_install "${event:-install}"
-        else
-            node_configure "${event:-configure}"
-        fi
-        
+        (
+            close_lock            
+            if [[ -n "${force}" ]]; then
+                node_install "${event:-install}"
+            else
+                node_configure "${event:-configure}"
+            fi
+        )
         sync 
         
         umount_chroot_image ${image_dir}
