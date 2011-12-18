@@ -18,8 +18,11 @@ if [[ "${HOME_FS}" =~ ^nfs[34]*$ ]]; then
     # Add the new entry after the comment
     options="\t_netdev,auto \t0 \t0"
     sed -ri "/${comment}/a\
-${FRONTEND_IP}:/kestrel/home \t/${KESTREL_HOME} \t${HOME_FS} ${options}" ${FILE}
+${FRONTEND_IP}:/kestrel/home \t/${KESTREL_HOME#/} \t${HOME_FS} ${options}" ${FILE}
 
-    [ ! -d ${KESTREL_HOME} ] && mkdir ${HOME_MODE}
-    
+    echo "Check [ ! -d \"${os_dir}/${KESTREL_HOME}\" ]"
+    if [ ! -d "${os_dir}/${KESTREL_HOME}" ]; then 
+        echo "Creating ${os_dir}/${KESTREL_HOME}"
+        mkdir -p "${os_dir}/${KESTREL_HOME}"
+    fi
 fi
