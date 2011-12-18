@@ -1,0 +1,5 @@
+#!/bin/bash
+
+[ -x /etc/init.d/kestrel_daemon ] &&
+     /etc/init.d/kestrel_daemon restart
+
