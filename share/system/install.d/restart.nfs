@@ -10,7 +10,7 @@ elif [ -x /etc/init.d/idmapd ]; then
 elif [ -x /etc/init.d/nfs-common ]; then
     /etc/init.d/nfs-common restart
 
-fi &> /dev/null
+fi
 
 
 if [ -e /etc/init/statd.conf ]; then
@@ -20,4 +20,9 @@ if [ -e /etc/init/statd.conf ]; then
 elif [ -x /etc/init.d/statd ]; then
     /etc/init.d/statd restart
 
-fi &> /dev/null
+fi
+
+
+[ -x /etc/init.d/nfs-kernel-server ] &&
+     /etc/init.d/nfs-kernel-server restart
+

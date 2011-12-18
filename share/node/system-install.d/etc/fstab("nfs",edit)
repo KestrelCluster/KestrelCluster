@@ -7,10 +7,13 @@ case $1 in
         continue
         ;;
 
-    remove)
+    uninstall)
         # umount the image
-        umount ${NFS4_ROOT}/kestrel/${image_name}/lib/modules > /dev/null 2>&1 
-        umount ${NFS4_ROOT}/kestrel/${image_name} > /dev/null 2>&1 
+        echo "umount \"${NFS4_ROOT}/kestrel/${image_name}/lib/modules\""
+        echo "umount \"${NFS4_ROOT}/kestrel/${image_name}\""
+        
+        umount ${NFS4_ROOT}/kestrel/${image_name}/lib/modules
+        umount ${NFS4_ROOT}/kestrel/${image_name}
 
         # Delete from the fstab
         sed -ri "/[^#]*\/kestrel\/${image_name}/d" /etc/fstab

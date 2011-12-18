@@ -7,7 +7,7 @@ case $1 in
         continue
         ;;
 
-    remove)
+    uninstall)
         # Delete from the exports
         sed -ri "/[^#]*\/kestrel\/${image_name}/d" /etc/exports
         ;;

@@ -25,24 +25,14 @@ elif [ -x /etc/init.d/statd ]; then
 fi
 
 
-# Check if the kestrel home dir is already mounted somewhere else
-mount_dir=$(mount | sed -rn "s/^.*\s(.*\/kestrel\/home)\s+.*$/\1/p")
+if [ "$1" == "uninstall" ]; then
 
-# Check if the new mount dir is different from the old one
-if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
-
-    install -d /${KESTREL_HOME}
-    
-    mount --bind /${KESTREL_HOME} ${new_mount_dir}
-    
-    if [ -x /etc/init.d/nfs-kernel-server ]; then
-        /etc/init.d/nfs-kernel-server restart
-    else
-        die_config "nfs-kernel-server not found"
-    fi
+    mount_dir=$(mount | sed -rn \
+               "s/.*\s([^\ \t]*\/kestrel\/${image_name})\s+.*/\1/p")
     
     if [ -n "${mount_dir}" ]; then
-        umount ${mount_dir}
+        umount ${mount_dir}/lib/modules > /dev/null
+        umount ${mount_dir} > /dev/null
     fi
 fi
 

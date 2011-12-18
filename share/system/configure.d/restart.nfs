@@ -23,29 +23,6 @@ elif [ -x /etc/init.d/statd ]; then
 fi 
 
 
-# Check if the image is already mounted somewhere else
-mount_dir=$(mount | \
-            sed -rn "s/.*[[:space:]](.*\/kestrel\/home)[[:space:]]+.*/\1/p")
-
-# Check if the new mount dir is different from the old one
-if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
-
-    install -d /${KESTREL_HOME}
-    
-    mount --bind /${KESTREL_HOME} ${new_mount_dir}
-
-    if [ -x /etc/init.d/nfs-kernel-server ]; then
-        
-        /etc/init.d/nfs-kernel-server restart
-        
-    else
-        
-        warn_config "nfs could not be restarted because /etc/init.d/nfs-kernel-server was not found"
-       
-    fi
-    
-    if [ -n "${mount_dir}" ]; then
-        umount ${mount_dir}
-    fi
-fi
+[ -x /etc/init.d/nfs-kernel-server ] &&
+     /etc/init.d/nfs-kernel-server restart
 
