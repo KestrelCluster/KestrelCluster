@@ -29,7 +29,7 @@
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
-. "$KESTREL_SHARE"/kestrel-status-lib
+. "$KESTREL_SHARE"/node-status-lib
 
 
 # _check
@@ -37,6 +37,7 @@
 #     
 
 _check() {
+    unset SSH_AUTH_SOCK
     
     connected_nodes | while read node; do
         su kestrel -c "ssh ${node} true" &> /dev/null || {
