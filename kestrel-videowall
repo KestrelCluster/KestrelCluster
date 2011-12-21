@@ -20,35 +20,55 @@
 
 # Load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
+. "$KESTREL_SHARE"/node-status-lib
 
 export_config
 
+export NAME=${0##*/}
+
 export user=$(whoami)
-export NODE_TIMEOUT=200
+export USER_HOME=/${KESTREL_HOME#/}/${user}
+export NODE_TIMEOUT=90
 
 export CR_DIR="/usr/share/chromium-gl"
 export LD_LIBRARY_PATH=/usr/lib/chromium-gl:$LD_LIBRARY_PATH
-export XINITRC=/${HOME_MODE}/${user}/.xinitrc
-
-export USER_HOME=$(cd ~; pwd)
-
-export LOCK=${USER_HOME}/.${0##*/}.lock
-export XDMX_CONFIG=${USER_HOME}/.${0##*/}.xdmx
-export DISPLAY_LIST=${USER_HOME}/.${0##*/}.display
-export CLIENT_IDKEY=${USER_HOME}/kestrel/.ssh/id_dsa
-
 export PATH=/usr/lib/chromium-gl:$PATH
 
+export XINITRC=${USER_HOME}/.xinitrc
+export LOCK=${HOME}/.videowall.lock
+export XDMX_CONFIG=${HOME}/.videowall.xdmx
+export DISPLAY_LIST=${USER_HOME}/.videowall.display
+
+export IDKEY=".ssh/id_dsa.videowall"
+export CLIENT_IDKEY=${USER_HOME}/${IDKEY}
+
+
+# create_xinit
+# 
+#    Create a .xinit script
+
 create_xinit() {
-    local node=$1
-    local FRONTEND=$(hostname)
-   
-    ssh ${node} cat <<-COMMAND ">" ${XINITRC}
-ssh -o stricthostkeychecking=no -X ${FRONTEND_IP} ${0##*/} --register \$(hostname) $XAUTHORITY
+    cat > ${XINITRC} <<-COMMAND
+#!/bin/bash
+# Open an ssh connection to the frontend
+
+ssh -o IdentityFile='~/'"$IDKEY" -X \
+    ${FRONTEND_IP} \
+    ${NAME} --register \$(hostname) $XAUTHORITY \${DISPLAY}
+
+# Remove the ~.xinitrc file
+rm ${XINITRC}
 COMMAND
+    [ $? -ne "0" ] && die "create_xinit failed"
+    
     chmod 755 ${XINITRC}
+    [ $? -ne "0" ] && die "create_xinit failed"
 }
 
+
+# create_xdmx_config
+# 
+#     Create a xdmx config file
 
 create_xdmx_config() {
     local screen_list=$1
@@ -61,130 +81,155 @@ EOF
 }
 
 
-start() {
+# configure_ssh_keys
+# 
+#     - Ensure we can log fromt/to the system without password
 
+configure_ssh_keys() {
+    [ ! -e ${CLIENT_IDKEY} ] &&
+        ssh-keygen -q -t dsa -N "" -f "${CLIENT_IDKEY}"
+    
+    # Remove entries containing video-wall word on authorized_key 
+    [ -e ${HOME}/.ssh/authorized_keys ] &&
+        sed -ri "/${NAME}/d" ${HOME}/.ssh/authorized_keys
+    
+    # Add the entry which allows the nodes run "videowall --register"
+    echo "command=\"${NAME} --register\" $(cat ${CLIENT_IDKEY}.pub)" \
+        >> ${HOME}/.ssh/authorized_keys
+    
+    [ ! -e ${HOME}/.ssh/id_dsa.pub ] &&
+        ssh-keygen -q -t dsa -N "" -f "${HOME}/.ssh/id_dsa"
+    
+    # Chromium launches its services on each node through ssh, allow the frontend
+    # opening an ssh session on the frontend itself without password
+    KEY=$(awk '{print $2}' ${HOME}/.ssh/id_dsa.pub)
+    sed -ri "/${KEY//\//\\\/}/d"             ${HOME}/.ssh/authorized_keys
+    echo "$(cat ${HOME}/.ssh/id_dsa.pub)" >> ${HOME}/.ssh/authorized_keys
+    chmod 0600                               ${HOME}/.ssh/authorized_keys
+    
+    ssh -o stricthostkeychecking=no $(hostname) true || die "Fail login into hostname"
+}
+
+
+restore_ssh_keys() {
+    rm ${CLIENT_IDKEY}*
+    
+    # Delete the capability of nodes running "videowall --register"
+    sed -ri "/${NAME}/d" "${HOME}/.ssh/authorized_keys"
+}
+
+
+display_list() {
+    # Screens to the left from the center
+    screens2=$(( ${screens} / 2))
+    
+    # Screen list at the left
+    screen_list_1=$(awk "NR > ${screens2} { exit }; {print \$2 }" ${DISPLAY_LIST})
+    
+    # Screen list at the right
+    screen_list_2=$(tail -n$(( $screens - $screens2 - 1)) \
+                         ${DISPLAY_LIST} | awk "{ print \$2 }" )
+    
+    # The whole screen list
+    echo "$DISPLAY $(awk '{ print $2 }' ${DISPLAY_LIST})"
+}
+
+
+start() {
+    
     check_user
+    
+    unset SSH_AUTH_SOCK
     
     # Open a lock file which checks if there is a running Xdmx server
     exec 200> ${LOCK}
-
+    
     if flock --nonblock --exclusive 200; then 
         flock --exclusive 200
         
-        # Disable x server's access control
-        DISPLAY_OLD=$DISPLAY 
-        xhost +
-
-        rm ${CLIENT_IDKEY}
-        ssh-keygen -q -t dsa -N "" -f "${CLIENT_IDKEY}"
-
-        # Allow clients run on the frontend this command
-        [ -e /home/${user}/.ssh/authorized_keys ] &&
-        sed -ri "/${0##*/}/d" ${USER_HOME}/.ssh/authorized_keys
-
-        echo "command=\"${0##*/} --register\" $(cat ${CLIENT_IDKEY}.pub)" \
-             >> ${USER_HOME}/.ssh/authorized_keys
-
-        # Lo que hay que hacer!! Dios!!! :-P
-        KEY=$(awk '{print $2}'     ${USER_HOME}/.ssh/id_dsa.pub)
-        sed -ri "s|^.*${KEY}.*$||" ${USER_HOME}/.ssh/authorized_keys
-        echo "$(cat ${USER_HOME}/.ssh/id_dsa.pub)" \
-             >> ${USER_HOME}/.ssh/authorized_keys
-        ssh -o stricthostkeychecking=no $(hostname) true
-
+        # Configure the ssh so the nodes can run "kestrel-videowall --register"
+        # on the frontend.
+        configure_ssh_keys
+       
+        # Configure Chromium to use kestreldmx config file 
         echo '* '${CR_DIR}'/mothership/configs/kestreldmx.conf %m %p' \
-             > ${USER_HOME}/.crconfigs 
-
-        # Delete the display list
-        [ -e "${DISPLAY_LIST}" ] && rm ${DISPLAY_LIST}
-        touch ${DISPLAY_LIST}
-
-        echo "Starting the X server on the nodes..."
-
+             > ${HOME}/.crconfigs 
+        
+        # Create a new empty display list
+        rm -f ${DISPLAY_LIST}; touch ${DISPLAY_LIST}
+        
+        msg "Starting the X server on the nodes:"
         connected_nodes | while read node; do
+            msg "Starting node: $node"
+            
+            export node
+            
             # Close the general lock for this subshell
             exec 200>&-
             
-            create_xinit ${node}
-
-            export node
-            ssh ${node} xinit &>/dev/null &
+            # Create the xinitrc file on the node            
+            create_xinit
             
+            # Start the X server using xinit (on the background)
+            ssh ${node} xinit >/dev/null 2>&1 &
+            
+            # Wait till the node has been added to the display list
             i=0
-            while ! grep -E "${node}\s" ${DISPLAY_LIST} && 
-                  (( ${NODE_TIMEOUT} > $i )); do
-                  sleep 0.2
-                  i=$(( i + 2 ))
+            while ! grep -Eq "${node}\s" ${DISPLAY_LIST} && 
+                  (( ${NODE_TIMEOUT} > $i )); do 
+                sleep 0.2
+                i=$(( $i + 2 ))
             done
+            if (( ${NODE_TIMEOUT} > $i )); then
+                msg "\tNode configured"
+            else
+                warn "\tNode Timeout"
+            fi
         done
         
-        # DISPLAY :0.0 should be centered, get the number of screens
         screens=$(( $(wc -l < ${DISPLAY_LIST}) + 1))
-        # Screens to the left from the center
-        screens2=$(( ${screens} / 2))
         
-        # Screen list at the left
-        screen_list_1=$(awk "NR > ${screens2} { exit }; 
-                             {print \$2 }" ${DISPLAY_LIST})
-
-        # Screen list at the right
-        screen_list_2=$(tail -n$(( $screens - $screens2 - 1)) \
-                             ${DISPLAY_LIST} | awk "{ print \$2 }" )
-
-        # The whole screen list
-        screen_list="${screen_list_1} $DISPLAY_OLD ${screen_list_2}"
-
         # Create the configuration file for the Xdmx
-        create_xdmx_config "${screen_list}"
-
-        sleep 1
-
-        # Sometimes the Xdmx does not free its lock
-        [ -e /tmp/.tX20-lock ] && rm /tmp/.tX20-lock
-
+        create_xdmx_config "$(display_list)"
+        
+        # Sometimes the Xdmx doesn't free its lock
+        rm -f /tmp/.tX20-lock
+        
+        echo "Starting Xdmx"
         Xdmx :20 \
                -configfile ${XDMX_CONFIG} -config videowall \
-               -norender -noglxproxy -ignorebadfontpaths \
-               >> ${DISPLAY_LIST}.log 2>&1 &
+               -noglxproxy -ignorebadfontpaths \
+               > ${DISPLAY_LIST}.log 2>&1 &
         
-        # Save the Xdmx's PID
+        # Save the PID of Xdmx
         XDMX_PID=$!
         
-        export DISPLAY=:20
-
-        # FIXME. Hack
-        xhost +
-
         # Run the commands
-        ( $@ )
-
+        ( 
+          export DISPLAY=:20.0
+          $@ 
+        )
+        
         # Stop the XDMX server
         kill $XDMX_PID
-
-        # FIXME. Hack, enable xserver's access control
-        export DISPLAY=$DISPLAY_OLD
-        xhost -
-
+        
+        # Close file descriptor
+        exec 200>&-
+        
         echo
         echo "Probably you will need to restart the X server since Xdmx corrupts the keyboard."
         echo
         echo "Press any key to continue..."
-        read key
-
-        # Delete the capability of running $0
-        sed -ri "/${0##*/}/d" /home/${user}/.ssh/authorized_keys
-
-        rm ${DISPLAY_LIST}
+        
+        #restore_ssh_keys
+        
+        #rm ${DISPLAY_LIST}
         rm ${XDMX_CONFIG}
-
-        # Close file descriptor
-        exec 200>&-
-
         rm ${LOCK}
     else
-
+        
         die "Already running"
-
+        
     fi
 }
 
@@ -195,16 +240,24 @@ start() {
 #     of the nodes.
 
 register() {
-    [[ ${SSH_ORIGINAL_COMMAND} =~ ${0##*/}\ --register\ (.+)\ (.+)$ ]] &&
-    node=${BASH_REMATCH[1]}
-    Xauthority=${BASH_REMATCH[2]}
+          node=$1
+    Xauthority=$2
+       display=$3
     
-    # Hack
-    xhost +
-
-    echo -e "${node}\t$DISPLAY\t$XAUTHORITY" >> ${DISPLAY_LIST}
+    if [[ ${SSH_ORIGINAL_COMMAND} =~ ${NAME}\ --register\ +(.+)\ +(.+)\ (.+).*$ ]]; then
+              node=${BASH_REMATCH[1]}
+        Xauthority=${BASH_REMATCH[2]}
+           display=${BASH_REMATCH[3]}
+    fi
+    
+    echo $@                       > ${DISPLAY_LIST}.register
+    echo ${SSH_ORIGINAL_COMMAND} >> ${DISPLAY_LIST}.register
+    
+    echo -e "xauth -f ${Xauthority} add $(xauth list)" >> ${DISPLAY_LIST}.register
+    echo -e "${node}\t$DISPLAY\t$XAUTHORITY\t$display" >> ${DISPLAY_LIST}
+    
     xauth -f ${Xauthority} add $(xauth list)
-
+    
     # Wait (maintain the X server open) till the session finnishes
     exec 200> ${LOCK}
     flock --exclusive 200
@@ -215,14 +268,14 @@ remove() {
     exec 202> ${LOCK}2
     flock --unlock 202
     exec 202>&-
-
-    rm ${LOCK} 
+    
+    rm ${LOCK}
 }
 
 
 usage() {
 echo "
-Usage: ${0##*/} options
+Usage: ${NAME} options
 
 OPTIONS:
 
@@ -240,23 +293,24 @@ case $1 in
         shift
         start $@
         ;;
-
+        
     --register)
-        register
+        shift 1
+        register $@
         ;;
-
+        
     --remove)
         remove
         ;;
-
+        
     --version|-v)
         kestrel_version
         ;;
-
+        
     --help|-h)
         usage
         ;;
-
+        
     *)
         usage-error
         ;;
