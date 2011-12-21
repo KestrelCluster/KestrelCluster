@@ -120,11 +120,17 @@ for tile in dmx:
         cmd  = ('awk "/%s/ {print \$1}" ' + displaylist) % tile['display']
         host = os.popen(cmd, 'r').read()
         host = host.replace('\n','')
+        cmd  = ('awk "/%s/ {print \$3}" ' + displaylist) % tile['display']
+        display = os.popen(cmd, 'r').read()
+        display = display.replace('\n','')
     except:
         host = host
 
     if host == "":
         host = socket.gethostname()
+
+    if display == "":
+        display = ":0.0"
 
     servernode = CRNetworkNode( host )
     servernode.AddTile( 0, 0, tile['width'], tile['height'])
@@ -135,8 +141,8 @@ for tile in dmx:
     servernode.Conf('use_dmx', 1)
     cr.AddNode( servernode )
 
-    cmd = "/bin/sh -c 'DISPLAY=%s  LD_LIBRARY_PATH=%s %s/crserver -mothership %s:%d'"
-    cmd = cmd % (tile['display'], crlibdir, crbindir, localHostname, mothershipPort)
+    cmd = "/bin/sh -c 'DISPLAY=localhost%s LD_LIBRARY_PATH=%s %scrserver -mothership %s:%d'"
+    cmd = cmd % (display, crlibdir, crbindir, localHostname, mothershipPort)
     
     servernode.AutoStart( ["/usr/bin/ssh", host, cmd ] )
 
