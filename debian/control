@@ -1,44 +1,47 @@
-Source: kestrelhpc
+Source: kestrelcluster
 Section: utils
 Priority: extra
 Maintainer: Jon Ander Hernández <jonan.h@gmail.com>
 Build-Depends: debhelper (>= 7.0), help2man
 Standards-Version: 3.9.1
 Homepage: http://kestrelhpc.sourceforge.net/
-#Vcs-Git: git://git.debian.org/collab-maint/kestrel.git
-Vcs-Browser: http://kestrelhpc.svn.sourceforge.net/viewvc/kestrelhpc/Kestrelhpc/Src/
+Vcs-Git: git://github.com/jonanh/KestrelCluster.git
+Vcs-Browser: https://github.com/jonanh/KestrelCluster
 
-Package: kestrelhpc
+Package: kestrelcluster
 Architecture: all
-Depends: lsb-release, syslinux, adduser, nfs-kernel-server, liblwipv6-2, dnsmasq, etherwake, debootstrap, dracut (>= 009), dracut-network (>= 009), dracut-aufs (>= 009), openssh-server, ${python:Depends}, ${misc:Depends}
+Depends: lsb-release, syslinux, adduser, nfs-kernel-server, liblwipv6-2, dnsmasq, etherwake, debootstrap, dracut (>= 009), dracut-network (>= 009), dracut-kestrel (>= 009), openssh-server, ${python:Depends}, ${misc:Depends}
+Replaces: kestrelhpc
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
 
-Package: kestrelhpc-ganglia
+Package: kestrelcluster-ganglia
 Architecture: all
-Depends: kestrelhpc, ganglia-webfrontend, ganglia-monitor, gmetad, ${misc:Depends}
+Depends: kestrelcluster, ganglia-webfrontend, ganglia-monitor, gmetad, ${misc:Depends}
+Replaces: kestrelhpc-ganglia
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
 
-Package: kestrelhpc-openmpi
+Package: kestrelcluster-openmpi
 Architecture: all
-Depends: kestrelhpc, openmpi-bin, libopenmpi-dev, openmpi-doc, openmpi-common, ${misc:Depends}
+Depends: kestrelcluster, openmpi-bin, libopenmpi-dev, openmpi-doc, openmpi-common, ${misc:Depends}
+Replaces: kestrelhpc-openmpi
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
  
-Package: kestrelhpc-plymouth
+Package: kestrelcluster-plymouth
 Architecture: all
-Depends: plymouth, plymouth-themes-script | plymouth-theme-script, ${misc:Depends}
+Depends: kestrelcluster, plymouth, plymouth-themes-script | plymouth-theme-script, ${misc:Depends}
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).
 
-Package: kestrelhpc-videowall
+Package: kestrelcluster-videowall
 Architecture: all
-Depends: xdmx, chromium-opengl-bin, chromium-opengl-lib, ${python:Depends}, ${misc:Depends}
+Depends: kestrelcluster, xdmx, xdmx-tools, chromium-opengl-bin, chromium-opengl-lib, ${python:Depends}, ${misc:Depends}
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all
  the required frontend's services (dhcp, tftpboot, nfs, ssh...).

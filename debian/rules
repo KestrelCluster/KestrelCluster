@@ -14,8 +14,3 @@
 
 override_dh_auto_build:
 	./maintain-help --build
-
-#override_dh_installinit:
-#	dh_installinit --onlyscripts --name=kestrel_daemon
-#	dh_installinit --onlyscripts --name=kestrel_halt_cluster
-#	dh_installinit --onlyscripts --name=kestrel_rpc

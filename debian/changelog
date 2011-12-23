@@ -1,3 +1,15 @@
+kestrelcluster (2.9.2011.12.23) oneiric; urgency=low
+
+  * KestrelHPC renamed to KestrelCluster
+
+ -- Jon Ander Hernández <jonan.h@gmail.com>  Fri, 23 Dec 2011 23:35:26 +0100
+
+kestrelcluster (2.9.2011.12.23.1) maverick; urgency=low
+
+  * Kestrel 3.0 snapshot
+
+ -- Jon Ander Hernández <jonan.h@gmail.com>  Fri, 23 Dec 2011 22:53:29 +0100
+
 kestrelhpc (1.9.13-2011-01-20-23-38-54) maverick; urgency=low
 
   * Added ganglia support
@@ -89,7 +101,7 @@ kestrelhpc (1.9.13-2010-12-31-15-06-00+0100) maverick; urgency=low
 
  -- Jon Ander Hernández <jonan.h@gmail.com>  Fri, 31 Dec 2010 15:06:01 +0100
 
-kestrelhpc (1.9.12) unstable; urgency=low
+kestrelhpc (1.9.12-1) unstable; urgency=low
 
   * Initial Release.
 

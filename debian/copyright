@@ -9,12 +9,10 @@ It was downloaded from:
 Upstream Author(s):
 
     Jon Ander Hernández <jonan.h@gmail.com>
-    Denis Sánchez Argoitia <darzalluz@gmail.com>
-    Jairo Roberto Sánchez Tapia <jrsanchez@ceit.es>
 
 Copyright:
 
-    Copyright (C) 2010 Jon Ander Hernández
+    Copyright (C) 2010, 2011 Jon Ander Hernández
 
 License:
 
@@ -36,7 +34,7 @@ Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
 
 The Debian packaging is:
 
-    Copyright (C) 2010 Jon Ander Hernández <jonan.h@gmail.com>
+    Copyright (C) 2010, 2011 Jon Ander Hernández <jonan.h@gmail.com>
 
 
 and is licensed under the GPL version 2, see above.
