@@ -52,7 +52,7 @@ Commands:
    --edited-info [file]
      Show information of the saved files and versions
 
-   --templates <stage>
+   --templates [<stage>]
      List aplicable templates or scripts
 
    --restore <file>
@@ -64,7 +64,7 @@ Commands:
    --log <stage> [<time>|last]
      View log file
 
-   --options
+   --options [option]
      List kestrel options
 
    --set-option <variable> <value>
@@ -319,15 +319,18 @@ while (( $# > 0 )); do
             ;;
             
         --templates)
-            # Ok
             applied_image
             
-            [[ -z "${2}" || "${2}" =~ ^--.* ]] && usage-error
-            check_stage "$2" || msg "Invalid stage \"${2}\""
-            
-            applicable_templates "$2"
-            
-            shift 1
+            if [[ -n "${2}" && ! "${2}" =~ ^--.*$ ]]; then
+                check_stage "$2" || die "Invalid stage \"${2}\""
+                
+                applicable_templates "$2"
+                
+                shift 1
+                
+            else
+                applicable_templates ""
+            fi
             ;;
             
         --restore)
@@ -375,12 +378,19 @@ while (( $# > 0 )); do
             ;;
             
         --options)
-            # Ok
-            variable_values
+            if [[ -n "${2}" && ! "${2}" =~ --.* ]]; then 
+               if variable_list | grep -qE "^${2}$"; then
+                   echo "${!2}"
+               else
+                   die "Invalid option \"${2}\""
+               fi
+               shift
+            else
+               variable_values
+            fi
             ;;
             
         --set-option)
-            # Ok
             [ -z "${2}" -o -z "${3}" ] && usage-error
             
             variable_list | grep -Eq "${2}" || die "Invalid option: \"${2}\""
