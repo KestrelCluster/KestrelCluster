@@ -7,5 +7,6 @@ set_key_value "NEED_STATD"  "yes" ${FILE}
 set_key_value "NEED_IDMAPD" "yes" ${FILE}
 
 # SecuringNFS. http://wiki.debian.org/SecuringNFS
-[[ "${secure_nfs}" == "yes" ]] &&
-set_key_value "STATDOPTS" "\"--port 32765 --outgoing-port 32766\"" ${FILE}
+if [[ "${secure_nfs}" == "yes" ]]; then
+    set_key_value "STATDOPTS" "\"--port 32765 --outgoing-port 32766\"" ${FILE}
+fi
