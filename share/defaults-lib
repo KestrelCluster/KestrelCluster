@@ -61,11 +61,11 @@ variable_list() {
 }
 
 
-# variable_list2
+# variable_user_list
 # 
 #     List non internal variables
 
-variable_list2() {
+variable_user_list() {
     for file in ${KESTREL_SHARE}/default.conf \
                 ${KESTREL_SHARE}/default.d/* \
                 ${KESTREL_ETC}/kestrel.conf; do
@@ -83,7 +83,7 @@ variable_list2() {
 #     List variables
 
 variable_values() {
-    for var in $(variable_list2); do
+    for var in $(variable_user_list); do
         echo "${var}=${!var}"
     done
 }
