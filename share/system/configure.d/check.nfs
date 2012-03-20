@@ -22,5 +22,5 @@ fi
 set_key_value NFS4_ROOT "${root}" ${KESTREL_SHARE}/default.d/internal_detected_nfs4_root
 
 # Ensure that the directory exists
-install -d ${NFS4_ROOT}
+install -d ${root}
 
