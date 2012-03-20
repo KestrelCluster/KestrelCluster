@@ -2,6 +2,8 @@
 
 if [ "${action}" == "wake" ]; then
     
+    echo "etherwake -i \"${KESTREL_IFACE}\" \"${mac}\""
+    
     # $KESTREL_IFACE is exported by check_kestrel_daemon function
     etherwake -i "${KESTREL_IFACE}" "${mac}" > /dev/null ||
     warn "Wol failed"

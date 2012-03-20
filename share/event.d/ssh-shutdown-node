@@ -2,9 +2,9 @@
 
 if [[ "${action}" == @(halt|reboot) ]]; then
     
-    echo "ssh shutdown"
-    
     unset SSH_AUTH_SOCK
+    
+    echo "su kestrel -c 'ssh \"${host}\" sudo \"${op}\"'"
     
     # FIXME Hack to avoid something I don't remember now
     su kestrel -c "ssh ${host} sudo ${op}" 2> /dev/null || {
