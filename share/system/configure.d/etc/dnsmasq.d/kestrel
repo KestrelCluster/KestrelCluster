@@ -16,6 +16,9 @@
 # Listen on the given IP address(es)
 listen-address=${FRONTEND_IP},127.0.0.1
 
+# bind only the interfaces it is listening on
+bind-interfaces
+
 # Enable  the  DHCP server. Addresses will be given out from the range 
 # <start-addr> to <end-addr> and from statically defined # addresses given in 
 # dhcp-host options
