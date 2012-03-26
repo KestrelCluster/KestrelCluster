@@ -84,19 +84,24 @@ add_to_images(){
 _add() {
     local user=$1
 
-    # check if the user exists.
+    # Create the user if it doesn't exist
     if ! id ${user} &>/dev/null; then
         
-        question_yN "The user \"${user}\" doesn't exit, Do you want to create it?"
-        adduser ${user} ${NEW_USER_OPTIONS} &&
-        adduser ${user} ${KESTREL_GROUP}    &&
-        add_to_images ${user}
-        
-    else
-        # add the user to the frontend
-        adduser ${user} ${KESTREL_GROUP}    &&
-        add_to_images ${user}
-    fi
+        if [ -z "${quiet}" ]; then
+            question_yN "The user \"${user}\" doesn't exist, Do you want to create it?"
+            adduser ${user} ${NEW_USER_OPTIONS}
+        else
+            if [ -z "${password}" ]; then
+                msg -n "Enter new UNIX password: "
+                read password
+            fi &&
+            useradd -m -s /bin/bash ${user} &&
+            echo "${user}:${password}" | chpasswd
+        fi
+    
+    fi &&
+    adduser ${user} ${KESTREL_GROUP} &&
+    add_to_images ${user}
 }
 
 
@@ -132,12 +137,28 @@ OPTIONS:
   
    --add <user>
      Adds a user to the system and to the Cluster
-
+   
    --delete user
      Deletes a user
-
+   
+   --quiet
 "
 }
+
+for param in "$@"; do
+    case $param in
+        --quiet)
+            quiet="yes"
+            ;;
+        --version|-v)
+            kestrel_version
+            ;;
+        --help|-h)
+            usage
+            ;;
+     esac
+done
+
 
 # If no parameter is specified
 (( $# == 0 )) && usage-error
@@ -161,6 +182,18 @@ while (( $# > 0 )); do
             shift
             ;;
 
+        --password)
+            if [[ -n "${2}" && ! "${2}" =~ ^--.+$ ]]; then
+               password="${2}"
+               shift 1
+            else
+               password=""
+            fi
+            ;;
+
+        --quiet)
+            ;;
+
         --version|-v)
             kestrel_version
             ;;
@@ -176,4 +209,4 @@ while (( $# > 0 )); do
     shift
 done
 
-
+:
