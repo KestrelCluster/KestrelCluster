@@ -1,0 +1,32 @@
+#!/bin/bash
+
+if [ -e /etc/init/idmapd.conf ]; then
+    if ! initctl status idmapd; then
+         initctl start idmapd
+    fi
+elif [ -x /etc/init.d/idmapd ]; then
+    if !  /etc/init.d/idmapd status; then
+          /etc/init.d/idmapd start
+    fi
+elif [ -x /etc/init.d/nfs-common ]; then
+    if !  /etc/init.d/nfs-common status; then
+          /etc/init.d/nfs-common start
+    fi
+fi || return 1
+
+if [ -e /etc/init/statd.conf ]; then
+    if ! initctl status statd; then
+         initctl start statd
+    fi
+elif [ -x /etc/init.d/statd ]; then
+    if !  /etc/init.d/statd status; then
+          /etc/init.d/statd start
+    fi
+fi || return 1
+
+if [ -x  /etc/init.d/nfs-kernel-server ]; then
+    if ! /etc/init.d/nfs-kernel-server status; then
+         /etc/init.d/nfs-kernel-server start
+    fi
+fi
+

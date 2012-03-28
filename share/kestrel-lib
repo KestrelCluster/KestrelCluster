@@ -17,7 +17,7 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-KESTREL_VERSION="2.9"
+KESTREL_VERSION=2.9.2011.12.23
 
 # Loads the config from the config file default.conf, from the defaul.d dir
 # and from the user's
@@ -411,7 +411,7 @@ run_script() {
         
         [ -n "${show}" ] && msg "${show} ${script}"
         
-        . ${dir}/${script}
+        . ${dir}/${script} || { warn "${script} failed" >&2; return 1; }
     done
 }
 
@@ -562,8 +562,13 @@ dec_indent() {
 #     Show messages
 
 msg() {
+    local flags=
+    if [ "$1" == "-n" ]; then
+        flags="$1"
+        shift
+    fi
     while (( $# > 0 )); do
-        echo -e "${indent:=${LOG_INDENT}}${1}"
+        echo -e ${flags} "${indent:=${LOG_INDENT}}${1}"
         shift
     done
 }
@@ -671,13 +676,15 @@ check_kestrel_daemon() {
     if [ -z ${KESTREL_IFACE} ]; then
         die "No network interface was found with ip: \"${FRONTEND_IP}\"." \
             "" \
-            "\t-Edit the configuration file: /etc/kestrel/kestrel.conf" \
-            "\t-Check the FRONTEND_IP variable" \
-            "\t-Reconfigure the frontend and the images: sudo kestrel-configure --all"
+            "\t-Reconfigure kestrel: sudo kestrel-configure --ask"
     else
         /etc/init.d/kestrel_daemon restart ||
         die "KestrelHPC Daemon is not running and failed to start." \
             "\t-Check the log file for more info: /var/log/kestrel.log"
+    fi
+
+    if ! run_script "${KESTREL_SHARE}/services.d" > /dev/null; then
+        die "A required service failed to start"
     fi
 }
 
