@@ -1,2 +1,2 @@
 modules/plymouth/*                  usr/share/kestrel
-dracut/modules.d/50plymouth-kestrel	usr/share/dracut/modules.d
+dracut/modules.d/50plymouth-kestrel usr/lib/dracut/modules.d
