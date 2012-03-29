@@ -1,6 +1,0 @@
- 
-# The BEEP variable contains the melody played by kestrel_beep
-#
-# This file will be sourced by kestrel_beep
-
-BEEP=${BEEP}
