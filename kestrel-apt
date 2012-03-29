@@ -145,11 +145,17 @@ while (( $# > 0 )); do
             ;;
 
         --image)
-            (( $# >= 2 )) || usage-error
-            image=$2
-            shift;
+            # Check for the optional parameter
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            else
+                image=default
+            fi
+            
+            check_image ${image}
             ;;
-
+            
         --version|-v)
             kestrel_version
             ;;
