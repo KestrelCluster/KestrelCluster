@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2010, 2011 Jon Ander Hernández
+# Copyright (C) 2010-2012 Jon Ander Hernández
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ Commands:
    --log <stage> [<time>|last]
      View log file
 
-   --options [option]
+   --options [<option>]
      List kestrel options
 
    --set-option <variable> <value>
@@ -179,11 +179,13 @@ configure_enable() {
     
     detect_system
     
-    [ ! -e ${KESTREL_ETC}/kestrel.conf ] && ask_config
-    
     local force=enable
     
-    configure_configure
+    if [ ! -e ${KESTREL_ETC}/kestrel.conf ]; then
+        ask_config
+    else
+        configure_configure
+    fi
 }
 
 
@@ -211,6 +213,8 @@ ask_config() {
     FILE=${KESTREL_ETC}/kestrel.conf
             
     run_script "${KESTREL_SHARE}/ask.d"
+
+    check_enabled && configure_configure
 }
 
 
@@ -322,8 +326,24 @@ while (( $# > 0 )); do
             applied_image
             
             if [[ -n "${2}" && ! "${2}" =~ ^--.*$ ]]; then
-                check_stage "$2" || die "Invalid stage \"${2}\""
-                
+                if check_stage "$2"; then
+                   if [[ -n "${3}" && ! "${3}" =~ ^--.*$ && 
+                         -e "${3}" ]]; then
+                       cat "${3}"
+                       shift 2
+                   else
+                       applicable_templates "$2"
+                       shift 1
+                   fi
+                else
+                   if [ -e "${2}" ]; then
+                       cat "${2}"
+                   else
+                       check_stage "$2" || die "Invalid stage \"${2}\""
+                   fi
+                   shift 1
+                fi
+
                 applicable_templates "$2"
                 
                 shift 1
