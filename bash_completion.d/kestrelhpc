@@ -256,7 +256,7 @@ _kestrel_images()
     _get_comp_words_by_ref cur prev
 
     case $prev in
-      --remove|--delete|--chroot|--set-default|--unlock|--umount)
+      --remove|--delete|--chroot|--set-default|--unlock|--umount|--image)
             COMPREPLY=( $(compgen -W "$(_kestrel_list_images)" -- "$cur" ) )
             return 0
             ;;

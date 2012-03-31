@@ -443,7 +443,7 @@ while (( $# > 0 )); do
                 image=$2
                 shift
             else
-                image=default
+                image=${image:-default}
             fi
             
             _${op} "${image}"
@@ -451,6 +451,18 @@ while (( $# > 0 )); do
             
         --list)
             list_images
+            ;;
+            
+        --image)
+            # Check for the optional parameter
+            if [[ ! "${2}" =~ ^--.+ && -n "${2}" ]]; then
+                image=$2
+                shift
+            else
+                image=default
+            fi
+            
+            check_image ${image}
             ;;
             
         --default-image)
