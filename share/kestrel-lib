@@ -250,7 +250,7 @@ rm_lock_image() {
 
 detect_system() {
     # Detect the current system and store it under a config file
-    if [ ! -e ${KESTREL_SHARE}/default.d/internal_detected_os ] || 
+    if [ ! -e ${KESTREL_DATA_DIR}/default.d/internal_detected_os ] || 
        [ -n "${force}" ]; then
         
         export OS_RELEASE=$(      lsb_release -rs )
@@ -258,7 +258,10 @@ detect_system() {
         export OS_DISTRIBUTION=$( lsb_release -is )
         export OS_ARCHITECTURE=$( dpkg --print-architecture )
         
-        cat <<EOF > ${KESTREL_SHARE}/default.d/internal_detected_os
+        [ -d ${KESTREL_DATA_DIR}/default.d ] || 
+            mkdir -p ${KESTREL_DATA_DIR}/default.d
+        
+        cat <<EOF > ${KESTREL_DATA_DIR}/default.d/internal_detected_os
 # Internal variables. Do not modify any of these variables!
 OS_RELEASE=${OS_RELEASE}
 OS_CODENAME=${OS_CODENAME}

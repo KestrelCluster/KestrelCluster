@@ -37,8 +37,8 @@ load_config() {
     [ -f ${KESTREL_ETC}/kestrel.conf ] && . ${KESTREL_ETC}/kestrel.conf
     
     # Source internal variables
-    for configfile in ${KESTREL_SHARE}/default.d/internal*; do
-        [ -e "$configfile" ] && . "$configfile"
+    for file in {${KESTREL_SHARE},${KESTREL_DATA_DIR}}/default.d/internal*; do
+        [ -e "$file" ] && . "$file"
     done
 }
 
@@ -54,7 +54,7 @@ load_config
 
 variable_list() {
     cat ${KESTREL_SHARE}/default.conf \
-        ${KESTREL_SHARE}/default.d/* \
+        {${KESTREL_SHARE},${KESTREL_DATA_DIR}}/default.d/* \
         ${KESTREL_ETC}/kestrel.conf 2>/dev/null | \
         sed -nr 's/^[[:space:]]*([A-Za-z0-9_]+)=.*$/\1/p' | \
         sort | uniq
@@ -67,7 +67,7 @@ variable_list() {
 
 variable_user_list() {
     for file in ${KESTREL_SHARE}/default.conf \
-                ${KESTREL_SHARE}/default.d/* \
+                {${KESTREL_SHARE},${KESTREL_DATA_DIR}}/default.d/* \
                 ${KESTREL_ETC}/kestrel.conf; do
         
         [[ -f ${file} && ! ${file} =~ .*/internal.*$ ]] && cat ${file}

@@ -226,6 +226,8 @@ set_key_value() {
     local    sep="${5:-${sep_re}}"
     local  space="${6:-\s*}"
     
+    [ -d ${file%/*} ] || mkdir -p ${file%/*}
+    
     # If a whitespace is used as a separator, generalize its regular expression
     [[ "${sep_re}" == " " && "${sep}" == " " ]] && sep_re="\s"
     

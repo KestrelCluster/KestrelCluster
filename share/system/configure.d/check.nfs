@@ -19,7 +19,7 @@ if [ -z "${root}" ]; then
     echo -e "${root} \t*(ro,fsid=0,no_subtree_check,async)" >> /etc/exports
 fi
 
-set_key_value NFS4_ROOT "${root}" ${KESTREL_SHARE}/default.d/internal_detected_nfs4_root
+set_key_value NFS4_ROOT "${root}" ${KESTREL_DATA_DIR}/default.d/internal_detected_nfs4_root
 
 # Ensure that the directory exists
 install -d ${root}
