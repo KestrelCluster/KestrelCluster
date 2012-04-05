@@ -1,0 +1,34 @@
+#!/bin/bash
+
+. /tmp/wireless.info
+
+if [ -n "$essid" ]; then
+    
+    if [ "$proto" == "WEP" ]; then
+        
+        iwconfig "$1" essid "$essid" key "$pass"
+        
+    else
+        
+        iwconfig "$1" essid "$essid"
+    fi
+    
+    if [ "$proto" == "WPA" -o -f /etc/wpa_supplicant.conf ]; then
+        
+        [ ! -f /etc/wpa_supplicant.conf ] || 
+        ! grep -Eq "ssid\s*=\s*\"?$essid\"?\s*$" &&
+        cat <<EOF >> /etc/wpa_supplicant.conf
+network={
+    ssid="$essid"
+    scan_ssid=1 # only needed if your access point uses a hidden ssid
+    proto=$proto
+    key_mgmt=WPA-PSK
+    psk="$pass"
+}
+EOF
+        wpa_supplicant -i "$1" -B -c /etc/wpa_supplicant.conf
+    fi
+fi
+
+/sbin/ifup $1
+

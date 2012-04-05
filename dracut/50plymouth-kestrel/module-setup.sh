@@ -13,6 +13,7 @@ depends() {
 }
 
 installkernel() {
+    return 0
 }
 
 install() {
