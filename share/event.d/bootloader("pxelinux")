@@ -7,9 +7,10 @@ if [[ -n "${mac}" ]]; then
     
     case ${action} in
         disconnect|desregister)
-           [[ -n "${pxemac}" && "$reboot" = "False" && 
-              -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
+           if [[ -n "${pxemac}" && "$reboot" = "False" && 
+                 -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]]; then
               rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+           fi
            ;;
 
         wake|reboot)
@@ -18,8 +19,9 @@ if [[ -n "${mac}" ]]; then
             ;;
 
         shutdow)
-            [[ -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]] &&
+            if [[ -e ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac} ]]; then
                rm ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
+            fi
             ;;
     esac
     
