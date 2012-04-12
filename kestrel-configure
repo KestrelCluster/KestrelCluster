@@ -93,7 +93,7 @@ Options:
 # internal functions
 #####################
 
-configure_system() {
+_configure_system() {
     local image_name=
     local image_dir=
     
@@ -115,7 +115,7 @@ configure_system() {
 }
 
 
-configure_image() {
+_configure_image() {
     local image_name=$1
     local image_dir=${KESTREL_IMAGE_DIR}/${image_name}
     
@@ -149,14 +149,14 @@ configure_image() {
 }
 
 
-configure_configure() {
+_configure() {
     [ -n "${force}" ] || check_enabled "${verbose}" || return 0
     
-    configure_system
+    _configure_system
     
     for i in $(list_images); do
         
-        configure_image "${i}"
+        _configure_image "${i}"
         
     done
 }
@@ -170,7 +170,7 @@ configure_configure() {
 #       - reconfigures all the images.
 #         (forced reconfigure, so it also reinstalls everything on the images).
 
-configure_enable() {
+_enable() {
     [ -z "${force}" ] && check_enabled "" && 
         die "Kestrel already enabled"
     
@@ -184,7 +184,7 @@ configure_enable() {
     if [ ! -e ${KESTREL_ETC}/kestrel.conf ]; then
         ask_config
     else
-        configure_configure
+        _configure
     fi
 }
 
@@ -194,12 +194,12 @@ configure_enable() {
 #     Disables KestrelHPC on the frontend :
 #       - runs install scripts in uninstall mode.
 
-configure_disable() {
+_disable() {
     [ -n "${force}" ] || check_enabled "${verbose}" || return 0
     
     local force=enable
     
-    configure_configure
+    _configure
     
     restore_all ""
 }
@@ -212,8 +212,7 @@ configure_disable() {
 ask_config() {
     FILE=${KESTREL_ETC}/kestrel.conf
             
-    run_script "${KESTREL_SHARE}/ask.d"
-
+    run_script "${KESTREL_SHARE}/ask.d" &&
     check_enabled && configure_configure
 }
 
@@ -293,7 +292,7 @@ while (( $# > 0 )); do
             # Ensure this script is executed as root
             check_root
             
-            configure_${1#--}
+            _${1#--}
             ;;
             
         --status)
