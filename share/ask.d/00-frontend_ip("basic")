@@ -84,28 +84,19 @@ configure_frontend_ip() {
     local msg=( "Select the ip to be used to connect to the cluster LAN"
                 "List of network devices:" )
     
-    result=$( select_net_device )
+    result=$( select_net_device ) || return 1
     
-    if [ "${result}" == " " ]; then
-
-        msg=( "Insert the ip to be used to connect to the cluster LAN" )
-        result=$( kestrel_dialog inputbox "${title}" msg[@] "${FRONTEND_IP}")
-    fi
+    msg="Insert the ip to be used to connect to the cluster LAN"
     
-    msg=( "Insert the ip to be used to connect to the cluster LAN" 
-          ""
-          "Invalid ip: \"${result}\"")
-    
-    while [[ "$?" == "0" ]] &&
-          [[ ! "${result}" =~ ^${ip_re}$ ]]; do
-        result=$( kestrel_dialog inputbox "${title}" msg[@] "${FRONTEND_IP}" )
+    while [[ ! "${result}" =~ ^${ip_re}$ ]]; do
+        result=$( kestrel_dialog inputbox "${title}" "$msg" "${FRONTEND_IP}" ) || \
+            return 1
     done
-    
+
     export FRONTEND_IP="${result}"
     
     set_key_value "FRONTEND_IP" "${FRONTEND_IP}" "${FILE}"
 }
-
 
 configure_frontend_ip
 

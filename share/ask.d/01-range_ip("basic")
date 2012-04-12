@@ -4,10 +4,13 @@ configure_range_ip() {
     local result
     local title="Configure the Frontend's DHCP server"
     local msg=( "Insert the ip range for the dhcp server" )
+
+    local DHCP_STARTING_IP="${FRONTEND_IP%*.}.100"
+    local ${DHCP_ENDING_IP}="${FRONTEND_IP%*.}.255"
     
-    result="${DHCP_STARTING_IP} - ${DHCP_ENDING_IP}"
+    default="${DHCP_STARTING_IP} - ${DHCP_ENDING_IP}"
     
-    result=$( kestrel_dialog inputbox "${title}" msg[@] "${result}")
+    result=$( kestrel_dialog inputbox "${title}" msg[@] "${default}") || return 1
     
     msg=( "Insert the ip range for the dhcp server" 
           ""
@@ -15,12 +18,13 @@ configure_range_ip() {
     
     while [[ "$?" == "0" ]] &&
           [[ ! "${result}" =~ ^(${ip_re})[\ \t]*-[\ \t]*(${ip_re})$ ]]; do
-        result=$( kestrel_dialog inputbox "${title}" msg[@] "${result}" )
+        result=$( kestrel_dialog inputbox "${title}" msg[@] "${default}" ) || \
+            return 1
     done
     
     export DHCP_STARTING_IP=${BASH_REMATCH[1]}
     export   DHCP_ENDING_IP=${BASH_REMATCH[2]}
-    
+        
     set_key_value "DHCP_STARTING_IP" "${DHCP_STARTING_IP}" "${FILE}"
     set_key_value "DHCP_ENDING_IP"   "${DHCP_ENDING_IP}"   "${FILE}"
 }
