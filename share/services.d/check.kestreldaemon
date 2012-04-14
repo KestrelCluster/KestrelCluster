@@ -1,0 +1,4 @@
+#!/bin/bash
+
+service kestrel_daemon status &> /dev/null \
+   || service kestrel_daemon start
