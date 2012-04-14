@@ -1,26 +1,17 @@
-#! /bin/sh
+#!/bin/bash
 
-set -e
-
-# Don't bother to restart sshd when lo is configured.
 [ "$IFACE" = lo ] && exit 0
 
-# Only run from ifup.
 [ "$MODE" != start ] && exit 0
 
-[ -e /usr/share/kestrel/default.conf ] &&
-. /usr/share/kestrel/default.conf
+[ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-[ -e /etc/kestrel/kestrel.conf ] &&
-. /etc/kestrel/kestrel.conf
+. ${KESTREL_SHARE}/kestrel-lib
 
-if ifconfig $IFACE | grep -Eq "[^0-9]${FRONTEND_IP}[^0-9]"; then
+check_enabled || exit 0
 
-    check_enabled || return 0
-
-    /etc/init.d/kestrel_daemon status &> /dev/null \
-        || /etc/init.d/kestrel_daemon restart
+[[ ${FRONTEND_IP} =~ ${ip_re} ]] &&
+if ifconfig $IFACE | grep -Eq "addr:${FRONTEND_IP}\s"; then
 
     run_script "${KESTREL_SHARE}/services.d" > /dev/null
-
 fi
