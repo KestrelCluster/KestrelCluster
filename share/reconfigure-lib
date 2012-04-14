@@ -363,12 +363,8 @@ run_template() {
             echo "file: /${file}"
             echo
             
-            if [[ "${run}" == "edit" ]]; then
-                
-                restore_file
-            
             # Run the package script
-            elif [[ "${run}" == "package" && -n "${os_dir}" ]]; then
+            if [[ "${run}" == "package" && -n "${os_dir}" ]]; then
                 local packages=$(. ${path} )
                 
                 msg "package:  ${file}" >&3
@@ -389,7 +385,9 @@ run_template() {
             # Run the edit or run script under a chroot
             elif [[ ! -n "${chroot}" ]]; then
                 
-                msg "script:   ${file}" >&3 
+                [[ "${run}" == "edit" ]] &&
+                    msg "edit:     /${file#/}" >&3 ||
+                    msg "script:   ${file}" >&3
                 
                 FILE="${os_dir}/${file}"
                 
@@ -398,30 +396,6 @@ run_template() {
                 ret=$?
                 
                 echo
-                
-            # Run the edit or run script
-            else
-                
-                msg "script: ${file}" >&3
-                
-                export FILE=${file}
-                
-                # Copy the basic chroot kestrel-lib
-                cat < ${KESTREL_SHARE}/kestrel-chroot-lib > ${os_dir}/tmp/hook
-                
-                # Copy the script to the chroot
-                cat < ${path} >> ${os_dir}/tmp/hook
-                chmod 755 ${os_dir}/tmp/hook
-                
-                # Avoid any locale setting
-                export LANG=C
-                chroot ${os_dir} /tmp/hook ${args}
-                
-                ret=$?
-                
-                echo
-                
-                rm /tmp/hook
             fi
         fi
         
@@ -1107,7 +1081,6 @@ node_install() {
     if check_enabled &&
        [[ "${event}" == "uninstall" || "${force}" == "enable" ]]; then
         run_configuration_stage ""             "system-install"
-        run_configuration_stage ""             "system-configure"
     fi
     
     if [[ "${event}" != "uninstall" ]]; then
