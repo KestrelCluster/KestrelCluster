@@ -220,7 +220,7 @@ _remove() {
         fi
 
         rm -R "${image_dir}"
-        rm "${KESTREL_IMAGE_DIR}/.${image_name}."*
+        rm -f "${KESTREL_IMAGE_DIR}/.${image_name}."*
     )
 
     msg "" "Image \"${image_name}\" deleted" ""
