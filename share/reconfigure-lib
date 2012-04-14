@@ -183,9 +183,12 @@ check_flags() {
             
             # Check a variable flag
             \$[a-zA-Z\-\_]*$|\$\{[a-zA-Z\-\_]*\})
-                if [[ "${flag}" =~ ^\$\{?([^}]*)\}?$ ]] &&
-                   [[ "${!BASH_REMATCH[1]}" != "yes" ]]; then
-                    
+                [[ "${flag}" =~ ^\$\{?([^}]*)\}?$ ]] &&
+                if [ "${!BASH_REMATCH[1]}_${image_name}" == "yes" ]; then
+                   true
+                elif [ "${!BASH_REMATCH[1]}_${image_name}" == "no" ] ||
+                     [ "${!BASH_REMATCH[1]}" != "yes" ]]; then
+                     
                     # Only restore if we are really running the template
                     #[ -n "${action}" ] && restore_file
                     return 1
@@ -302,8 +305,14 @@ run_template() {
                 export DEBIAN_PRIORITY=critical
                 export DEBCONF_NONINTERACTIVE_SEEN=true
                 
-                chroot ${os_dir} apt-get -q -y --force-yes install ${packages} \
-                    >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
+                if [ -n "${os_dir}" ]; then 
+                    chroot ${os_dir} \
+                    apt-get -q -y --force-yes install ${packages} \
+                        >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
+                else
+                    apt-get -q -y --force-yes install ${packages} \
+                        >> ${os_dir}/${KESTREL_LOG_DIR}/apt-output
+                fi
                 
                 ret=$?
                 
@@ -359,7 +368,7 @@ run_template() {
                 restore_file
             
             # Run the package script
-            elif [[ "${run}" == "package" && -z "${os_dir}" ]]; then
+            elif [[ "${run}" == "package" && -n "${os_dir}" ]]; then
                 local packages=$(. ${path} )
                 
                 msg "package:  ${file}" >&3
@@ -1001,7 +1010,7 @@ restore_stage() {
 run_configuration_error() {
     msg -n "   error, check the log : kestrel-configure "
     
-    [ -z "${image_name}" ] &&
+    [ -n "${image_name}" ] &&
         echo -n "--image ${image_name} "
     
     echo "--log ${stage} ${config_date} ${FILE}"
@@ -1095,11 +1104,13 @@ node_configure() {
 node_install() {
     local event="${1:-install}"
     
-    if [[ "${event}" == "uninstall" || "${force}" == "enable" ]]; then
+    if check_enabled &&
+       [[ "${event}" == "uninstall" || "${force}" == "enable" ]]; then
         run_configuration_stage ""             "system-install"
         run_configuration_stage ""             "system-configure"
-        
-    else
+    fi
+    
+    if [[ "${event}" != "uninstall" ]]; then
         run_configuration_stage "${image_dir}" "pre-install"
         run_configuration_stage "${image_dir}" "packages" "package"
         run_configuration_stage "${image_dir}" "install"
