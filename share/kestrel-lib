@@ -17,7 +17,7 @@
 
 [ -z "$KESTREL_SHARE" ] && KESTREL_SHARE=/usr/share/kestrel
 
-KESTREL_VERSION=2.9.2011.12.23
+KESTREL_VERSION=2.9.2012.04.05
 
 # Loads the config from the config file default.conf, from the defaul.d dir
 # and from the user's
@@ -48,6 +48,8 @@ check_unmounted() {
 mount_chroot_image(){
     local image_dir=$1
 
+    mkdir -p ${image_dir}/{proc,sys,tmp,var/{run,lock},dev/{pts,shm}}
+
     mount -t proc none ${image_dir}/proc
     mount -t sysfs node ${image_dir}/sys
     mount -t tmpfs -o rw,noatime,mode=755 tmpfs ${image_dir}/tmp
@@ -57,6 +59,8 @@ mount_chroot_image(){
 
     mount -t devpts -o rw,noexec,nosuid,gid=5,mode=0620 devpts ${image_dir}/dev/pts
     mount -t tmpfs -o rw,nosuid,nodev tmpfs ${image_dir}/dev/shm
+
+    mkdir -p ${image_dir}/{etc/apt,var/lib/apt/lists,var/cache/apt}
 
     # Share apt's preferences, package's cache, etc...
     for mount in etc/apt/ \
@@ -78,26 +82,6 @@ mount_chroot_image(){
 
     ln ${image_dir}/bin/true ${image_dir}/sbin/start-stop-daemon
     ln ${image_dir}/bin/true ${image_dir}/sbin/initctl
-}
-
-
-# mount_lxc_image
-# 
-#     Start the container
-
-mount_lxc_image(){
-    
-    # Share apt's preferences, package's cache, etc...
-    #for mount in etc/apt/ \
-    #             var/lib/apt/lists/ \
-    #             var/cache/apt/
-    #do
-    #     mount --bind /${mount} ${image_dir}/${mount}
-    #done
-    
-    touch ${KESTREL_LOCK_DIR}/${image_name}.running-lxc
-    
-    lxc-start -n ${image_name}
 }
 
 
@@ -125,17 +109,6 @@ umount_chroot_image(){
     mv -f ${image_dir}/sbin/initctl.real \
           ${image_dir}/sbin/initctl
 
-}
-
-
-# umount_lxc_image
-# 
-#     Stop the container
-
-umount_lxc_image(){
-    lxc-stop -n ${image_name}
-    
-    rm ${KESTREL_LOCK_DIR}/${image_name}.running-lxc
 }
 
 
@@ -399,10 +372,12 @@ run_script() {
     local label="${2}"
     local  show="${3}"
     
+    local re="[^\"]+(\([^\"]*(\"([^\"]*)\")?.*\))?"
+    
     for script in $(ls -1 ${dir}); do
         
         # Get the label
-        if [[ "${script}" =~ [^\"]+(\([^\"]*(\"([^\"]*)\")?.*\))? ]]; then
+        if [[ "${script}" =~ ${re} ]]; then
             elabel="${BASH_REMATCH[3]}"
             
             [[ -z "${label}" || "${label}" == "${elabel}" ]] || continue
@@ -414,7 +389,10 @@ run_script() {
         
         [ -n "${show}" ] && msg "${show} ${script}"
         
-        . ${dir}/${script} || { warn "${script} failed" >&2; return 1; }
+        if ! . ${dir}/${script}; then
+            warn "${script} failed" >&2
+            return 1
+        fi
     done
 }
 
@@ -675,15 +653,14 @@ check_kestrel_daemon() {
 
     check_enabled "die"
     
-    /etc/init.d/kestrel_daemon status &> /dev/null || \
-    if [ -z ${KESTREL_IFACE} ]; then
-        die "No network interface was found with ip: \"${FRONTEND_IP}\"." \
-            "" \
-            "\t-Reconfigure kestrel: sudo kestrel-configure --ask"
+    if [ -z "${KESTREL_IFACE}" ]; then
+        die "No network interface was found with ip: \"${FRONTEND_IP}\"." "" \
+            "\t-Reconfigure kestrel: sudo kestrel-configure --ask" ""
     else
-        /etc/init.d/kestrel_daemon restart ||
-        die "KestrelHPC Daemon is not running and failed to start." \
-            "\t-Check the log file for more info: /var/log/kestrel.log"
+        /etc/init.d/kestrel_daemon status &> /dev/null \
+        || /etc/init.d/kestrel_daemon restart \
+        || die "KestrelHPC Daemon is not running and failed to start." "" \
+            "\t-Check the log file for more info: /var/log/kestrel.log" ""
     fi
 
     if ! run_script "${KESTREL_SHARE}/services.d" > /dev/null; then
@@ -699,8 +676,8 @@ check_kestrel_daemon() {
 check_enabled() {
     if [ -n "$1" ]; then
         [ ! -f ${KESTREL_DATA_DIR}/enabled ] &&
-            die "KestrelHPC is disabled" \
-                "\t-Enable with : sudo kestrel-configure --enable"
+            die "KestrelHPC is disabled" "" \
+                "\t-Enable with : sudo kestrel-configure --enable" ""
     else
         [ ! -f ${KESTREL_DATA_DIR}/enabled ] && return 1
     fi
