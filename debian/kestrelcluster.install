@@ -15,3 +15,5 @@ share/*                             usr/share/kestrel
 
 rpc/kestrel_rpc.py                  usr/share/kestrel/rpc/
 rpc/daemon.py                       usr/share/kestrel/rpc/
+
+dracut/*                            usr/lib/dracut/modules.d

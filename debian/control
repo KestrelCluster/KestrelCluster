@@ -10,7 +10,7 @@ Vcs-Browser: https://github.com/jonanh/KestrelCluster
 
 Package: kestrelcluster
 Architecture: all
-Depends: lsb-release, syslinux, adduser, nfs-kernel-server, liblwipv6-2, dnsmasq, etherwake, debootstrap, dracut (>= 009), dracut-network (>= 009), dracut-kestrel (>= 009), openssh-server, ${python:Depends}, ${misc:Depends}
+Depends: lsb-release, syslinux, adduser, nfs-kernel-server, liblwipv6-2, dnsmasq, etherwake, debootstrap, dracut (>= 013), dracut-network (>= 013), openssh-server, ${python:Depends}, ${misc:Depends}
 Replaces: kestrelhpc
 Description: A set of utilities for setting up a cluster with live nodes
  It helps creating and managing live os image for the nodes, and setting all 

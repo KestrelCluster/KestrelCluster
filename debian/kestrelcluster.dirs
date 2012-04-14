@@ -8,3 +8,4 @@
 /var/lib/kestrel/log
 /var/lib/kestrel/tftpboot
 /var/lib/kestrel/tftpboot/pxelinux.cfg
+/var/lib/kestrel/default.d
