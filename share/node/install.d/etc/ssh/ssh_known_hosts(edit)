@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Adds the frontend as a known host
+
+sys_hostname=$(hostname)
+
+key=$(awk '{print $2}' /etc/ssh/ssh_host_rsa_key.pub)
+
+sed '/^${sys_hostname}\s/d' ${FILE}
+sed '/${key}/d'             ${FILE}
+
+echo "${sys_hostname} ssh-rsa ${key}" >> ${FILE}
+
