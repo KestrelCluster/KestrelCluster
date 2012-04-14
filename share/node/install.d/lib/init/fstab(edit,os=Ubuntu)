@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# We don't want mountall to try to remount the root
+
+sed '/\/dev\/root/d' ${FILE}
