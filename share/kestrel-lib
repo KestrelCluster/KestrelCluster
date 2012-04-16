@@ -333,6 +333,13 @@ user_sshkeygen() {
     # Ensure the .ssh/* files have the correct owner/group and permissions.
     chown -R ${user}:${user_group}  ${user_home}/.ssh
     chown -R ${user}:${user_group} ${user_khome}/.ssh
+
+    local bashrc=${user_home}/.bashrc
+    if [ -e "${bashrc}" ]; then
+       sed -ir '/ssh-add.*kestrel_id_dsa/d'                   ${bashrc}
+       echo "ssh-add -d ~/.ssh/kestrel_id_dsa &>/dev/null" >> ${bashrc}
+       echo "ssh-add    ~/.ssh/kestrel_id_dsa &>/dev/null" >> ${bashrc}
+    fi
 }
 
 
