@@ -187,7 +187,7 @@ check_flags() {
                 if [ "${!BASH_REMATCH[1]}_${image_name}" == "yes" ]; then
                    true
                 elif [ "${!BASH_REMATCH[1]}_${image_name}" == "no" ] ||
-                     [ "${!BASH_REMATCH[1]}" != "yes" ]]; then
+                     [ "${!BASH_REMATCH[1]}" != "yes" ]; then
                      
                     # Only restore if we are really running the template
                     #[ -n "${action}" ] && restore_file
@@ -1081,6 +1081,7 @@ node_install() {
     if check_enabled &&
        [[ "${event}" == "uninstall" || "${force}" == "enable" ]]; then
         run_configuration_stage ""             "system-install"
+        run_configuration_stage ""             "system-configure"
     fi
     
     if [[ "${event}" != "uninstall" ]]; then
