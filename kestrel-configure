@@ -181,6 +181,10 @@ _enable() {
     
     local force=enable
     
+    # enable flag
+    mkdir -p "${KESTREL_DATA_DIR}"
+    echo "enabled" > "${KESTREL_DATA_DIR}"/enabled
+    
     if [ ! -e ${KESTREL_ETC}/kestrel.conf ]; then
         ask_config
     else
@@ -198,10 +202,13 @@ _disable() {
     [ -n "${force}" ] || check_enabled "${verbose}" || return 0
     
     local force=enable
+    local event="uninstall"
     
     _configure
     
     restore_all ""
+
+    rm -f "${KESTREL_DATA_DIR}"/enabled
 }
 
 
@@ -343,10 +350,6 @@ while (( $# > 0 )); do
                    shift 1
                 fi
 
-                applicable_templates "$2"
-                
-                shift 1
-                
             else
                 applicable_templates ""
             fi
