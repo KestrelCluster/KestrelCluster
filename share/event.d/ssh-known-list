@@ -23,9 +23,7 @@ case ${action} in
         
         unset SSH_AUTH_SOCK
         
-        echo "su kestrel -c 'ssh \"${hostname}\" sudo set_hostname \"${hostname}\" \"${FRONTEND_IP}\" \"$(hostname)\"'"
-        
-        su kestrel -c "ssh ${hostname} sudo set_hostname ${hostname} ${FRONTEND_IP} $(hostname)"
+        su kestrel -c "ssh ${hostname} sudo dhclient"
         ;;
         
     disconnect)
