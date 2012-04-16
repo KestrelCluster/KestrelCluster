@@ -522,8 +522,12 @@ while (( $# > 0 )); do
             exit 0
             ;;
             
-        --connected_groups|--disconnected_groups)
-            ${1#--}
+        --connected-groups)
+            connected_groups
+            ;;
+
+        --disconnected-groups)
+            disconnected_groups
             ;;
             
         --register)
