@@ -1,0 +1,3 @@
+#!/bin/bash
+
+sed -i 's#/lib/init/rw#/lib/init/rw|/live/*#' ${FILE}
