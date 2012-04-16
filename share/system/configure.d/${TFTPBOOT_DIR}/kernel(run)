@@ -13,8 +13,8 @@ if [ "${NODE_KERNEL}" == "auto" ]; then
     else
         KERNEL_VERSION=$(ls -1 /boot/vmlinuz-* | tail -n1 | \
                          sed -rn "s#/boot/vmlinuz-(.*)#\1#p")
-        msg "Current kernel \"$(uname -r)\" not found on the system"
-        msg "Using \"${KERNEL_VERSION}\" instead"
+        warn_config "Current kernel \"$(uname -r)\" not found on the system"
+        warn_config "Using \"${KERNEL_VERSION}\" instead"
     fi
 
 else
@@ -23,8 +23,8 @@ else
         KERNEL_VERSION=$(ls -1 /boot/vmlinuz-* | tail -n1 | \
                          sed -rn "s#/boot/vmlinuz-(.*)#\1#p")
         
-        msg "Kernel \"${NODE_KERNEL}\" not found, please check your kestrel config"
-        msg "Using \"${KERNEL_VERSION}\" instead"
+        warn_config "Kernel \"${NODE_KERNEL}\" not found, please check your kestrel config"
+        warn_config "Using \"${KERNEL_VERSION}\" instead"
     else
         KERNEL_VERSION=${NODE_KERNEL}
     fi
@@ -35,18 +35,18 @@ if [ -n "${KERNEL_VERSION}" ]; then
     [ -e "/boot/vmlinuz-${KERNEL_VERSION}" ] && 
         cp /boot/vmlinuz-${KERNEL_VERSION} ${TFTPBOOT_DIR}/vmlinuz
     
-    if [ ! -e "/boot/dracut.img-${KERNEL_VERSION}" ]; then
-        msg "Please wait, Dracut will take some time"
-        dracut-update-initramfs -c -k ${KERNEL_VERSION} |& cat
+    if [ ! -e "/boot/initramfs-${KERNEL_VERSION}.img" ]; then
+        warn_config "/boot/initramfs-${KERNEL_VERSION}.img not found"
+        msg_config "Please wait, Dracut will take some time"
+        dracut -q --force "/boot/initramfs-${KERNEL_VERSION}.img"
     fi
     
-    [ -e "/boot/dracut.img-${KERNEL_VERSION}" ] &&
-        cp /boot/dracut.img-${KERNEL_VERSION} ${TFTPBOOT_DIR}/dracut-img
+    cp /boot/initramfs-${KERNEL_VERSION}.img ${TFTPBOOT_DIR}/dracut-img ||
+    warn_config "Failed copying initramfs! Try configuring again."
     
-    chown dnsmasq:kestrel ${TFTPBOOT_DIR}/{vmlinuz,dracut-img,initrd.img}
-
 else
-    warn_info "No kernel found on the system"
+    warn_config "No kernel found on the system"
+    
     # Fail
     false
 fi

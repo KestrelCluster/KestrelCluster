@@ -1,6 +1,6 @@
 #!/bin/bash
 
 # Copy files for PXE
-cp /usr/lib/syslinux/pxelinux.0        ${TFTPBOOT_DIR}/
-cp /usr/lib/syslinux/reboot.c32        ${TFTPBOOT_DIR}/
+cp /usr/lib/syslinux/pxelinux.0        ${TFTPBOOT_DIR}/ &&
+cp /usr/lib/syslinux/reboot.c32        ${TFTPBOOT_DIR}/ &&
 cp /usr/lib/syslinux/vesamenu.c32      ${TFTPBOOT_DIR}/

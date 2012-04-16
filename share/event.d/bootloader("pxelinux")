@@ -14,7 +14,7 @@ if [[ -n "${mac}" ]]; then
            ;;
 
         wake|reboot)
-            cp -f ${TFTPBOOT_DIR}/${image_name} \
+            cp -f ${TFTPBOOT_DIR}/pxelinux-${image_name} \
                   ${TFTPBOOT_DIR}/pxelinux.cfg/${pxemac}
             ;;
 
@@ -31,13 +31,13 @@ else
         start-register)
             # Set the pxelinux register configuration as the default
             sed "/append/s/$/ register=${group} /" \
-                < ${TFTPBOOT_DIR}/${image_name}    \
+                < ${TFTPBOOT_DIR}/pxelinux-${image_name}    \
                 > ${TFTPBOOT_DIR}/pxelinux.cfg/default
             ;;
             
         stop-register)
             # Reboot by default
-            cp -f ${TFTPBOOT_DIR}/reboot ${TFTPBOOT_DIR}/pxelinux.cfg/default
+            cp -f ${TFTPBOOT_DIR}/pxelinux-reboot ${TFTPBOOT_DIR}/pxelinux.cfg/default
             ;;
     esac
     

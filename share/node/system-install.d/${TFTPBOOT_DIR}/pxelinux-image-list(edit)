@@ -15,7 +15,7 @@ delete_entry () {
 }
 
 case $1 in
-    install)
+    install|configure)
         if (($(stat -c %s ${FILE}) == 0)); then
             echo -e "\ninclude template\n" > ${FILE}
         fi
@@ -25,7 +25,7 @@ case $1 in
         cat <<EOF >> ${FILE}
 Label KestrelHPC Image : ${image_name}
     menu ${image_name}
-    config ${image_name}
+    config pxelinux-${image_name}
 
 EOF
         

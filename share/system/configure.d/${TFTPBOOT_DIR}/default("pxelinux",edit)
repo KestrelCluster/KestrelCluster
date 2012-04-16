@@ -1,3 +1,0 @@
-#!/bin/bash
-
-copy_file "${FILE%/*}/reboot" ${FILE}

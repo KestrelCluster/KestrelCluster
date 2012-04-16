@@ -1,0 +1,5 @@
+#!/bin/bash
+
+if [ "$1" != "uninstall" ]; then
+    cp ${FILE%/*}/../pxelinux-reboot ${FILE}
+fi
