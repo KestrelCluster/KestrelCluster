@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [ "$1" == "uninstall" ]; then
+     
+    # Delete all kestrel's entries from the nfs export and the fstab
+    sed -ri "/${NFS4_ROOT//\//\\\/}\/kestrel/d" ${FILE}
+
+else
+
 # Remove old entries
 sed -ri "/[^#]*[[:space:]].*\/kestrel\/home([^0-9A-Za-z]+|$)/d" ${FILE}
 
@@ -37,4 +44,6 @@ if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
         echo "umount \"${mount_dir}\""
         umount ${mount_dir} > /dev/null
     fi
+fi
+
 fi

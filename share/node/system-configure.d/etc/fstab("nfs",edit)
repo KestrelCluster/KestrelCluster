@@ -5,6 +5,23 @@
 # to the real directory containing the image with nfs4, we also need to add an 
 # entry on the fstab file for the "mount binding"
 
+if [ "$1" == "uninstall" ]; then
+
+    mount_dir=$(mount | sed -rn \
+                "s/.*\s([^\ \t]*\/kestrel\/${image_name})\s+.*/\1/p")
+
+    # umount the image
+    echo "umount \"${mount_dir}/lib/modules\""
+    umount ${mount_dir}/lib/modules
+
+    echo "umount \"${mount_dir}\""
+    umount ${mount_dir}
+
+    # Delete from the fstab
+    sed -ri "/[^#]*\/kestrel\/${image_name}/d" ${FILE}
+
+else
+
 new_mount_dir=${NFS4_ROOT}/kestrel/${image_name}
 
 install -d ${new_mount_dir}
@@ -50,3 +67,4 @@ if [[ "${mount_dir}" != "${new_mount_dir}" ]]; then
     fi
 fi
 
+fi
