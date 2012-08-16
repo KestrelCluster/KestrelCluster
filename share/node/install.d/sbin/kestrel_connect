@@ -15,12 +15,12 @@
 # This file depends on the frontend's ip and port, and it is recreated each time
 # the image is reconfigured.
 
-import re
+import sys, re
 import xmlrpclib
 import subprocess
 
 # Create the xmlrpc client
-s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
+s = xmlrpclib.ServerProxy("http://frontend:${KESTREL_RPC_PORT}")
 
 # Execute command num-of-cpus, and read the result
 num_cpus=subprocess.Popen( "num_of_cpus", 
@@ -28,23 +28,19 @@ num_cpus=subprocess.Popen( "num_of_cpus",
                            stdout=subprocess.PIPE, 
                            close_fds=True ).stdout.read()
 
-# Read the kernel cmdline
-f = open('/proc/cmdline', 'r')
-cmdline=f.readline()
-f.close()
-
 # Read the name of the image
 f = open('/etc/kestrel/image_name', 'r')
 image=f.readline()
 f.close()
 
+if len(sys.argv) > 1:
+    action=sys.argv[1]
+else:
+    action=""
 
 # Check if the client is in register mode, and save also the group
-m = re.search("\sregister=([^\s]*)(?:\s|$)",cmdline)
-if m:
-    group=m.group(1)
-    s.register(num_cpus, image, group)
-    
-else:    
+if re.search("register",action):
+    s.register(num_cpus, image)
+else:
     s.connect(num_cpus, image)
 

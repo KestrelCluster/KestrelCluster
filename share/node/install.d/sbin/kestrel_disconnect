@@ -14,10 +14,15 @@
 
 import re, sys, xmlrpclib
 
-s = xmlrpclib.ServerProxy("http://${FRONTEND_IP}:${KESTREL_RPC_PORT}")
+s = xmlrpclib.ServerProxy("http://frontend:${KESTREL_RPC_PORT}")
 
 # Check if the client is being shut down or being rebooted
-if re.search("/etc/rc6\.d/",sys.argv[1]):
+if len(sys.argv) > 1:
+    service=sys.argv[1]
+else:
+    service=""
+
+if re.search("/etc/rc6\.d/|reboot",service):
     s.disconnect(True)
 else:
     s.disconnect(False)
