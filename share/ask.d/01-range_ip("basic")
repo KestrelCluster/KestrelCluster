@@ -6,7 +6,7 @@ configure_range_ip() {
     local msg=( "Insert the ip range for the dhcp server" )
 
     local DHCP_STARTING_IP="${FRONTEND_IP%*.}.100"
-    local ${DHCP_ENDING_IP}="${FRONTEND_IP%*.}.255"
+    local   DHCP_ENDING_IP="${FRONTEND_IP%*.}.255"
     
     default="${DHCP_STARTING_IP} - ${DHCP_ENDING_IP}"
     
