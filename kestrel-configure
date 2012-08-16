@@ -220,7 +220,7 @@ ask_config() {
     FILE=${KESTREL_ETC}/kestrel.conf
             
     run_script "${KESTREL_SHARE}/ask.d" &&
-    check_enabled && configure_configure
+    check_enabled && _configure
 }
 
 
