@@ -21,7 +21,7 @@ try:
     
     print 
     print "Method: register"
-    print "\tresponse : \"" + s.register("2", "image1", "group1") + "\""
+    print "\tresponse : \"" + s.register("2", "image1") + "\""
     print "\tserver output : \"" + f.readline() + "\""
     print
     print "Method: connect"
