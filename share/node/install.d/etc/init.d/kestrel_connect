@@ -13,7 +13,11 @@
 
 case "\$1" in
   start)
-      /sbin/kestrel_connect
+      if grep -q register /proc/cmdline; then
+          /sbin/kestrel_connect register
+      else
+          /sbin/kestrel_connect
+      fi
       ;;
   stop)
       ;;
