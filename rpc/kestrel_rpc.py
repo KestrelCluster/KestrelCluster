@@ -27,13 +27,19 @@ group_re = re.compile(check_environ("group_re","[0-9A-Za-z_]+"))
 image_re = re.compile(check_environ("image_re","[0-9A-Za-z_]+"))
 
 
+def kestrel_write(message):
+    sys.stdout.write(message + "\n")
+    sys.stdout.flush()
+
+
 class RequestHandler(SimpleXMLRPCRequestHandler):
 
     @classmethod
     def load_plugins(cls, plugin_dir):
         try:
-            plugin_files = filter(lambda f:re.search('^plugin.*\.py',f),
-                                    os.listdir(plugin_dir))
+            search       = lambda f:re.search('^plugin.*\.py',f)
+            plugin_files = filter(search, os.listdir(plugin_dir))
+            
             # Make sure the files are sorted. This can be useful to set
             # priorities to plugins prefixing them with a number.
             plugin_files.sort()
@@ -65,10 +71,10 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
     def kestrel_connect(self, num_cpus, image):
         try:
-            sys.stdout.write(" action=connect" + \
-                             " ip=" + self.client_address[0] + \
-                             check("cpu",   num_cpus, num_re) + \
-                             check("image", image,    image_re ) )
+            kestrel_write(" action=connect" + \
+                          " ip=" + self.client_address[0] + \
+                          check("cpu",   num_cpus, num_re) + \
+                          check("image", image,    image_re ) )
             
             return time.strftime("%Y-%m-%d %H:%M:%S")
             
@@ -78,13 +84,12 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
             
             return "Invalid call"
 
-    def kestrel_register(self, num_cpus, image, group):
+    def kestrel_register(self, num_cpus, image):
         try:
-            sys.stdout.write(" action=register" + \
-                             " ip=" + self.client_address[0] + \
-                             check("cpu",   num_cpus, num_re) + \
-                             check("group", group,    group_re) + \
-                             check("image", image,    image_re) )
+            kestrel_write(" action=register" + \
+                          " ip=" + self.client_address[0] + \
+                          check("cpu",   num_cpus, num_re) + \
+                          check("image", image,    image_re) )
             
             return time.strftime("%Y-%m-%d %H:%M:%S")
             
@@ -96,9 +101,9 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
     def kestrel_disconnect(self, reboot):
         try:
-            sys.stdout.write(" action=disconnect " + \
-                             " ip=" + self.client_address[0] + \
-                             check("reboot", reboot, true_re) )
+            kestrel_write(" action=disconnect " + \
+                          " ip=" + self.client_address[0] + \
+                          check("reboot", reboot, true_re))
             
             return time.strftime("%Y-%m-%d %H:%M:%S")
             
@@ -109,12 +114,12 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
             return "Invalid call"
 
 
-plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
  
 class MyDaemon(Daemon):
     def run(self):
         ip =          check_environ("FRONTEND_IP",      "localhost")
         port =    int(check_environ("KESTREL_RPC_PORT", "8000"))
+        plugins_dir = check_environ("KESTREL_RPC_PLUGINS", os.getcwd())
         
         # Load the plugins from the plugin directory
         RequestHandler.load_plugins(plugins_dir)
