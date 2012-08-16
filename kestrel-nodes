@@ -90,7 +90,7 @@ _connected() {
         mac=$(hostname_2_mac ${node})
         node_image=$(connected_image ${node})
         [[ -z "${image}" || "${image}" == "${node_image}" ]] && 
-        echo -e "\t${node}, image:${node_image}, mac:${mac}, ip=${ip}"
+        msg "${node}, image:${node_image}, mac:${mac}, ip=${ip}"
     done
 }
 
@@ -104,7 +104,7 @@ _disconnected() {
     registered_nodes "$1" | while read node; do
         ip=$( hostname_2_ip  ${node})
         mac=$(hostname_2_mac ${node})
-        echo -e "\t${node}, mac:${mac}"
+        msg "${node}, mac:${mac}"
     done
 }
 
@@ -118,7 +118,7 @@ _registered(){
     registered_nodes "$1" | while read node; do
         ip=$( hostname_2_ip  ${node})
         mac=$(hostname_2_mac ${node})
-        echo -e "\t${node}, mac:${mac}, ip:${ip}"
+        msg "${node}, mac:${mac}, ip:${ip}"
     done
 }
 
@@ -130,9 +130,9 @@ wake_node() {
     local mac=${1}
     local host=${2}
     
-    echo -e "\tStarting up \"${host}\", mac:\"${mac}\""
+    msg "Starting up \"${host}\", mac:\"${mac}\""
     
-    action="${wake}"
+    action="wake"
     run_script "${KESTREL_SHARE}/event.d"
 }
 
@@ -151,15 +151,17 @@ shutdown_node() {
     local mac=$(hostname_2_mac ${host})
     
     if [ "${op}" == "halt" ]; then
-        echo -e "\n\tHalting the \"${host}\", ip:${ip}"
+        msg "Halting the \"${host}\", ip:${ip}"
     else
-        echo -e "\n\tRebooting the \"${host}\", ip:${ip}"
+        msg "Rebooting the \"${host}\", ip:${ip}"
     fi
     
     action="${op}"
     run_script "${KESTREL_SHARE}/event.d"
     
-    [ -n "${fail}" ] && return 1
+    if [ -n "${fail}" ]; then
+        return 1
+    fi
 }
 
 
@@ -294,7 +296,7 @@ _remove_mac() {
     action="desregister"
     run_script "${KESTREL_SHARE}/event.d"
     
-    echo -e "\t${host}, mac:${mac} removed"
+    msg "${host}, mac:${mac} removed"
 }
 
 
@@ -314,7 +316,7 @@ _remove_node() {
     action="desregister"
     run_script "${KESTREL_SHARE}/event.d"
     
-    echo -e "\t${host}, mac:${mac} removed"
+    msg "${host}, mac:${mac} removed"
 }
 
 
@@ -336,7 +338,7 @@ _remove_group() {
         action="desregister"
         run_script "${KESTREL_SHARE}/event.d"
         
-        echo -e "\t${node}, mac:${mac} removed"
+        msg "${node}, mac:${mac} removed"
         
     done
 }
@@ -348,11 +350,10 @@ _halt-cluster() {
     
     if (( $(connected_nodes | wc -l) > 0 )); then
         for node in $(connected_nodes); do
-            echo -e "\tHalting the \"${node}\", ip:$(hostname_2_ip ${node})"
+            msg "Halting the \"${node}\", ip:$(hostname_2_ip ${node})"
             shutdown_node "halt" "${node}" || fail="^${node}$|${fail:-^$}"
         done
-        echo
-        echo -e "\tWaiting till the nodes shutdown"
+        msg "" "Waiting till the nodes shutdown"
         TIMEOUT=40 # Waits 20 seconds. (sleeps 0.5s)
         while (( $(connected_nodes | grep -Ev "${fail:-^$}" | wc -l) > 0 && 
                  ${TIMEOUT} > 0)); do
@@ -405,7 +406,7 @@ _register() {
     
     # Use a file to mark that the registration process is active.
     # kestrel-daemon by default ignores register events
-    touch ${KESTREL_LOCK_DIR}/register
+    echo "${group}" > "${KESTREL_LOCK_DIR}/register"
     
     # Clean the feedback file
     [ -e ${KESTREL_DATA_DIR}/register_feedback ] &&
@@ -414,11 +415,11 @@ _register() {
     # Set the trap
     trap control_c SIGINT SIGTERM
     
-    echo
-    echo "Turn now on the nodes to add them to the group \"${group}\" with the image \"${image_name}\""
-    echo
-    echo "Press crtl+c when you are done"
-    echo
+    msg "" \
+        "Turn now on the nodes to add them to the group \"${group}\" with the image \"${image_name}\"" \
+        "" \
+        "Press crtl+c when you are done" \
+        ""
     
     # Show feedback
     while :; do
