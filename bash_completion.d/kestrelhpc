@@ -240,6 +240,16 @@ _kestrel_nodes()
                            "$cur" ) )
             return 0
             ;;
+        --remove-node)
+            COMPREPLY=( $( compgen -W "$( _kestrel_registered_nodes )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
+        --remove-group)
+            COMPREPLY=( $( compgen -W "$( _kestrel_registered_groups )" -- \
+                           "$cur" ) )
+            return 0
+            ;;
     esac
     
     _kestrel_longopt kestrel-nodes
