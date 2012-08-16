@@ -3,12 +3,12 @@ include template
 label linux1
   menu label Dracut NFS 3
   kernel vmlinuz
-  append initrd=dracut-img root=nfs:${FRONTEND_IP}:${NFS4_ROOT}/kestrel/${image_name} ip=dhcp selinux=0 aufs ro splash vga=789 plymouth.theme=${PLYMOUTH_THEME}
+  append initrd=dracut-img root=nfs:${FRONTEND_IP}:${NFS4_ROOT}/kestrel/${image_name} ${NODE_KERNEL_CMDLINE}
 
 #label linux0
 #  menu label Dracut NFS 4
 #  kernel vmlinuz
-#  append initrd=dracut-img root=nfs4:${FRONTEND_IP}:/kestrel/${image_name} ip=dhcp selinux=0 aufslive ro quiet splash vga=789 ${PLYMOUTH_THEME}
+#  append initrd=dracut-img root=nfs4:${FRONTEND_IP}:/kestrel/${image_name} ${NODE_KERNEL_CMDLINE}
 
 label reboot
   menu label reboot

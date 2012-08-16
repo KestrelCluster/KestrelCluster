@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if [ "${graphic_mode}" != "text" ]; then
+    NODE_KERNEL_CMDLINE+=" splash ${graphic_mode}"
+fi
+
