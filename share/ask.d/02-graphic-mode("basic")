@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# http://www.kernel.org/doc/Documentation/fb/vesafb.txt
+# 
+#     | 640x480  800x600  1024x768 1280x1024
+# ----+-------------------------------------
+# 256 |  0x301    0x303    0x305    0x307   
+# 32k |  0x310    0x313    0x316    0x319   
+# 64k |  0x311    0x314    0x317    0x31A   
+# 16M |  0x312    0x315    0x318    0x31B 
+
+configure_graphic_mode() {
+    local result
+    local title="Console Graphic Mode"
+    local msg=( " Select between: text mode, native Kernel Mode Setting or a vesa mode " )
+
+    result=$( kestrel_dialog menu "${title}" msg[@]    \
+                        "text"  "Text mode"            \
+                        "kms"   "Kernel Mode Setting (Open Source drivers: Intel, Radeon and Nouveau)"  \
+                        "0x301" "640x480   256 colors" \
+                        "0x303" "800x600   256 colors" \
+                        "0x305" "1024x768  256 colors" \
+                        "0x307" "1280x1024 256 colors" \
+                        "0x310" "640x480   32k colors" \
+                        "0x313" "800x600   32k colors" \
+                        "0x316" "1024x768  32k colors" \
+                        "0x319" "1280x1024 32k colors" \
+                        "0x311" "640x480   64k colors" \
+                        "0x314" "800x600   64k colors" \
+                        "0x317" "1024x768  64k colors" \
+                        "0x31A" "1280x1024 64k colors" \
+                        "0x312" "640x480   16M colors" \
+                        "0x315" "800x600   16M colors" \
+                        "0x318" "1024x768  16M colors" \
+                        "0x31B" "1280x1024 16M colors") || return 1
+
+    set_key_value "graphic_mode" "${result}" "${FILE}"
+}
+
+configure_graphic_mode
+
