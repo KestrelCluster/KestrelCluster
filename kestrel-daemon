@@ -139,6 +139,8 @@ run_event_scripts() {
                 return 0
             fi
             
+            read group < "${KESTREL_LOCK_DIR}/register"
+            
             # Check if the node is not registered to the same group
             if ! registered_nodes "${group}" | grep -Eq "^${hostname}$"; then
                 
