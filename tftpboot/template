@@ -2,7 +2,7 @@ default vesamenu.c32
 timeout 100
 prompt 0
 
-menu title Welcome to KestrelHPC 2.0
+menu title Welcome to KestrelCluster 3.0
 menu background pxemenu-background01.jpg
 menu width 77
 menu rows 14
