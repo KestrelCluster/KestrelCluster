@@ -151,7 +151,7 @@ check_image() {
         die "Invalid image name, \"cached-image\" is reserved"
     
     # Verify if the image exists
-    [ -z "${image_dir}" -o ! -d "${image_dir}/usr" ] &&
+    [ -z "${image_dir}" -o ! -d "${image_dir}" ] &&
         die "The image \"${image_name}\" hasn't been found"
     
     # Verify the image is not being currently used
