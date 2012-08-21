@@ -392,6 +392,10 @@ _register() {
     image_name=$2
     image_dir=${KESTREL_IMAGE_DIR}/${image_name}
 
+    # Check group name
+    [[ "${group}" =~ ^${group_re}$ ]] ||
+        die "Invalid group name \"${group}\""
+
     check_image "${image_name}"
 
     check_kestrel_daemon
