@@ -1,5 +1,5 @@
 #!/bin/bash
 
 if [ -x /etc/init.d/cron ]; then
-     /etc/init.d/cron
+     /etc/init.d/cron restart
 fi
