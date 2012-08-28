@@ -11,7 +11,6 @@ if [ -n "${mac}" ]; then
 case ${action} in
     register)
        if [ -n "${hostname}" ]; then
-           echo "registering node"
            
            # Remove any old entry
            sed -ri "/${mac}/d" ${KESTREL_REG_NODES}
@@ -19,12 +18,15 @@ case ${action} in
            # Add the new entry
            echo "${mac},${hostname}" >> ${KESTREL_REG_NODES}
            
+           echo "Added host:${hostname}, mac:${mac} to ${KESTREL_REG_NODES}"
        fi
        ;;
 
     desregister)
        # Remove any old entry
        sed -ri "/${mac}/d" ${KESTREL_REG_NODES}
+       
+       echo "Removed mac:${mac} from ${KESTREL_REG_NODES}"
        ;;
 esac
 

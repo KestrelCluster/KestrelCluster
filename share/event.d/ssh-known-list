@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Check if the hostname is defined
-if [ -n "${hostname}" ]; then
 
 [ ! -e  /etc/ssh/ssh_known_hosts ] &&
   touch /etc/ssh/ssh_known_hosts
@@ -15,20 +14,27 @@ case ${action} in
                   ${KESTREL_IMAGE_DIR}/${image}/etc/ssh/ssh_host_rsa_key.pub)
 
         # Update known hosts files
-        sed -ri "/^${hostname}\s.*${tag}/d"         /etc/ssh/ssh_known_hosts
-        sed -ri "/^${ip}\s.*${tag}/d"               /etc/ssh/ssh_known_hosts
-        echo "${hostname} ssh-rsa ${key} ${tag}" >> /etc/ssh/ssh_known_hosts
-        echo "${ip} ssh-rsa ${key} ${tag}"       >> /etc/ssh/ssh_known_hosts
-        
-        unset SSH_AUTH_SOCK
-        
-        su kestrel -c "ssh ${hostname} sudo dhclient"
+        [ -n "${hostname}" ] &&
+        sed -ri "/^${hostname}\s.*${tag}/d"         /etc/ssh/ssh_known_hosts &&
+        echo "${hostname} ssh-rsa ${key} ${tag}" >> /etc/ssh/ssh_known_hosts &&
+        echo "added host:${hostname} with key:${key} from /etc/ssh/ssh_known_hosts"
+
+        [ -n "${ip}" ] &&
+        sed -ri "/^${ip}\s.*${tag}/d"               /etc/ssh/ssh_known_hosts &&
+        echo "${ip} ssh-rsa ${key} ${tag}"       >> /etc/ssh/ssh_known_hosts &&
+        echo "added ip:${ip} with key:${key} from /etc/ssh/ssh_known_hosts"
         ;;
         
     disconnect)
-        sed -ri "/^${hostname}\s/d"                 /etc/ssh/ssh_known_hosts
-        sed -ri "/^${ip}\s.*${tag}/d"               /etc/ssh/ssh_known_hosts
+        [ -n "${hostname}" ] &&
+        sed -ri "/^${hostname}\s/d"                 /etc/ssh/ssh_known_hosts &&
+        echo "removed host:${hostname} from /etc/ssh/ssh_known_hosts"
+
+        [ -n "${ip}" ] &&
+        sed -ri "/^${ip}\s.*${tag}/d"               /etc/ssh/ssh_known_hosts &&
+        echo "removed ip:${ip} from /etc/ssh/ssh_known_hosts"
         ;;
 esac
 
-fi
+:
+

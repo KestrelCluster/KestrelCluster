@@ -21,18 +21,26 @@ case ${action} in
        
        # Remove any old entry related to this node
        sed -ri "/^[^#]*\s+${hostname}([^0-9]|$)/d" ${KESTREL_CON_NODES}
+
+       [ -n "${ip}" ] &&
        sed -ri "/^\s*${ip}\s+/d"                   ${KESTREL_CON_NODES}
        
        # Add new entries
        echo "${ip}    ${hostname} ${hostname}-${image}" \
             >> ${KESTREL_CON_NODES}
+
+       echo "Added ${ip}    ${hostname} ${hostname}-${image} to ${KESTREL_CON_NODES}"
        ;;
 
     disconnect|desregister)
     
        # Remove any old entry related to this node
        sed -ri "/^[^#]*\s+${hostname}([^0-9]|$)/d" ${KESTREL_CON_NODES}
+       
+       [ -n "${ip}" ] &&
        sed -ri "/^\s*${ip}\s+/d"                   ${KESTREL_CON_NODES}
+       
+       echo "Removed ${hostname} from ${KESTREL_CON_NODES}"
        ;;
 esac
 
