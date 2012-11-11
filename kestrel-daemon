@@ -185,7 +185,24 @@ run_event_scripts() {
         ""                          \
         "----------------------"    \
         ""
-    
+
+    # Desregister if previously registered
+    if [ "${action}" == "register" ]; then
+
+        hostname2==$( mac_2_hostname "${mac}" )
+
+        if [ -n "${hostname2}" -a "${hostname}" != "${hostname2}" ]; then
+        (
+           msg "Removing ${hostname2} before registering as ${hostname}"
+
+           hostname="${hostname2}"
+           action="desregister"
+
+           run_script "${KESTREL_SHARE}/event.d" "" "script: "
+        )
+        fi
+    fi
+ 
     # Run event.d scripts
     run_script "${KESTREL_SHARE}/event.d" "" "script: "
 
