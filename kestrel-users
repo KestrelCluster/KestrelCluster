@@ -22,7 +22,7 @@
 # load kestrel_lib
 . "$KESTREL_SHARE"/kestrel-lib
 
-add_to_images(){
+add_to_images() {
     local kestrel_user=$1
 
     msg "Please wait while the user is added to the images"
@@ -61,6 +61,7 @@ add_to_images(){
         kestrel_user_uid=$(id -u ${kestrel_user})
         kestrel_user_gid=$(id -g ${kestrel_user})
         kestrel_user_groups=$(id -Gn ${kestrel_user})
+        kestrel_home="/${KESTREL_HOME}/${kestrel_user}"
 
         (
             export LANG=C
@@ -68,6 +69,7 @@ add_to_images(){
                                         --gid ${kestrel_user_gid} \
                                         --shell "/bin/bash" \
                                         --no-create-home \
+                                        --home ${kestrel_home} \
                                         ${kestrel_user} 
         ) &> ${log}
 
