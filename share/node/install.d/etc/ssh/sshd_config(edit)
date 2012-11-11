@@ -1,5 +1,6 @@
 #!/bin/bash
 
 # Set printmotd and printlastlog to 'no'
+echo "Set printmotd and printlastlog to 'no'"
 set_key_value "PrintMotd" "no" $FILE " "
 set_key_value "PrintLastLog" "no" $FILE " "
