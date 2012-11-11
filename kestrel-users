@@ -34,6 +34,12 @@ add_to_images(){
     for image in $(list_images); do
         image_dir=${KESTREL_IMAGE_DIR}/${image}
 
+        # Check if the image is valid and avoid deleted images
+        if [ -d "${image_dir}/usr" ]; then
+            warn "Invalid image: ${image}"
+            continue
+        fi
+
         # Add group
         ############
 
