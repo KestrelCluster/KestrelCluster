@@ -6,46 +6,56 @@
 log=/tmp/${0##*/}-$$.log
 touch ${log}
 
-# We need to add the user's group before adding the user
 list_users |
 while read user; do
+
+    # Add group
+    ############
+
     user_gid=$(id -g ${user})
     user_group_name=$(id -gn ${user})
-
+    
     (
         export LANG=C
-        chroot ${image_dir} groupadd  --gid ${user_gid} \
-                                      ${user_group_name} 
+        chroot ${image_dir} groupadd  --gid ${user_gid} ${user_group_name}
     ) &> ${log}
 
     # Only show the output if something went wrong and it wasn't because 
     # the group was already present
     (( $? != 0 && $? != 9 )) && cat ${log}
 
-done
 
-# Add kestrel's users to the new image
-list_users |
-while read user; do
+    # Add user
+    ###########
+    
     user_uid=$(id -u ${user})
     user_gid=$(id -g ${user})
     user_groups=$(id -Gn ${user})
-
-    # A pipe implies a subshell, so we don't have to worry about the export.
+    user_home="/${KESTREL_HOME}/${user}"
+    
     (
         export LANG=C
         chroot ${image_dir} useradd --uid ${user_uid} \
                                     --gid ${user_gid} \
-                                    --no-create-home \
                                     --shell "/bin/bash" \
+                                    --no-create-home \
+                                    --home ${user_home} \
                                     ${user} 
+        
+        # Create a link /home/$user/kestrel -> /kestrel/$user
+        mkdir -p ${image_dir}/home/${user}
+        chown ${user}:${user_group_name} ${image_dir}/home/${user}
+        
+        if [[ ! "/${KESTREL_HOME}/" == "/home/" ]]; then
+            ln -snf ${user_home} ${image_dir}/home/${user}/kestrel
+        fi
     ) &> ${log}
 
     # Only show the output if something went wrong and it wasn't because 
     # the user was already present
     (( $? != 0 && $? != 9 )) && cat ${log}
-
-    for group in $user_groups; do
+    
+    for group in ${user_groups}; do
         chroot ${image_dir} usermod -a -G ${group} ${user}
     done &>/dev/null
 
@@ -56,6 +66,8 @@ done
     export LANG=C
     chroot ${image_dir} usermod -a -G admin ${KESTREL_USER} 
 ) &> ${log}
+
+(( $? != 0 && $? != 9 )) && cat ${log}
 
 rm ${log}
 

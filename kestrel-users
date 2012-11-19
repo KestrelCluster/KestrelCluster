@@ -23,7 +23,7 @@
 . "$KESTREL_SHARE"/kestrel-lib
 
 add_to_images() {
-    local kestrel_user=$1
+    local user=$1
 
     msg "Please wait while the user is added to the images"
     
@@ -43,13 +43,12 @@ add_to_images() {
         # Add group
         ############
 
-        kestrel_user_gid=$(id -g ${kestrel_user})
-        kestrel_user_group_name=$(id -gn ${kestrel_user})
+        user_gid=$(id -g ${user})
+        user_group_name=$(id -gn ${user})
 
         (
             export LANG=C
-            chroot ${image_dir} groupadd  --gid ${kestrel_user_gid} \
-                                          ${kestrel_user_group_name} 
+            chroot ${image_dir} groupadd  --gid ${user_gid} ${user_group_name} 
         ) &> ${log}
 
         # Only show the output if something went wrong and it wasn't because 
@@ -58,32 +57,41 @@ add_to_images() {
 
         # Add user
         ###########
-        kestrel_user_uid=$(id -u ${kestrel_user})
-        kestrel_user_gid=$(id -g ${kestrel_user})
-        kestrel_user_groups=$(id -Gn ${kestrel_user})
-        kestrel_home="/${KESTREL_HOME}/${kestrel_user}"
+        
+        user_uid=$(id -u ${user})
+        user_gid=$(id -g ${user})
+        user_groups=$(id -Gn ${user})
+        user_home="/${KESTREL_HOME}/${user}"
 
         (
             export LANG=C
-            chroot ${image_dir} useradd --uid ${kestrel_user_uid} \
-                                        --gid ${kestrel_user_gid} \
+            chroot ${image_dir} useradd --uid ${user_uid} \
+                                        --gid ${user_gid} \
                                         --shell "/bin/bash" \
                                         --no-create-home \
-                                        --home ${kestrel_home} \
-                                        ${kestrel_user} 
+                                        --home ${user_home} \
+                                        ${user} 
+            
+            # Create a link /home/$user/kestrel -> /kestrel/$user
+            mkdir -p ${image_dir}/home/${user}
+            chown ${user}:${user_group_name} ${image_dir}/home/${user}
+            
+            if [[ ! "/${KESTREL_HOME}/" == "/home/" ]]; then
+                ln -snf ${user_home} ${image_dir}/home/${user}/kestrel
+            fi
         ) &> ${log}
 
         # Only show the output if something went wrong and it wasn't because 
         # the user was already present
         (( $? != 0 && $? != 9 )) && cat ${log}
 
-        for group in ${kestrel_user_groups}; do
-            chroot ${image_dir} usermod -a -G ${group} ${kestrel_user}
+        for group in ${user_groups}; do
+            chroot ${image_dir} usermod -a -G ${group} ${user}
         done &>/dev/null
     done
 
     # Create ssh keys
-    user_sshkeygen ${kestrel_user}
+    user_sshkeygen ${user}
     
     rm ${log}
 }
