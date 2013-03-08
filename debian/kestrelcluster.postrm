@@ -23,7 +23,7 @@ case "$1" in
     ;;
 
     remove)
-        if [ -n "`id -u kestrel`" ]; then
+        if id -u kestrel >/dev/null 2>&1; then
             deluser --remove-home kestrel > /dev/null || true
         fi
     ;;

@@ -29,14 +29,14 @@ KESTREL_REG_NODES=${KESTREL_DATA_DIR}/registered_nodes
 case "$1" in
     configure)
 
-        if [ -z "`id -u kestrel 2> /dev/null`" ]; then
+        if ! id -u kestrel >/dev/null 2>&1; then
             adduser --disabled-password --shell /bin/bash --system --group \
-            --quiet kestrel > /dev/null 2>&1
+            --quiet kestrel >/dev/null 2>&1
         fi
 
         # Create the file of registered nodes
         [ ! -e "${KESTREL_REG_NODES}" ] &&
-        touch ${KESTREL_REG_NODES}
+        touch   ${KESTREL_REG_NODES}
         
     ;;
 
