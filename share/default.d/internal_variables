@@ -88,3 +88,10 @@ HOSTNAME=$(hostname)
 [ -z "${KESTREL_HOSTNAME}" ] && 
 KESTREL_HOSTNAME="kestrel"
 
+
+# Checks
+#########
+
+KESTREL_HOME=${KESTREL_HOME#/}
+KESTREL_HOME=${KESTREL_HOME%/}
+
