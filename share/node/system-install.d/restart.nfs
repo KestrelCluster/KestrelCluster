@@ -1,28 +1,3 @@
 #!/bin/bash
 
-# Restart all the NFS services
-
-if [ -e /etc/init/idmapd.conf ]; then
-    initctl stop idmapd
-    initctl start idmapd
-
-elif [ -x /etc/init.d/idmapd ]; then
-    /etc/init.d/idmapd restart
-
-elif [ -x /etc/init.d/nfs-common ]; then
-    /etc/init.d/nfs-common restart
-
-fi
-
-
-if [ -e /etc/init/statd.conf ]; then
-    initctl stop statd
-    initctl start statd
-
-elif [ -x /etc/init.d/statd ]; then
-    /etc/init.d/statd restart
-
-fi
-
-[ -x /etc/init.d/nfs-kernel-server ] &&
-     /etc/init.d/nfs-kernel-server restart
+exportfs -r
